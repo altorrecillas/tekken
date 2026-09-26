@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Fight lab</title>
+<style>
+html,body{margin:0;height:100%;background:#1a1b1e;overflow:hidden}canvas{display:block}
+.lbl{position:absolute;font:bold 13px monospace;color:#fff;background:rgba(0,0,0,.55);padding:1px 4px;pointer-events:none}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+// Filmstrips of real fight logic (Match + fighters + scripted inputs), rendered frame by frame on a grid floor so
+// foot sliding, stepping, hand and body poses can be judged over consecutive frames.
+// ?p1=&p2=&scn=walk|dash|side|jab|uppercut|block|hit|crouch|turn|combo|b1|d2|...&start=&step=&cols=&rows=&cam=side|feet|hands|front
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { makeFighterMaterial } from './js/materials.js';
+import { Match } from './js/fight/match.js';
+import { B1, B2, B3, B4 } from './js/fight/input.js';
+import { AIController } from './js/fight/ai.js';
+
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const cols = +(q.get('cols') || 6), rows = +(q.get('rows') || 4);
+const step = +(q.get('step') || 2);
+const scn = q.get('scn') || 'walk';
+const camMode = q.get('cam') || 'side';
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H); renderer.toneMapping = THREE.AgXToneMapping; renderer.setScissorTest(true);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2c30);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.7;
+const key = new THREE.DirectionalLight(0xfff1e0, 2.6); key.position.set(2, 5, 4); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 20 }); key.shadow.bias = -0.0004;
+scene.add(key); scene.add(key.target);
+// 10 cm grid floor (sliding feet show against the lines)
+const gc = document.createElement('canvas'); gc.width = gc.height = 512;
+const g2 = gc.getContext('2d'); g2.fillStyle = '#6d6f73'; g2.fillRect(0, 0, 512, 512);
+g2.strokeStyle = '#4a4c50'; g2.lineWidth = 2; for (let i = 0; i <= 10; i++) { g2.beginPath(); g2.moveTo(i * 51.2, 0); g2.lineTo(i * 51.2, 512); g2.stroke(); g2.beginPath(); g2.moveTo(0, i * 51.2); g2.lineTo(512, i * 51.2); g2.stroke(); }
+g2.strokeStyle = '#2f3134'; g2.lineWidth = 5; g2.strokeRect(0, 0, 512, 512);
+const gt = new THREE.CanvasTexture(gc); gt.wrapS = gt.wrapT = THREE.RepeatWrapping; gt.repeat.set(20, 20); gt.anisotropy = 8; gt.colorSpace = THREE.SRGBColorSpace;
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: gt, roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const ids = [q.get('p1') || 'alejandro', q.get('p2') || 'rafa'];
+const datas = await Promise.all(ids.map(loadCharacterData));
+const chars = datas.map(d => { const ch = buildCharacter(d, makeFighterMaterial); ch.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.add(ch.group); return ch; });
+await texturesReady();
+
+// scripted controller: [{ n, fwd, up, press }] (fwd +1 = towards the opponent)
+class Script {
+  constructor(seq) { this.seq = seq.map(s => ({ ...s })); this.prevHeld = 0; }
+  attach(f, m) { this.f = f; this.m = m; }
+  poll() {
+    const cur = this.seq[0] || { fwd: 0, up: 0, press: 0, n: 1 };
+    if (this.seq.length) { cur.n--; if (cur.n <= 0) this.seq.shift(); }
+    const held = cur.press || 0, pressed = held & ~this.prevHeld; this.prevHeld = held;
+    return { dx: (cur.fwd || 0) * this.m.screenForward(this.f), dy: cur.up || 0, held, pressed };
+  }
+}
+const idle = (n) => ({ n });
+const walk = (n, d = 1) => ({ n, fwd: d });
+const tap = (btn, fwd = 0, up = 0) => [{ n: 2, fwd, up, press: btn }, { n: 2, fwd, up }];
+const dash = [{ n: 2, fwd: 1 }, { n: 2 }, { n: 3, fwd: 1 }];
+const SC = {
+  walk: [[idle(10), walk(40), idle(16), walk(34, -1), idle(20)], [idle(200)]],
+  dash: [[idle(10), ...dash, idle(40), { n: 2, fwd: -1 }, { n: 2 }, { n: 3, fwd: -1 }, idle(40)], [idle(200)]],
+  side: [[idle(10), { n: 3, up: 1 }, idle(30), { n: 3, up: -1 }, idle(40)], [idle(200)]],
+  jab: [[idle(8), ...tap(B1), idle(24), ...tap(B2), idle(30), ...tap(B1), idle(40)], [idle(200)]],
+  uppercut: [[idle(8), ...tap(B2, 1, -1), idle(60)], [idle(200)]],
+  kick: [[idle(8), ...tap(B4), idle(50), ...tap(B3), idle(50)], [idle(200)]],
+  block: [[idle(200)], [idle(6), ...tap(B1), idle(20), ...tap(B2), idle(26), ...tap(B4), idle(60)]],
+  hit: [[{ n: 200, fwd: 1 }], [idle(6), ...tap(B1), idle(22), ...tap(B2), idle(30), ...tap(B2, 1, -1), idle(60)]],
+  crouch: [[idle(6), { n: 40, up: -1 }, idle(30), { n: 30, up: -1, fwd: -1 }, idle(30)], [idle(200)]],
+  turn: [[idle(200)], [idle(4), { n: 3, up: 1 }, idle(24), { n: 3, up: 1 }, idle(24), { n: 3, up: 1 }, idle(40)]],
+  combo: [[idle(6), walk(14), ...tap(B1), idle(10), ...tap(B2), idle(20), ...dash, ...tap(B4), idle(40)], [idle(200)]],
+  punches: [[idle(6), ...tap(B1), idle(26), ...tap(B2), idle(30), ...tap(B2, 1, -1), idle(46), ...tap(B1, 1, -1), idle(40)], [idle(300)]],
+  kicks: [[idle(6), ...tap(B3), idle(36), ...tap(B4), idle(42), { n: 3, up: -1 }, ...tap(B3, 0, -1), idle(36)], [idle(300)]],
+  high: [[idle(6), ...tap(B4), idle(60)], [idle(300)]],
+  sweep: [[idle(6), { n: 4, up: -1 }, ...tap(B4, 0, -1), idle(70)], [idle(300)]],
+  lunge: [[idle(6), ...dash, ...tap(B2, 1), idle(60)], [idle(300)]],
+  spin: [[idle(6), ...tap(B4, -1), idle(60)], [idle(300)]],
+  throw1: [[idle(6), ...tap(B1 | B3), idle(110)], [idle(300)]],
+  throw2: [[idle(6), ...tap(B2 | B4), idle(110)], [idle(300)]],
+  special: [[idle(6), ...tap(B1 | B2), idle(70)], [idle(300)]],
+  // b+1 (Camilo's back fist, Dani's liver hook) and d+2 from the crouch (Dani's gazelle punch)
+  b1: [[idle(6), ...tap(B1, -1), idle(60)], [idle(300)]],
+  d2: [[idle(6), { n: 5, up: -1 }, ...tap(B2, 0, -1), idle(70)], [idle(300)]],
+  fly: [[idle(6), ...tap(B3 | B4), idle(70)], [idle(300)]],
+  jumpk: [[idle(6), ...tap(B4, 1, 1), idle(70)], [idle(300)]],
+};
+const game = {
+  fx: { hitSpark() {}, blockSpark() {}, dust() {}, koFlash() {}, sweat() {}, trail() {} },
+  hud: { roundStart() {}, announce() {}, popup() {}, combo() {}, update() {}, hideAll() {}, hideBars() {}, introNames() {}, winner() {} },
+  camCtl: { right: () => new THREE.Vector3(1, 0, 0), forwardFlat: () => new THREE.Vector3(0, 0, -1), setMode() {}, shake() {}, punch() {} },
+  audio: null, stage: { arenaRadius: 6.2 }, onKO() {}, onMatchEnd() {}, ragdolls: { clear() {}, freeze() {} },
+};
+const m = new Match(game, chars, ids, { rounds: 99, time: 99 });
+const seq = SC[scn] || SC.walk;
+// scn=ai: both fighters driven by the game's AI (lvl=1..5), for strips of real fights; the camera stays square
+// to the line between them
+if (scn === 'ai') m.fighters.forEach((f) => { const c = new AIController(+(q.get('lvl') || 4)); c.attach(f, m); f.ctrl = c; });
+else m.fighters.forEach((f, i) => { const s = new Script(seq[i]); s.attach(f, m); f.ctrl = s; });
+m.startRound(); m.phase = 'fight'; m.pt = 0;
+// noguard=1: the second fighter never blocks (to see hits land)
+if (q.get('noguard')) m.fighters[1].updateGuard = function () { this.guard = 'none'; };
+if (q.get('dist')) { const d = +q.get('dist'); m.fighters[0].pos.x = -d / 2; m.fighters[1].pos.x = d / 2; for (const f of m.fighters) { f.prevPos.copy(f.pos); f.feet.reset(); } }
+const start = +(q.get('start') || 0);
+for (let i = 0; i < start; i++) { m.step(); m.events.length = 0; }
+// fixed camera for the whole strip (sliding shows against the grid)
+const [a, b] = m.fighters;
+const mid = new THREE.Vector3().addVectors(a.pos, b.pos).multiplyScalar(0.5);
+const vw = W / cols, vh = H / rows;
+const cam = new THREE.PerspectiveCamera(30, vw / vh, 0.05, 60);
+const focus = q.get('focus') === 'p2' ? b : a;
+const sep = a.pos.distanceTo(b.pos);
+if (camMode === 'side') { const d = Math.max(3.6, sep * 1.25 + 2.2); cam.position.set(mid.x, 1.0, mid.z + d); cam.lookAt(mid.x, 0.85, mid.z); }
+else if (camMode === 'feet') { cam.fov = 22; cam.position.set(focus.pos.x + 0.2, 0.55, focus.pos.z + 2.4); cam.lookAt(focus.pos.x + 0.1, 0.12, focus.pos.z); }
+else if (camMode === 'hands') { cam.fov = 28; cam.position.set(mid.x, 1.45, mid.z + Math.max(2.6, sep * 1.1 + 1.2)); cam.lookAt(mid.x, 1.25, mid.z); }
+else if (camMode === 'front') { cam.position.set(focus.pos.x - 3.2, 1.2, focus.pos.z + 1.2); cam.lookAt(focus.pos.x, 0.9, focus.pos.z); }
+else if (camMode === 'top') { cam.fov = 30; cam.position.set(focus.pos.x + 0.3, 3.2, focus.pos.z + 1.2); cam.lookAt(focus.pos.x + 0.3, 0.0, focus.pos.z); }
+cam.updateProjectionMatrix();
+key.target.position.copy(mid); key.position.copy(mid).add(new THREE.Vector3(2, 5, 4));
+const log = [];
+const follow = q.get('follow') !== '0';
+const camOff = cam.position.clone().sub(camMode === 'side' || camMode === 'hands' ? mid : focus.pos);
+const lookOff = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+  for (const f of m.fighters) f.syncRender(1);
+  if (follow && scn === 'ai') {
+    const mc = new THREE.Vector3().addVectors(a.pos, b.pos).multiplyScalar(0.5); mc.y = 0;
+    const ax = new THREE.Vector3().subVectors(b.pos, a.pos); ax.y = 0;
+    const n = new THREE.Vector3(-ax.z, 0, ax.x).normalize();
+    if (window.__camN && n.dot(window.__camN) < 0) n.negate();
+    window.__camN = n.clone();
+    const d = Math.max(3.6, ax.length() * 1.25 + 2.2);
+    cam.position.copy(mc).addScaledVector(n, d); cam.position.y = 1.0; cam.lookAt(mc.x, 0.85, mc.z);
+    key.target.position.copy(mc); key.position.copy(mc).add(new THREE.Vector3(2, 5, 4));
+  } else if (follow) {
+    const tgt = camMode === 'side' || camMode === 'hands' ? new THREE.Vector3().addVectors(a.pos, b.pos).multiplyScalar(0.5) : focus.pos.clone();
+    tgt.y = 0; cam.position.copy(tgt).add(camOff);
+  }
+  const y = H - (r + 1) * vh;
+  renderer.setViewport(c * vw, y, vw, vh); renderer.setScissor(c * vw, y, vw, vh);
+  renderer.render(scene, cam);
+  const el = document.createElement('div'); el.className = 'lbl'; el.style.left = (c * vw + 3) + 'px'; el.style.top = (r * vh + 3) + 'px';
+  el.textContent = `${m.frame} ${a.state === 'move' ? a.moveName : a.state}/${b.state === 'move' ? b.moveName : b.state}`;
+  document.body.appendChild(el);
+  log.push({ frame: m.frame, a: a.state, b: b.state, clipA: a.clipName });
+  for (let k = 0; k < step; k++) { m.step(); m.events.length = 0; }
+}
+window.__log = log;
+window.__ready = true;
+</script>
+</body>
+</html>

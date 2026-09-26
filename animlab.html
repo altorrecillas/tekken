@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anim lab</title>
+<style>html,body{margin:0;height:100%;background:#1a1b1e;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { makeFighterMaterial } from './js/materials.js';
+import { Rig, newPose } from './js/anim/rig.js';
+import { buildMoves, buildClips } from './js/fight/moves.js';
+import { STYLES } from './js/fight/styles.js';
+
+const q = new URLSearchParams(location.search);
+const id = q.get('id') || 'alejandro';
+const vid = q.get('vs') || 'rafa';
+const moveName = q.get('move') || 'jab';
+const frames = (q.get('frames') || '0,4,8,12,16,24').split(',').map(Number);
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const dist = +(q.get('dist') || 1.05);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H); renderer.toneMapping = THREE.AgXToneMapping; renderer.setScissorTest(true);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2c30);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.7;
+const key = new THREE.DirectionalLight(0xfff1e0, 2.4); key.position.set(1.5, 3, 2.5); scene.add(key);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const grid = new THREE.GridHelper(10, 40, 0x555555, 0x444444); grid.position.y = 0.002; scene.add(grid);
+
+async function makeFighter(cid) {
+  const data = await loadCharacterData(cid);
+  const ch = buildCharacter(data, makeFighterMaterial);
+  const rig = new Rig(ch);
+  scene.add(ch.group);
+  const style = STYLES[cid];
+  return { ch, rig, clips: buildClips(style), moves: buildMoves(style) };
+}
+const A = await makeFighter(id);
+const B = await makeFighter(vid);
+await texturesReady();
+// A at x=0 facing +x (rotate so +z -> +x), B at dist facing -x
+A.ch.group.rotation.y = Math.PI / 2;
+B.ch.group.rotation.y = -Math.PI / 2;
+B.ch.group.position.x = dist;
+const pose = newPose();
+const moveNames = (q.get('moves') || moveName).split(',');
+const cols = +(q.get('cols') || 6);
+const rows = moveNames.length;
+const vw = W / cols, vh = H / rows;
+const cam = new THREE.PerspectiveCamera(30, vw / vh, 0.05, 50);
+cam.position.set(dist / 2, 1.0, 4.3); cam.lookAt(dist / 2, 0.9, 0);
+if (q.get('zoom') === 'hips') { cam.position.set(0.1, 0.9, 1.9); cam.lookAt(0.1, 0.75, 0); }
+if (q.get('zoom') === 'hipsfront') { cam.position.set(1.6, 0.85, 0.3); cam.lookAt(0.05, 0.75, 0); }
+// 3/4 front view of the attacker (hip turn, pivots and arm paths read better than in pure profile)
+if (q.get('cam') === 'front') { cam.position.set(dist / 2 + 1.9, 1.15, 3.3); cam.lookAt(dist / 2 - 0.1, 0.9, 0); }
+if (q.get('cam') === 'back') { cam.position.set(-2.4, 1.2, 2.6); cam.lookAt(dist / 2, 0.95, 0); }
+const hitDot = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.45 }));
+scene.add(hitDot);
+const LIMB = { handL: 'wrist.L', handR: 'wrist.R', footL: 'foot.L', footR: 'foot.R', kneeR: 'lowerleg01.R', kneeL: 'lowerleg01.L', head: 'head', belly: 'spine04', forearmR: 'lowerarm02.R', forearmL: 'lowerarm02.L' };
+moveNames.forEach((mn, r) => {
+  const move = A.moves[mn] || { clip: A.clips[mn] };
+  const clip = move.clip;
+  const total = move.total || clip.length;
+  let fr;
+  if (q.get('dense') && move.hit) {
+    // evenly spaced over the whole move, with the first active frame always included
+    fr = Array.from({ length: cols }, (_, i) => Math.round(i * total / (cols - 1)));
+    const h0 = move.hit.f[0]; let k = 0; fr.forEach((v, i) => { if (Math.abs(v - h0) < Math.abs(fr[k] - h0)) k = i; }); fr[k] = h0;
+  } else if (move.hit) { const h0 = move.hit.f[0]; fr = [0, Math.round(h0 * 0.4), Math.round(h0 * 0.75), h0, move.hit.f[1] + 4, Math.round((move.hit.f[1] + total) / 2), total]; }
+  else fr = Array.from({ length: cols }, (_, i) => Math.round(i * total / (cols - 1)));
+  fr = fr.slice(0, cols);
+  const advanceAt = (f) => { const adv = move.advance; if (!adv) return 0;
+    for (let i = 1; i < adv.length; i++) if (f <= adv[i][0]) { const t = (f - adv[i - 1][0]) / (adv[i][0] - adv[i - 1][0]); return adv[i - 1][1] + (adv[i][1] - adv[i - 1][1]) * t; }
+    return adv[adv.length - 1][1]; };
+  fr.forEach((f, i) => {
+    clip.sample(f, pose);
+    A.rig.lookTarget = new THREE.Vector3(0, 1.55, 3);
+    A.rig.apply(pose);
+    A.ch.group.position.x = advanceAt(f);
+    B.clips.idle.sample(0, pose);
+    B.rig.lookTarget = new THREE.Vector3(0, 1.55, 3);
+    B.rig.apply(pose);
+    A.ch.group.updateMatrixWorld(true);
+    hitDot.visible = false;
+    if (move.hit && f >= move.hit.f[0] && f <= move.hit.f[1]) {
+      const p = new THREE.Vector3(); A.ch.bones[LIMB[move.hit.limb]].getWorldPosition(p);
+      hitDot.position.copy(p); hitDot.scale.setScalar(move.hit.r); hitDot.visible = true;
+    }
+    const y = H - (r + 1) * vh;
+    renderer.setViewport(i * vw, y, vw, vh); renderer.setScissor(i * vw, y, vw, vh);
+    renderer.render(scene, cam);
+    const act = move.hit && f >= move.hit.f[0] && f <= move.hit.f[1];
+    const el = document.createElement('div');
+    el.style.cssText = `position:absolute;left:${i * vw + 3}px;top:${r * vh + 3}px;font:bold 12px monospace;color:${act ? '#ff6b5b' : '#fff'};background:rgba(0,0,0,.55);padding:1px 4px`;
+    el.textContent = `${i === 0 ? mn + ' ' : ''}f${f}${act ? ' HIT' : ''}`;
+    document.body.appendChild(el);
+  });
+});
+window.__ready = true;
+</script>
+</body>
+</html>

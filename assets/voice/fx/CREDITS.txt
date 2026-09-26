@@ -1,0 +1,17 @@
+Gritos de los luchadores (assets/voice/fx)
+
+vb/  (Alejandro)
+  "EFFORT SOUNDS (Male) - Audio Pack" y "DAMAGE SOUNDS (Male) - Audio Pack", por VoiceBosch
+  https://opengameart.org/content/effort-sounds-male-audio-pack
+  https://opengameart.org/content/damage-sounds-male-audio-pack
+  Licencia: CC-BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+  Cambios: recortados, mezclados a mono y con el volumen igualado. Estos archivos modificados se
+  distribuyen bajo la misma licencia CC-BY-SA 4.0.
+
+h0/ h1/ h2/ h3/  (Camilo, Arnau, Rafa, Zapponi)
+  "Male Grunt/Yelling sounds", por HaelDB
+  https://opengameart.org/content/male-gruntyelling-sounds
+  Licencia: CC0 (también publicada como OGA-BY 3.0)
+  Cambios: recortados, mezclados a mono y con el volumen igualado.
+
+voices.json indica qué clip es de ataque, de dolor, de golpe fuerte o de K.O. en cada voz.

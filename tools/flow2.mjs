@@ -1,0 +1,23 @@
+// UI flow test 2: title -> versus -> select (cycle stage to the street) -> both players confirm -> fight on the street
+import {chromium} from 'playwright';
+import http from 'http'; import fs from 'fs'; import path from 'path';
+const root=process.env.GAME_ROOT||decodeURIComponent(new URL('..', import.meta.url).pathname).replace(/\/$/, '');
+const types={'.html':'text/html','.js':'text/javascript','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.bin':'application/octet-stream','.ttf':'font/ttf'};
+const srv=http.createServer((q,r)=>{const p=path.join(root,decodeURIComponent(q.url.split('?')[0]));fs.readFile(p,(e,d)=>{if(e){r.writeHead(404);return r.end();}r.writeHead(200,{'Content-Type':types[path.extname(p)]||'application/octet-stream'});r.end(d);});}).listen(0,'127.0.0.1');
+await new Promise(r=>srv.on('listening',r)); const PORT=srv.address().port;
+const b=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const p=await b.newPage({viewport:{width:960,height:540}});
+p.on('pageerror',e=>console.log('PAGEERROR',e.message));
+p.on('console',m=>{ if(m.type()==='error' && !m.text().includes('404')) console.log('console.error', m.text()); });
+await p.goto(`http://127.0.0.1:${PORT}/index.html?q=low&nodynres=1`);
+const st = async () => JSON.parse(await p.evaluate(() => window.__debug ? window.__debug() : '{}'));
+const waitState = async (s, to=300000) => { const t0=Date.now(); while(Date.now()-t0<to){ const d=await st(); if(d.state===s) return d; await p.waitForTimeout(1000);} throw new Error('timeout waiting '+s+' last='+JSON.stringify(await st())); };
+const key = async (k) => { await p.keyboard.down(k); await p.waitForTimeout(250); await p.keyboard.up(k); await p.waitForTimeout(700); };
+let d = await waitState('title'); console.log('1 title ok, stage', d.stage);
+await key('ArrowDown'); await key('Enter'); d = await waitState('select'); console.log('2 versus select ok');
+await key('KeyS'); const bar = await p.evaluate(() => document.querySelector('#select .stagebar').textContent); console.log('3 stage bar:', bar.trim());
+await key('KeyU'); await key('ArrowRight'); await key('Numpad4');
+d = await waitState('fight'); console.log('4 fight started on', d.stage, d.f && d.f.map(x=>x.id));
+await p.waitForTimeout(6000);
+await key('Escape'); d = await waitState('pause'); console.log('5 paused');
+await b.close(); srv.close();

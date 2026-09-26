@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Crowd bake</title>
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head><body><script type="module">
+// Bakes the street-stage crowd: the real fighter meshes re-dressed and posed as spectators, rendered into a
+// 16 x 4 sprite atlas (128 x 256 cells) with alpha. tools/crowdbake.mjs saves window.__atlas to assets/stage.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { makeFighterMaterial } from './js/materials.js';
+import { Rig } from './js/anim/rig.js';
+import { makePose } from './js/anim/poses.js';
+
+const COLS = 16, ROWS = 4, CW = 128, CH = 256;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true, premultipliedAlpha: false });
+renderer.setPixelRatio(1); renderer.setSize(COLS * CW, ROWS * CH);
+// albedo-like bake: soft sky light only and no tone mapping, the street stage lights the sprites itself
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.9;
+const fill = new THREE.DirectionalLight(0xffffff, 0.6); fill.position.set(0, 2.5, 3); scene.add(fill);
+scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x7a6a5a, 0.9));
+const cam = new THREE.OrthographicCamera(-0.475, 0.475, 0.95, -0.95, 0.1, 20);
+cam.position.set(0, 0.95, 6); cam.lookAt(0, 0.95, 0);
+
+let seed = 99;
+const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const pick = (a) => a[Math.floor(rnd() * a.length)];
+const SHIRTS = ['#c0392b', '#2e5fa8', '#f1c40f', '#27ae60', '#ecf0f1', '#2c3e50', '#e67e22', '#8e44ad', '#16a085', '#d35400', '#7f8c8d', '#e84393', '#1abc9c', '#34495e', '#f5f5f0', '#b33939'];
+const PANTS = ['#1f2a3a', '#2d2d2d', '#3b4a63', '#5a4a3a', '#222222', '#6b6f75', '#1c3d5a'];
+const POSES = [
+  {}, // arms down
+  { handL: [0.22, 0.95, 0.12], handR: [0.2, 0.95, 0.15], poleL: [0.6, 0.6, -0.2], poleR: [0.6, 0.6, -0.2], fistL: 0.6, fistR: 0.6, neck: [-0.1, 0, 0] }, // cheering
+  { handL: [-0.32, -0.08, 0.55], handR: [-0.32, -0.05, 0.55], poleL: [0.4, -1, -0.2], poleR: [0.4, -1, -0.2], fistL: 0.05, fistR: 0.05 }, // clapping
+  { handR: [0.25, 0.95, 0.2], poleR: [0.6, 0.6, -0.2], fistR: 0.1 }, // waving
+  { handL: [0.05, -0.35, 0.72], handR: [0.05, -0.35, 0.72], fistL: 0.5, fistR: 0.5 }, // leaning on the barrier
+  { handR: [-0.05, 0.35, 0.62], poleR: [0.3, -1, -0.2], fistR: 0.7, twistR: -1.2 }, // filming with a phone
+];
+const ids = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani'];
+const chars = {};
+for (const id of ids) chars[id] = await loadCharacterData(id);
+await texturesReady();
+
+let cell = 0;
+const total = COLS * ROWS;
+renderer.setScissorTest(true);
+renderer.clear();
+while (cell < total) {
+  const id = ids[cell % ids.length];
+  const ch = buildCharacter(chars[id], makeFighterMaterial);
+  const shirt = new THREE.Color(pick(SHIRTS)), pants = new THREE.Color(pick(PANTS));
+  // more people than five faces: vary skin tone and hair colour per spectator
+  const skinK = 0.72 + rnd() * 0.38;
+  const hairC = new THREE.Color(pick(['#1a1410', '#2b1d14', '#4a3222', '#6b4a2e', '#8f7355', '#b9a27f', '#9a9a98', '#141414']));
+  ch.group.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const m = o.material;
+    const n = o.name.toLowerCase();
+    // re-dress: garments become plain random colours (normal maps keep the folds), gear/bibs hidden
+    if (/vest|bib|strap|patch|gear|medal|pocket/.test(n)) { o.visible = false; return; }
+    if (n === 'body' || n === 'head') { m.color = new THREE.Color(skinK, skinK * (0.97 + rnd() * 0.04), skinK * (0.93 + rnd() * 0.06)); m.needsUpdate = true; return; }
+    if (n.startsWith('hair')) { m.color = hairC.clone().multiplyScalar(1.6); m.needsUpdate = true; return; }
+    if (/shirt|polo|tee|top|jacket|collar|buttons/.test(n)) { m.map = null; m.color = shirt.clone().multiplyScalar(0.85 + rnd() * 0.2); m.needsUpdate = true; }
+    else if (/short|pant|trouser/.test(n)) { m.map = null; m.color = pants.clone(); m.needsUpdate = true; }
+  });
+  scene.add(ch.group);
+  const rig = new Rig(ch);
+  rig.lookTarget = new THREE.Vector3((rnd() - 0.5) * 2, 1.4 + rnd() * 0.4, 4);
+  const pose = POSES[Math.floor(rnd() * POSES.length)];
+  rig.apply(makePose(pose));
+  ch.group.rotation.y = (rnd() - 0.5) * 0.7;
+  ch.group.updateMatrixWorld(true);
+  await texturesReady();
+  const col = cell % COLS, row = Math.floor(cell / COLS);
+  const x = col * CW, y = (ROWS - 1 - row) * CH; // WebGL viewport origin is bottom-left
+  renderer.setViewport(x, y, CW, CH); renderer.setScissor(x, y, CW, CH);
+  renderer.render(scene, cam);
+  scene.remove(ch.group);
+  ch.group.traverse(o => o.geometry?.dispose?.());
+  cell++;
+}
+window.__atlas = renderer.domElement.toDataURL('image/png');
+window.__ready = true;
+</script></body></html>

@@ -1,0 +1,9 @@
+Background music (re-encoded: 32 Hz high-pass, loudness normalized to -16 LUFS, 112 kbps MP3)
+
+menu.mp3     "Latin Industries"   Kevin MacLeod (incompetech.com)
+terrace.mp3  "Exit the Premises"  Kevin MacLeod (incompetech.com)
+street.mp3   "Club Diver"         Kevin MacLeod (incompetech.com)
+porche.mp3   "MTA"                Kevin MacLeod (incompetech.com)
+
+Licensed under Creative Commons: By Attribution 4.0 License
+http://creativecommons.org/licenses/by/4.0/

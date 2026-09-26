@@ -1,0 +1,2 @@
+for a in alejandro arnau camilo rafa zapponi dani; do for b in alejandro arnau camilo rafa zapponi dani; do [ $a = $b ] && continue; for k in 1 2 3 4 5; do node --import ./register.mjs simtest.mjs $a $b 30000 4 4 2>&1 | tail -1 | python3 -c "
+import sys,json; d=json.loads(sys.stdin.read()); print('$a','$b',d.get('matchWinner'),d['wins'],d['frames'],d['hits'],d['blocks'],d['maxStuck'],sorted(d['moves'].items(),key=lambda x:-x[1])[:4])"; done; done; done

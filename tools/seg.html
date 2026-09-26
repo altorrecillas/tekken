@@ -1,0 +1,16 @@
+<html><body><script type="module">
+import {ImageSegmenter, FilesetResolver} from './node_modules/@mediapipe/tasks-vision/vision_bundle.mjs';
+window.run = async (files) => {
+  const fs = await FilesetResolver.forVisionTasks('./node_modules/@mediapipe/tasks-vision/wasm');
+  const seg = await ImageSegmenter.createFromOptions(fs, {baseOptions:{modelAssetPath:'./selfie_multiclass.tflite', delegate:'CPU'}, runningMode:'IMAGE', outputCategoryMask:false, outputConfidenceMasks:true});
+  const out = {};
+  for (const f of files) {
+    const img = new Image(); img.src = f; await img.decode();
+    const r = seg.segment(img);
+    const masks = r.confidenceMasks.map(m => { const a = m.getAsFloat32Array(); return {w: m.width, h: m.height, d: Array.from(a, v => Math.round(v * 255))}; });
+    out[f] = masks;
+  }
+  return out;
+};
+window.ready = true;
+</script></body></html>

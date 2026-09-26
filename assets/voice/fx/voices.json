@@ -1,0 +1,152 @@
+{
+ "vb": {
+  "attack": [
+   "vb/attack0.mp3",
+   "vb/attack1.mp3",
+   "vb/attack2.mp3",
+   "vb/attack3.mp3",
+   "vb/attack4.mp3",
+   "vb/attack5.mp3",
+   "vb/attack6.mp3",
+   "vb/attack7.mp3",
+   "vb/attack8.mp3",
+   "vb/attack9.mp3",
+   "vb/attack10.mp3",
+   "vb/attack11.mp3"
+  ],
+  "hurt": [
+   "vb/hurt0.mp3",
+   "vb/hurt1.mp3",
+   "vb/hurt2.mp3",
+   "vb/hurt3.mp3",
+   "vb/hurt4.mp3",
+   "vb/hurt5.mp3",
+   "vb/hurt6.mp3",
+   "vb/hurt7.mp3",
+   "vb/hurt8.mp3",
+   "vb/hurt9.mp3",
+   "vb/hurt10.mp3",
+   "vb/hurt11.mp3"
+  ],
+  "hurtBig": [
+   "vb/hurtBig0.mp3",
+   "vb/hurtBig1.mp3",
+   "vb/hurtBig2.mp3",
+   "vb/hurtBig3.mp3",
+   "vb/hurtBig4.mp3"
+  ],
+  "ko": [
+   "vb/ko0.mp3",
+   "vb/ko1.mp3",
+   "vb/ko2.mp3"
+  ]
+ },
+ "h1": {
+  "attack": [
+   "h1/attack0.mp3",
+   "h1/attack1.mp3",
+   "h1/attack2.mp3",
+   "h1/attack3.mp3",
+   "h1/attack4.mp3",
+   "h1/attack5.mp3",
+   "h1/attack6.mp3"
+  ],
+  "hurt": [
+   "h1/hurt0.mp3",
+   "h1/hurt1.mp3",
+   "h1/hurt2.mp3",
+   "h1/hurt3.mp3",
+   "h1/hurt4.mp3",
+   "h1/hurt5.mp3"
+  ],
+  "hurtBig": [
+   "h1/hurtBig0.mp3",
+   "h1/hurtBig1.mp3",
+   "h1/hurtBig2.mp3"
+  ],
+  "ko": [
+   "h1/ko0.mp3",
+   "h1/ko1.mp3"
+  ]
+ },
+ "h0": {
+  "attack": [
+   "h0/attack0.mp3",
+   "h0/attack1.mp3",
+   "h0/attack2.mp3",
+   "h0/attack3.mp3",
+   "h0/attack4.mp3"
+  ],
+  "hurt": [
+   "h0/hurt0.mp3",
+   "h0/hurt1.mp3",
+   "h0/hurt2.mp3",
+   "h0/hurt3.mp3",
+   "h0/hurt4.mp3"
+  ],
+  "hurtBig": [
+   "h0/hurtBig0.mp3",
+   "h0/hurtBig1.mp3",
+   "h0/hurtBig2.mp3"
+  ],
+  "ko": [
+   "h0/ko0.mp3",
+   "h0/ko1.mp3",
+   "h0/ko2.mp3"
+  ]
+ },
+ "h2": {
+  "attack": [
+   "h2/attack0.mp3",
+   "h2/attack1.mp3",
+   "h2/attack2.mp3",
+   "h2/attack3.mp3",
+   "h2/attack4.mp3"
+  ],
+  "hurt": [
+   "h2/hurt0.mp3",
+   "h2/hurt1.mp3",
+   "h2/hurt2.mp3",
+   "h2/hurt3.mp3"
+  ],
+  "hurtBig": [
+   "h2/hurtBig0.mp3",
+   "h2/hurtBig1.mp3",
+   "h2/hurtBig2.mp3"
+  ],
+  "ko": [
+   "h2/ko0.mp3",
+   "h2/ko1.mp3"
+  ]
+ },
+ "h3": {
+  "attack": [
+   "h3/attack0.mp3",
+   "h3/attack1.mp3",
+   "h3/attack2.mp3",
+   "h3/attack3.mp3",
+   "h3/attack4.mp3",
+   "h3/attack5.mp3"
+  ],
+  "hurt": [
+   "h3/hurt0.mp3",
+   "h3/hurt1.mp3",
+   "h3/hurt2.mp3",
+   "h3/hurt3.mp3",
+   "h3/hurt4.mp3",
+   "h3/hurt5.mp3"
+  ],
+  "hurtBig": [
+   "h3/hurtBig0.mp3",
+   "h3/hurtBig1.mp3",
+   "h3/hurtBig2.mp3",
+   "h3/hurtBig3.mp3",
+   "h3/hurtBig4.mp3"
+  ],
+  "ko": [
+   "h3/ko0.mp3",
+   "h3/ko1.mp3",
+   "h3/ko2.mp3"
+  ]
+ }
+}

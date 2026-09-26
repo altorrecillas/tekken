@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Visor de luchadores</title>
+<style>html,body{margin:0;height:100%;background:#1a1b1e;overflow:hidden}canvas{display:block}#info{position:fixed;left:10px;top:10px;color:#ccc;font:12px monospace}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head>
+<body>
+<div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { makeFighterMaterial } from './js/materials.js';
+import { Accessories } from './js/fx/accessories.js';
+import { STYLES } from './js/fight/styles.js';
+
+const q = new URLSearchParams(location.search);
+const id = q.get('id') || 'alejandro';
+const view = q.get('view') || 'full';
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.AgXToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2c30);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const cam = new THREE.PerspectiveCamera(view === 'face' ? 22 : 30, W / H, 0.05, 50);
+const key = new THREE.DirectionalLight(0xfff1e0, 2.6);
+key.position.set(1.5, 3, 2.5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -1.2; key.shadow.camera.right = 1.2; key.shadow.camera.top = 2.2; key.shadow.camera.bottom = -0.2;
+key.shadow.bias = -0.0002; key.shadow.normalBias = 0.01;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xbfd8ff, 1.6); rim.position.set(-2, 2.5, -2.5); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(3, 64), new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+const ids = (q.get('ids') || id).split(',');
+let ch, data;
+for (let i = 0; i < ids.length; i++) {
+  data = await loadCharacterData(ids[i]);
+  ch = buildCharacter(data, makeFighterMaterial);
+  new Accessories().attach(ch, STYLES[ids[i]], data.meta);
+  ch.group.position.x = (i - (ids.length - 1) / 2) * 0.95;
+  if (q.get('rot')) ch.group.rotation.y = +q.get('rot');
+  scene.add(ch.group);
+}
+if (ids.length > 1) { key.shadow.camera.left = -3; key.shadow.camera.right = 3; key.shadow.camera.updateProjectionMatrix(); }
+if (q.get('lids')) { const a = +q.get('lids'); for (const s of ['L', 'R']) { ch.bones['orbicularis03.' + s].rotation.x = a; ch.bones['orbicularis04.' + s].rotation.x = -a * (+q.get('low') || 0.3); } }
+if (q.get('clay')) ch.group.traverse(o => { if (o.isMesh && o.material && o.name === 'head') { o.material = new THREE.MeshStandardMaterial({ color: 0xb8a89a, roughness: 0.6 }); } });
+if (q.get('nonormal')) ch.group.traverse(o => { if (o.material && o.material.normalMap) { o.material.normalMap = null; o.material.needsUpdate = true; } });
+if (q.get('nosheen')) ch.group.traverse(o => { if (o.material && 'sheen' in o.material) { o.material.sheen = 0; o.material.needsUpdate = true; } });
+await texturesReady();
+const h = data.meta.height;
+const controls = new OrbitControls(cam, renderer.domElement);
+if (view === 'portrait') {
+  const hb = ch.rest['head'].head;
+  scene.background = new THREE.Color(0x14131a);
+  floor.visible = false;
+  key.position.set(1.2, 2.2, 2.4); key.intensity = 3.2;
+  rim.intensity = 3.5; rim.position.set(-1.5, 1.8, -1.6);
+  cam.fov = 26; cam.updateProjectionMatrix();
+  controls.target.set(0, hb.y + 0.02, 0.02);
+  cam.position.set(0.28, hb.y + 0.06, 1.25);
+  const b = ch.bones;
+  b['upperarm01.L'].rotation.set(0, 0, -0.55); b['upperarm01.R'].rotation.set(0, 0, 0.55);
+} else if (view === 'face') {
+  const hb = ch.rest['head'].head;
+  const ty = +(q.get('ty') || 0);
+  controls.target.set(0, hb.y + 0.07 + ty, 0.03);
+  cam.position.set(+q.get('az') || 0, hb.y + 0.09 + ty, +(q.get('dist') || 0.75));
+  if (q.get('armsdown')) { ch.bones['upperarm01.L'].rotation.set(0, 0, -0.55); ch.bones['upperarm01.R'].rotation.set(0, 0, 0.55); }
+  if (q.get('fov')) { cam.fov = +q.get('fov'); cam.updateProjectionMatrix(); }
+} else {
+  controls.target.set(0, h * 0.52, 0);
+  cam.position.set(+q.get('az') || 0.9, h * 0.6, ids.length > 1 ? 6.5 : 4.2);
+}
+controls.update();
+if (q.get('pose') === 'guard') {
+  const b = ch.bones;
+  const e = (n, x, y, z) => b[n] && b[n].rotation.set(x, y, z);
+  e('upperarm01.L', 0.2, 0, 0.9); e('upperarm01.R', 0.2, 0, -0.9);
+  e('lowerarm01.L', -1.8, 0, 0); e('lowerarm01.R', -1.8, 0, 0);
+}
+document.getElementById('info').textContent = `${data.meta.display}  ${h.toFixed(2)} m  bones ${data.meta.bones.length}`;
+function frame() {
+  if (window.__stopped) return;
+  controls.update(); renderer.render(scene, cam);
+  if (window.__stopAfterNext) { window.__stopped = true; return; }
+  requestAnimationFrame(frame);
+}
+frame();
+setTimeout(() => (window.__ready = true), 1500);
+</script>
+</body>
+</html>

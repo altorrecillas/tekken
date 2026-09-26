@@ -1,0 +1,33 @@
+# Puños de Barrio: lo que no se sube a GitHub
+
+# ficheros apartados que el juego no usa (se pueden borrar)
+_sin_usar/
+
+# fotos originales de los luchadores: solo las usa tools/pipeline para generar los personajes y el juego no las
+# necesita. Si quieres guardarlas también en GitHub (mejor en un repositorio privado), borra estas cuatro líneas.
+/*_foto*.jpg
+/alejandro.jpg
+/camilo.jpg
+/dani[0-9]*.jpg
+# captura original del escenario El Porche (lleva la dirección y la interfaz del mapa; el juego usa assets/stage/porche_*.jpg)
+/escenario.jpg
+
+# dependencias, cachés y temporales
+node_modules/
+__pycache__/
+*.pyc
+*.log
+*.tmp
+
+# sistema, editores y Dropbox
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.dropbox*
+*conflicted copy*
+*Copia en conflicto*
+
+# configuración local del asistente de IA
+.claude/
+CLAUDE.md

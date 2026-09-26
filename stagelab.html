@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Stage lab</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head><body><script type="module">
+import * as THREE from 'three';
+import { PostFX } from './js/engine/post.js';
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+if (q.get('nancheck')) THREE.ShaderChunk.opaque_fragment = THREE.ShaderChunk.opaque_fragment.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+  'gl_FragColor = vec4( outgoingLight, diffuseColor.a ); if ( any( isnan( outgoingLight ) ) ) gl_FragColor = vec4( 1.0, 0.0, 1.0, 1.0 ); else if ( any( isinf( outgoingLight ) ) || max( outgoingLight.r, max( outgoingLight.g, outgoingLight.b ) ) > 60000.0 ) gl_FragColor = vec4( 0.0, 1.0, 0.0, 1.0 );');
+renderer.setSize(W, H); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(34, W / H, 0.05, 900);
+const name = q.get('stage') || 'street';
+const MODS = { street: ['./js/stage/street.js', 'StreetStage'], terrace: ['./js/stage/terrace.js', 'TerraceStage'], porche: ['./js/stage/porche.js', 'PorcheStage'] };
+const [path, cls] = MODS[name] || MODS.street;
+const Stage = (await import(path))[cls];
+const stage = new Stage(renderer, scene, q.get('q') || 'high');
+await stage.ready();
+stage.bakeEnvironment();
+// stand-in fighters (capsules) for scale
+for (const x of [-1.25, 1.25]) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.3, 6, 16), new THREE.MeshStandardMaterial({ color: 0x8a6a5a, roughness: 0.6 })); m.position.set(x, 0.87, 0); m.castShadow = true; scene.add(m); }
+if (q.get('pole')) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 0.3), new THREE.MeshStandardMaterial({ color: 0xff2222 })); m.position.set(0, 2, 0); m.castShadow = true; scene.add(m);
+  const mk = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 2), new THREE.MeshStandardMaterial({ color: 0x2222ff })); mk.position.set(0, 0.2, -3); scene.add(mk); }
+const ang = +(q.get('ang') || 0);
+cam.position.set(Math.sin(ang) * 4.6, 1.35, Math.cos(ang) * 4.6); cam.lookAt(0, 1.05, 0);
+if (q.get('cam')) { const v = q.get('cam').split(',').map(Number); cam.position.set(v[0], v[1], v[2]); cam.lookAt(v[3], v[4], v[5]); if (v[6]) { cam.fov = v[6]; cam.updateProjectionMatrix(); } }
+const post = new PostFX(renderer, scene, cam, q.get('q') || 'high');
+if (q.get('nobloom') && post.bloom) post.bloom.enabled = false;
+if (q.get('nofinal')) { post.final.uniforms.sharpen.value = 0; }
+stage.followShadow(new THREE.Vector3(), 2.5); stage.followCamera(cam, new THREE.Vector3());
+stage.update(0.016, cam);
+if (q.get('post') === '0') { renderer.toneMapping = THREE.AgXToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.info.autoReset = false; renderer.info.reset(); renderer.render(scene, cam); console.log('CALLS', renderer.info.render.calls, 'TRIS', renderer.info.render.triangles); }
+else { post.render(0.016); post.render(0.016); }
+if (q.get('hdrcheck')) {
+  const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType });
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null);
+  const buf = new Uint16Array(W * H * 4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+  let bad = 0, neg = 0, maxv = 0; const where = [];
+  for (let i = 0; i < W * H; i++) for (let c = 0; c < 3; c++) {
+    const h = buf[i * 4 + c];
+    if ((h & 0x7C00) === 0x7C00) { bad++; if (where.length < 12) where.push([i % W, H - 1 - Math.floor(i / W), c, h.toString(16)]); }
+    else { if (h & 0x8000 && (h & 0x7fff)) neg++; const e = (h >> 10) & 31; if (e > maxv) maxv = e; }
+  }
+  console.log('HDRCHECK bad', bad, 'neg', neg, 'maxExp', maxv, JSON.stringify(where));
+}
+window.__ready = true;
+</script></body></html>

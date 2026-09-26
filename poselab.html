@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Pose lab</title>
+<style>html,body{margin:0;height:100%;background:#1a1b1e;overflow:hidden}canvas{display:block}#info{position:fixed;left:10px;top:10px;color:#ccc;font:12px monospace}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head>
+<body>
+<div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { makeFighterMaterial } from './js/materials.js';
+import { Rig } from './js/anim/rig.js';
+if (new URLSearchParams(location.search).get('fs')) Rig.FINGER_SIGN = +new URLSearchParams(location.search).get('fs');
+import { LIB, makePose } from './js/anim/poses.js';
+
+const q = new URLSearchParams(location.search);
+const ids = (q.get('ids') || 'alejandro').split(',');
+const poses = (q.get('poses') || 'stance').split(',');
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H); renderer.toneMapping = THREE.AgXToneMapping;
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2c30);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const key = new THREE.DirectionalLight(0xfff1e0, 2.6); key.position.set(1.5, 3, 2.5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -4, right: 4, top: 3, bottom: -1 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xbfd8ff, 1.4); rim.position.set(-2, 2.5, -2.5); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x3a3b3e, roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+if (q.get('topp')) Rig.THUMB_OPP = +q.get('topp');
+if (q.get('tsign')) Rig.THUMB_SIGN = +q.get('tsign');
+if (q.get('tbase')) Rig.THUMB_BASE = +q.get('tbase');
+const n = Math.max(ids.length, poses.length);
+const side = q.get('side') === '1';
+for (let i = 0; i < n; i++) {
+  const data = await loadCharacterData(ids[i % ids.length]);
+  const ch = buildCharacter(data, makeFighterMaterial);
+  const rig = new Rig(ch);
+  rig.lookTarget = new THREE.Vector3(0, 1.5, 3);
+  rig.apply(makePose(LIB[poses[i % poses.length]] || {}));
+  const fmt = v => v.toArray().map(x => x.toFixed(3)).join(',');
+  console.log('DBGPOS', ids[i % ids.length], 'head', fmt(rig.world.head.p), 'wristL', fmt(rig.world['wrist.L'].p), 'wristR', fmt(rig.world['wrist.R'].p), 'shL', fmt(rig.world['upperarm01.L'].p), 'shR', fmt(rig.world['upperarm01.R'].p));
+  ch.group.position.x = (i - (n - 1) / 2) * 1.1;
+  if (side) ch.group.rotation.y = Math.PI / 2;
+  scene.add(ch.group);
+}
+await texturesReady();
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.05, 50);
+cam.position.set(0, 1.2, n > 2 ? 7 : 4.6); cam.lookAt(0, 0.95, 0);
+if (q.get('cam') === 'side') { cam.position.set(4.5, 1.2, 0.5); cam.lookAt(0, 0.95, 0); }
+if (q.get('cam') === 'hands' || q.get('cam') === 'handsR') {
+  const w = new THREE.Vector3(); scene.updateMatrixWorld(true);
+  const g = scene.children.find(o => o.isGroup && o.name);
+  g.getObjectByName(q.get('cam') === 'handsR' ? 'wrist.R' : 'wrist.L').getWorldPosition(w);
+  const ho = (q.get('hoff') || '0.25,0.08,0.45').split(',').map(Number);
+  cam.position.copy(w).add(new THREE.Vector3(...ho)); cam.lookAt(w); cam.fov = 30; cam.updateProjectionMatrix();
+}
+if (q.get('cam') === 'head') {
+  const w = new THREE.Vector3(); scene.updateMatrixWorld(true);
+  const g = scene.children.find(o => o.isGroup && o.name);
+  g.getObjectByName('head').getWorldPosition(w);
+  cam.position.copy(w).add(new THREE.Vector3(0.9, 0.05, 1.4)); cam.lookAt(w.x, w.y - 0.15, w.z); cam.fov = 30; cam.updateProjectionMatrix();
+}
+renderer.render(scene, cam);
+setTimeout(() => { renderer.render(scene, cam); window.__ready = true; }, 1200);
+</script>
+</body>
+</html>
