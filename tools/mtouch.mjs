@@ -31,14 +31,20 @@ check('touch controls hidden on title', await p.evaluate(`!document.querySelecto
 await tapSel('#title .menu button[data-act=training]');
 await wait(900);
 check('select screen', (await dbg()).state === 'select');
-await tapSel('#select .card[data-id=zapponi]'); await wait(400);
-let d = await dbg();
-check('first tap previews (no confirm)', d.state === 'select');
-await tapSel('#select .card[data-id=zapponi]');
+await p.waitForSelector('#select .card[data-id=zapponi]', { state: 'visible', timeout: 20000 });
+const cb = await box('#select .card[data-id=zapponi]');
+// quick double tap (what iOS reads as double-tap zoom): first previews, second must still confirm
+await p.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
+const st1 = await p.evaluate("JSON.parse(window.__debug()).state");
+await p.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
+let d;
+check('first tap previews (no confirm)', st1 === 'select');
 await p.waitForFunction(`JSON.parse(window.__debug()).state === 'fight'`, null, { timeout: 300000, polling: 300 });
 await p.waitForFunction(`(() => { const d = JSON.parse(window.__debug()); return d.phase === 'fight'; })()`, null, { timeout: 300000, polling: 300 });
 await wait(400);
 check('fight started as zapponi', (await dbg()).f[0].id === 'zapponi');
+check('canvas buffer matches layout viewport', await p.evaluate(`(() => { const c = document.querySelector('#game'), r = c.width / c.height, v = innerWidth / innerHeight; return Math.abs(r - v) < 0.02; })()`), await p.evaluate(`document.querySelector('#game').width + 'x' + document.querySelector('#game').height`));
+check('page not zoomed', await p.evaluate('(visualViewport?.scale ?? 1) === 1'));
 check('touch controls visible in fight', await p.evaluate(`document.querySelector('#touch').classList.contains('on')`));
 // stick: drag right from a point in the left zone -> walk forward (P1 faces right)
 const x0 = 150, y0 = 300;
@@ -105,5 +111,6 @@ check('quit to title by tap', true);
 await tapSel('#title .menu button[data-act=options]'); await wait(400);
 await p.selectOption('#optTz', '1.18'); await tapSel('#overlay .actions [data-a=ok]'); await wait(400);
 check('options saved (large controls)', await p.evaluate(`JSON.parse(localStorage.getItem('pdb_touch')).size === 1.18`));
+check('page not zoomed at end', await p.evaluate('(visualViewport?.scale ?? 1) === 1'));
 console.log('errors:', errs.length ? errs.join(' | ') : 'none');
 await b.close(); srv.close();

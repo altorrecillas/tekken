@@ -1,6 +1,6 @@
 // Puños de Barrio — main game shell.
 import * as THREE from 'three';
-import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen } from './engine/device.js';
+import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom } from './engine/device.js';
 import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, LOD } from './charloader.js';
 import { makeFighterMaterial, makeFighterKey } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
@@ -55,14 +55,15 @@ class Game {
     setTextureCap(q.get('texcap') ? +q.get('texcap') : bud.maxTex);
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, bud.dprMax) * (this.quality === 'low' ? 0.85 : 1));
-    this.renderer.setSize(innerWidth, innerHeight, false);
+    const vs = viewSize();
+    this.renderer.setSize(vs.w, vs.h, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     LOD.hair = { low: 0.45, medium: 0.7, high: 1.0, ultra: 1.0 }[this.quality] ?? 1.0;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.05, 600);
+    this.camera = new THREE.PerspectiveCamera(34, vs.w / vs.h, 0.05, 600);
     this.camera.position.set(0, 1.4, 5);
     this.camCtl = new FightCamera(this.camera);
     this.fx = new FX(this.scene, this.camera);
@@ -77,6 +78,7 @@ class Game {
     this.p1ctrl = new MergedController(new KeyboardController(KEYMAPS.p1), new GamepadController(0), this.touch);
     this.p2keys = new MergedController(new KeyboardController(KEYMAPS.p2), new GamepadController(1));
     this.loadAudioPrefs();
+    blockPageZoom();
     addEventListener('resize', () => this.resize());
     // iOS reports stale sizes for a moment after a rotation
     addEventListener('orientationchange', () => { for (const t of [120, 400, 900]) setTimeout(() => this.resize(), t); });
@@ -204,7 +206,7 @@ class Game {
   }
 
   resize() {
-    const w = innerWidth, h = innerHeight;
+    const { w, h } = viewSize();
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     this.post?.setSize(w, h);

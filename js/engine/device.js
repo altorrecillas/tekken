@@ -76,6 +76,40 @@ export function toggleFullscreen() {
   else goFullscreenLandscape();
 }
 
+// CSS size of the screen the game fills. innerWidth/innerHeight measure the visual viewport, which shrinks while
+// iOS Safari is zoomed in; the layout viewport (what the fixed full-screen canvas and controls fill) does not
+export function viewSize() {
+  const d = document.documentElement;
+  return { w: d.clientWidth || innerWidth, h: d.clientHeight || innerHeight };
+}
+
+// iOS Safari ignores user-scalable=no and does not always honour touch-action either: a double tap on a fighter
+// card or two thumbs on the controls zoomed the page in, leaving part of the game off screen. The zoom gestures
+// are blocked by hand; scrolling inside the panels (move list, options) and form controls keep working.
+export function blockPageZoom() {
+  const opts = { passive: false };
+  const el = (t) => (t?.nodeType === 1 ? t : t?.parentElement) || null;
+  // pinch (WebKit gesture events) and any page pan or pinch outside a scrolling panel
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), opts);
+  document.addEventListener('touchmove', (e) => {
+    if (e.cancelable && (e.touches.length > 1 || !el(e.target)?.closest('.panel'))) e.preventDefault();
+  }, opts);
+  // double-tap zoom: the second of two quick taps loses its default action, so its click is sent by hand
+  // (choosing a fighter is a double tap on the card)
+  let lastEnd = -1e9, sx = 0, sy = 0;
+  document.addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const now = e.timeStamp, quick = now - lastEnd < 400;
+    lastEnd = now;
+    const t = el(e.target);
+    if (!quick || e.defaultPrevented || !e.cancelable || !t || t.closest('input, select, textarea')) return;
+    e.preventDefault();
+    const c = e.changedTouches[0];
+    if (e.touches.length === 0 && Math.hypot(c.clientX - sx, c.clientY - sy) < 12) t.click();
+  }, opts);
+  document.addEventListener('dblclick', (e) => e.preventDefault(), opts);
+}
+
 // haptic tick (Android Chrome; iOS Safari has no vibration API)
 let hapticsOn = true;
 export function setHaptics(on) { hapticsOn = on; }

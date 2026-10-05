@@ -9,7 +9,7 @@
 //  - RAGE ART button (1+2+3+4) that only shows while rage is available; pause button under the timer.
 //  - hit areas larger than the art, feedback on every press, haptic tick where the platform supports it.
 import { B1, B2, B3, B4 } from '../fight/input.js';
-import { haptic, setHaptics } from '../engine/device.js';
+import { haptic, setHaptics, viewSize } from '../engine/device.js';
 
 // (dx, dy) of the eight 45 degree sectors, counter-clockwise from "right"; dy = +1 is up
 const SECT = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
@@ -84,6 +84,10 @@ export class TouchController {
       el.addEventListener('pointerup', onUp);
       el.addEventListener('pointercancel', onUp);
       el.addEventListener('lostpointercapture', onUp);
+      // iOS: cancelling the touch keeps Safari from reading two thumbs as a pinch zoom or quick presses as a double
+      // tap zoom (which also cancelled the pointers mid-move); pointer events keep flowing
+      el.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+      el.addEventListener('touchend', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
     }
     // no long-press menus, text selection or double-tap zoom anywhere on the controls
     r.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -98,7 +102,8 @@ export class TouchController {
 
   // sizes follow the short side of the screen (thumb reach is physical, the screen is not)
   layout() {
-    const W = innerWidth, H = innerHeight;
+    const { w: W, h: H } = viewSize();
+    this.W = W; this.H = H;
     const s = this.safe();
     const rb = Math.max(27, Math.min(46, Math.min(W, H) * 0.086)) * this.opt.size; // button radius
     const R = rb * 1.85; // stick radius
@@ -150,7 +155,7 @@ export class TouchController {
     S.id = e.pointerId; S.sector = -1;
     if (this.opt.stick === 'float') {
       // spawn under the thumb, kept fully on screen
-      const R = this.R, x = Math.max(R + 6, Math.min(innerWidth * 0.48 - R, e.clientX)), y = Math.max(innerHeight * 0.2 + R * 0.6, Math.min(innerHeight - R - 4, e.clientY));
+      const R = this.R, x = Math.max(R + 6, Math.min(this.W * 0.48 - R, e.clientX)), y = Math.max(this.H * 0.2 + R * 0.6, Math.min(this.H - R - 4, e.clientY));
       this.placeStick(x, y);
     }
     this.el.stick.classList.add('active');
