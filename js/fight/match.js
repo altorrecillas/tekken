@@ -33,6 +33,10 @@ function segPointDist(a, b, p) {
   return _w.copy(a).addScaledVector(ab, t).distanceTo(p);
 }
 
+// speed of the simulation in slow motion (KO, Rage Art)
+export const SLOWMO = 0.28;
+const _r = new THREE.Vector3();
+
 export class Match {
   constructor(game, chars, ids, opts = {}) {
     this.game = game;
@@ -41,6 +45,15 @@ export class Match {
     this.camera = game.camCtl;
     this.audio = game.audio;
     this.opts = { rounds: 2, time: 60, ...opts };
+    // det (online): the fight depends on nothing but the inputs, as both phones run it and must get exactly the
+    // same. It keeps its own side view (the direction the camera looks across the fighters, which turns the
+    // screen's left / right into back / forward and sets the sidestep side; the camera follows it) instead of
+    // reading the camera each phone draws with, and counts slow motion in simulation frames instead of seconds
+    this.det = !!opts.det;
+    this.viewN = new THREE.Vector3(0, 0, 1);
+    // cosmetic chances (which voice line) and delayed announcements: the online session replays both exactly
+    this.crand = Math.random;
+    this.later = (ms, fn) => setTimeout(fn, ms);
     this.fighters = [new Fighter(this, 0, chars[0], ids[0]), new Fighter(this, 1, chars[1], ids[1])];
     this.wins = [0, 0];
     this.round = 0;
@@ -59,7 +72,7 @@ export class Match {
   // -------------------------------------------------------------- helpers used by fighters
   screenForward(f) {
     // +1 if pressing "right" moves f towards the opponent
-    const right = this.camera.right();
+    const right = this.det ? _r.set(this.viewN.z, 0, -this.viewN.x) : this.camera.right();
     const d = _v.subVectors(f.opp.pos, f.pos);
     return d.dot(right) >= 0 ? 1 : -1;
   }
@@ -67,7 +80,19 @@ export class Match {
     // sidestep dir +1 = into the screen (away from the camera)
     const ax = f.axis(new THREE.Vector3());
     const perp = new THREE.Vector3(-ax.z, 0, ax.x);
-    return perp.dot(this.camera.forwardFlat()) >= 0 ? 1 : -1;
+    return perp.dot(this.det ? _r.copy(this.viewN).negate() : this.camera.forwardFlat()) >= 0 ? 1 : -1;
+  }
+  // det: the side the camera watches from, perpendicular to the fighters' axis, turning as they circle round (the
+  // camera's own rule, at the simulation's fixed step)
+  stepView() {
+    const [a, b] = this.fighters, n = this.viewN;
+    const ax = b.pos.x - a.pos.x, az = b.pos.z - a.pos.z, l = Math.hypot(ax, az);
+    if (l < 1e-3) return;
+    let nx = -az / l, nz = ax / l;
+    if (nx * n.x + nz * n.z < 0) { nx = -nx; nz = -nz; }
+    const k = 1 - Math.exp(-4 / FPS);
+    n.x += (nx - n.x) * k; n.z += (nz - n.z) * k; n.y = 0;
+    n.normalize();
   }
   sfx(name, f, p) { this.audio?.play(name, p || f?.pos); }
   onMoveStart(f, m) {
@@ -79,7 +104,7 @@ export class Match {
     } else f.pendingTrail = null;
     this.audio?.whoosh(m.sfx, f.stats.power);
     f.voiceT = (f.voiceT || 0) - 1;
-    if (m.hit && m.hit.dmg >= 16 && Math.random() < 0.55) this.audio?.voice(f, 'attack');
+    if (m.hit && m.hit.dmg >= 16 && this.crand() < 0.55) this.audio?.voice(f, 'attack');
   }
   onLand(f, ko) {
     this.fx.dust(f.pos, ko ? 1.6 : 1.1);
@@ -120,6 +145,11 @@ export class Match {
     this.frame++;
     this.pt++;
     const [a, b] = this.fighters;
+    if (this.det) {
+      this.stepView();
+      // slow motion lasts as many simulation frames as the seconds it is set to take at SLOWMO speed
+      if (this.slowmo > 0) this.slowmo = Math.max(0, this.slowmo - 1 / (FPS * SLOWMO));
+    }
     if (this.phase === 'intro') {
       for (const f of this.fighters) { f.readInput(); f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate(); }
       const skip = a.inp.pressed || b.inp.pressed;
@@ -366,7 +396,7 @@ export class Match {
     this.camera.punch(att, heavy ? 1 : 0.4);
     this.audio?.hit(m.sfx === 'slap' ? 'slap' : heavy ? (m.sfx === 'kick' ? 'kickHeavy' : 'heavy') : (m.sfx === 'kick' ? 'kick' : 'light'), att.stats.power, p);
     if (ko) this.audio?.voice(def, 'ko');
-    else if (Math.random() < (heavy ? 0.8 : 0.4)) this.audio?.voice(def, heavy ? 'hurtBig' : 'hurt');
+    else if (this.crand() < (heavy ? 0.8 : 0.4)) this.audio?.voice(def, heavy ? 'hurtBig' : 'hurt');
     if (ch) { this.hud.popup(att.index, 'COUNTER HIT', 'ch'); }
     def.hitFlash = 1;
     const blowDir = new THREE.Vector3().subVectors(def.pos, att.pos).setY(0).normalize();
@@ -604,7 +634,7 @@ export class Match {
     this.fx.koFlash();
     this.game.onKO?.(att, def, p);
     const perfect = att.hp >= att.maxHp;
-    if (perfect) setTimeout(() => { this.hud.announce('¡PERFECTO!', 'perfect'); this.audio?.announce('perfect'); }, 1800);
+    if (perfect) this.later(1800, () => { this.hud.announce('¡PERFECTO!', 'perfect'); this.audio?.announce('perfect'); });
   }
 
   endRound(winner, reason) {
@@ -628,7 +658,7 @@ export class Match {
       wf.reset(); wf.setState('win'); wf.play('win', 10);
       this.game.ragdolls?.freeze?.();
       this.camera.setMode('win', false, wf);
-      this.hud.winner(wf, this.wins);
+      this.hud.winner(wf, this.wins, this.crand());
       this.hud.hideBars?.();
       this.audio?.announce('win_' + wf.id);
       this.audio?.voice(wf, 'win');

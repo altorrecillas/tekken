@@ -90,7 +90,9 @@ export class Fighter {
     // secondary motion: damped springs driven by impacts (spine / neck pitch-yaw-roll)
     this.spring = { sp: new THREE.Vector3(), sv: new THREE.Vector3(), np: new THREE.Vector3(), nv: new THREE.Vector3() };
     this.shakeT = 0;
-    this.breath = Math.random() * 10;
+    // breathing phase: fixed per side (the two fighters out of step), never random, so that the same inputs give
+    // the same fight on every phone
+    this.breath = 2.3 + index * 4.1;
   }
 
   // impact impulse in character space: dir = world direction of the blow, amt ~ 0..1

@@ -33,6 +33,14 @@ export class HUD {
     this.timer.style.visibility = 'hidden';
     this.winnerEl.classList.remove('show');
   }
+  // the win markers under each name: one per round needed to win the match (online the host picks 1 to 3)
+  setRounds(n) {
+    this.w.forEach((w, i) => {
+      const box = $('.plate .wins', w);
+      if (box.children.length !== n) box.innerHTML = '<i></i>'.repeat(n);
+      this.wins[i] = [...box.querySelectorAll('i')];
+    });
+  }
   setFighters(fighters) {
     fighters.forEach((f, i) => {
       this.name[i].textContent = f.ch.meta.display;
@@ -80,9 +88,10 @@ export class HUD {
     c.classList.remove('show'); void c.offsetWidth; c.classList.add('show');
     this.comboT[side] = 100;
   }
-  winner(f, wins) {
+  // pick (0..1): which of his lines the winner says (online both phones pass the same, so both show the same)
+  winner(f, wins, pick = Math.random()) {
     const quotes = f.style.quotes || ['¡Otra vez será!'];
-    this.winnerEl.innerHTML = `<div class="sub">GANADOR</div><div class="nm">${f.ch.meta.display}</div><div class="quote">“${quotes[Math.floor(Math.random() * quotes.length)]}”</div>`;
+    this.winnerEl.innerHTML = `<div class="sub">GANADOR</div><div class="nm">${f.ch.meta.display}</div><div class="quote">“${quotes[Math.min(quotes.length - 1, Math.floor(pick * quotes.length))]}”</div>`;
     this.winnerEl.classList.add('show');
     this.wins.forEach((arr, i) => arr.forEach((el, k) => el.classList.toggle('on', k < wins[i])));
   }

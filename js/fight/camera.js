@@ -26,6 +26,7 @@ export class FightCamera {
     this._want = new THREE.Vector3();
     this.clampCam = null; // stage-provided bounds for cinematic cameras
     this.focusPt = null;
+    this.normalFrom = null; // online: the match's own side view (Match.viewN), followed instead of the fighters' axis
   }
   right() { return this._right; }
   forwardFlat() { return this._fwd; }
@@ -48,7 +49,9 @@ export class FightCamera {
     let n = new THREE.Vector3(-axis.z, 0, axis.x);
     if (n.dot(this.normal) < 0) n.negate();
     // keep P1 on the left in normal play: flip only when strongly required
-    this.normal.lerp(n, 1 - Math.exp(-4 * dt)).normalize();
+    // (online the fight keeps the side view itself: the screen shows exactly the side the controls are read with)
+    if (this.normalFrom) this.normal.copy(this.normalFrom);
+    else this.normal.lerp(n, 1 - Math.exp(-4 * dt)).normalize();
     let tp = new THREE.Vector3(), tl = new THREE.Vector3(), fov = 34, lam = 6, focusPt = null;
     const airY = Math.max(pa.y, pb.y);
     if (this.mode === 'fight' || this.mode === 'throw') {

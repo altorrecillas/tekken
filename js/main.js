@@ -1,6 +1,6 @@
 // Puños de Barrio — main game shell.
 import * as THREE from 'three';
-import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom } from './engine/device.js';
+import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
 import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, LOD } from './charloader.js';
 import { makeFighterMaterial, makeFighterKey } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
@@ -11,7 +11,7 @@ import { FX, setFxViewHeight } from './fx/fx.js';
 import { HUD } from './ui/hud.js';
 import { Audio } from './audio/audio.js';
 import { FightCamera } from './fight/camera.js';
-import { Match } from './fight/match.js';
+import { Match, SLOWMO } from './fight/match.js';
 import { FPS } from './fight/fighter.js';
 import { KeyboardController, GamepadController, MergedController, KEYMAPS, menuKeysPressed, START, B1, B2, B3, B4 } from './fight/input.js';
 import { TouchController, loadTouchPrefs, saveTouchPrefs } from './ui/touch.js';
@@ -20,6 +20,7 @@ import { STYLES } from './fight/styles.js';
 import { Accessories } from './fx/accessories.js';
 import { Ragdolls } from './fight/ragdoll.js';
 import { ContactShadows } from './fx/contact.js';
+import { Online } from './ui/online.js';
 const _fkv = new THREE.Vector3();
 
 const ROSTER = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani'];
@@ -77,6 +78,9 @@ class Game {
     this.touch = new TouchController($('#touch'));
     this.p1ctrl = new MergedController(new KeyboardController(KEYMAPS.p1), new GamepadController(0), this.touch);
     this.p2keys = new MergedController(new KeyboardController(KEYMAPS.p2), new GamepadController(1));
+    this.roster = ROSTER;
+    // two phones over the WiFi (lobby, synchronised select, rollback fight): js/ui/online.js
+    this.online = new Online(this);
     this.loadAudioPrefs();
     blockPageZoom();
     addEventListener('resize', () => this.resize());
@@ -87,6 +91,7 @@ class Game {
       // a touch on a hybrid laptop (or after a gamepad session) brings the touch controls (back)
       if (e.pointerType === 'touch' && this.touch.opt.show !== 'never') { this.padActive = false; this.touch.enable(); document.body.classList.add('touchui'); }
       const ph = this.match?.phase;
+      if (this.state === 'fight' && this.replaying) { this.online.replayEnded(); return; }
       if (this.state === 'fight' && (ph === 'intro' || ph === 'matchEnd')) this.touch.tap();
     }, { capture: true });
     addEventListener('keydown', () => this.audio.init());
@@ -97,7 +102,7 @@ class Game {
     $('#touchPause').addEventListener('click', () => { if (this.state === 'fight') this.pause(true); });
     // app switched away / screen locked: pause the fight and silence the audio
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.state === 'fight' && this.match?.phase === 'fight') this.pause(true);
+      if (document.hidden && this.state === 'fight' && this.match?.phase === 'fight' && !this.online.inFight) this.pause(true);
       this.audio.setHidden(document.hidden);
     });
     // rotated to portrait mid-fight (touch devices play in landscape): pause behind the rotate prompt
@@ -113,10 +118,10 @@ class Game {
     this.camCtl.touchFrame = this.touch.enabled && document.body.classList.contains('touchui') && !this.padActive;
     if (!this.touch.enabled) return;
     const m = this.match;
-    const inFight = this.state === 'fight' && !!m && !['showcase', 'intro', 'matchEnd'].includes(m.phase) && !this.padActive;
+    const inFight = this.state === 'fight' && !!m && !['showcase', 'intro', 'matchEnd'].includes(m.phase) && !this.padActive && !this.replaying;
     const cine = !!m && (m.phase === 'ko' || m.phase === 'end');
     if (inFight !== this._tv || cine !== this._tc) { this._tv = inFight; this._tc = cine; this.touch.setVisible(inFight, cine); }
-    const p1 = m?.fighters?.[0];
+    const p1 = m?.fighters?.[this.online.inFight ? this.online.local : 0];
     this.touch.setRage(!!(inFight && p1 && p1.rage && !p1.rageUsed && m.phase === 'fight'));
   }
 
@@ -316,13 +321,22 @@ class Game {
     const el = $('#title .diffv');
     if (el) el.textContent = DIFFICULTY[this.difficulty].name;
   }
-  // back to the title from a finished or abandoned fight: the fighters go, the title showcase comes back
-  backToTitle() {
+  // back to the title from a finished or abandoned fight: the fighters go, the title showcase comes back (then: a
+  // screen to show over it instead of the title menu, as the online menu)
+  backToTitle(then = null) {
     this.fightSeq = (this.fightSeq || 0) + 1; // cancels a fight that may still be loading
     $('#fade').classList.remove('busy'); this.fade(false);
+    $('#pause').classList.remove('on'); $('#overlay').classList.remove('on');
     this.clearFighters();
     this.audio.stopMusic?.();
-    this.setupShowcase().then(() => this.toTitle());
+    this.state = 'loading';
+    this.setupShowcase().then(() => {
+      if (!then) { this.toTitle(); return; }
+      this.hud.show(false);
+      this.effects.letterbox = 0;
+      this.audio.music('menu');
+      then();
+    });
   }
   toTitle() {
     this.state = 'title';
@@ -362,17 +376,26 @@ class Game {
     // phones: go fullscreen + landscape on the first tap (needs a user gesture; unsupported on iPhone Safari)
     if (document.body.classList.contains('touchui') && !this.fsAsked && !DEVICE.standalone && fullscreenSupported()) { this.fsAsked = true; goFullscreenLandscape(); }
     if (act === 'arcade' || act === 'versus' || act === 'training') { this.mode = act; this.toSelect(); }
+    else if (act === 'online') this.online.open();
     else if (act === 'difficulty') { this.difficulty = DIFF_KEYS[(DIFF_KEYS.indexOf(this.difficulty) + 1) % DIFF_KEYS.length]; lsSet('pdb_diff', this.difficulty); this.refreshDifficulty(); }
     else if (act === 'options') this.showOptions();
     else if (act === 'controls') this.showControls();
   }
 
   // ------------------------------------------------------------------ select
+  // two players choose on this screen (versus, or online: each phone moves its own cursor and sees the other's)
+  isVs() { return this.mode === 'versus' || this.mode === 'online'; }
+  // the cursor this screen's tap / hover / keys move (-1: none, everybody has picked)
+  selTurn() {
+    if (this.mode === 'online') { const L = this.online.local; return this.sel.done[L] ? -1 : L; }
+    return !this.sel.done[0] ? 0 : (this.mode === 'versus' && !this.sel.done[1] ? 1 : -1);
+  }
   toSelect() {
     this.state = 'select';
     this.audio.preloadVoices(ROSTER); // the pick shout plays straight away
     this.showScreen('select');
     this.menu = null;
+    const online = this.mode === 'online';
     const grid = $('#select .grid');
     grid.innerHTML = '';
     ROSTER.forEach((id) => {
@@ -380,61 +403,114 @@ class Game {
       c.className = 'card'; c.dataset.id = id;
       c.innerHTML = `<img src="${this.portraits[id]}" alt=""><div class="nm">${this.meta[id].display}</div>`;
       c.onclick = () => {
-        const k = !this.sel.done[0] ? 0 : (this.mode === 'versus' && !this.sel.done[1] ? 1 : -1);
+        const k = this.selTurn();
         if (k < 0) return;
         const idx = ROSTER.indexOf(id);
         // touch has no hover: the first tap shows the fighter, a second tap on the same card picks him
-        if (document.body.classList.contains('touchui') && this.sel.i[k] !== idx) { this.sel.i[k] = idx; this.audio.play('ui'); this.refreshSel(); return; }
+        if (document.body.classList.contains('touchui') && this.sel.i[k] !== idx) { this.sel.i[k] = idx; this.audio.play('ui'); this.refreshSel(); this.selMoved(k); return; }
         this.audio.play('uiok'); this.sel.i[k] = idx; this.confirmSel(k);
       };
       // hover preview for real mice only (touch screens send emulated mouse events right before the click)
-      c.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; if (!this.sel.done[0]) { this.sel.i[0] = ROSTER.indexOf(id); this.refreshSel(); } else if (this.mode === 'versus' && !this.sel.done[1]) { this.sel.i[1] = ROSTER.indexOf(id); this.refreshSel(); } };
+      c.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; const k = this.selTurn(); if (k >= 0) { this.sel.i[k] = ROSTER.indexOf(id); this.refreshSel(); this.selMoved(k); } };
       grid.appendChild(c);
     });
-    this.sel = { i: [0, this.mode === 'versus' ? 1 : 1], done: [false, this.mode !== 'versus'] };
-    $('#selBack').onclick = () => { this.audio.play('ui'); if (this.sel.done[1] && this.mode === 'versus') { this.sel.done[1] = false; this.refreshSel(); } else if (this.sel.done[0] && this.mode === 'versus') { this.sel.done[0] = false; this.refreshSel(); } else this.toTitle(); };
-    $('#selHint').textContent = document.body.classList.contains('touchui') ? 'Toca un luchador para verlo · tócalo otra vez para elegirlo' : '';
+    this.sel = { i: [0, 1], done: [false, !this.isVs()] };
+    $('#selBack').onclick = () => {
+      this.audio.play('ui');
+      if (online) { const L = this.online.local; if (this.sel.done[L]) { this.sel.done[L] = false; this.refreshSel(); this.selMoved(L); } else this.online.backFromSelect(); return; }
+      if (this.sel.done[1] && this.mode === 'versus') { this.sel.done[1] = false; this.refreshSel(); } else if (this.sel.done[0] && this.mode === 'versus') { this.sel.done[0] = false; this.refreshSel(); } else this.toTitle();
+    };
+    $('#selHint').textContent = document.body.classList.contains('touchui') ? (online ? 'Toca tu luchador para verlo · tócalo otra vez para elegirlo' : 'Toca un luchador para verlo · tócalo otra vez para elegirlo') : '';
     this.refreshStageBar();
     this.refreshSel();
     this.previewIds = [null, null];
+    if (online) this.onlineResend();
   }
   refreshStageBar() {
-    const mode = this.mode === 'arcade' ? 'MODO ARCADE' : this.mode === 'versus' ? 'VERSUS' : 'ENTRENAMIENTO';
+    const mode = this.mode === 'arcade' ? 'MODO ARCADE' : this.mode === 'versus' ? 'VERSUS' : this.mode === 'online' ? 'ONLINE' : 'ENTRENAMIENTO';
     const bar = $('#select .stagebar');
     if (this.mode === 'arcade') { bar.textContent = `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}`; return; }
+    // online the host picks the stage; the other phone sees it change
+    if (this.mode === 'online' && !this.online.isHost) { bar.innerHTML = `${mode} · ESCENARIO <span class="stg">${STAGES[this.stagePick].name}</span> <small>(lo elige ${this.online.peerName.replace(/[&<>"']/g, '')})</small>`; return; }
     bar.innerHTML = `${mode} · ESCENARIO <span class="stg"><b data-d="-1">◀</b> ${STAGES[this.stagePick].name} <b data-d="1">▶</b></span> <small>(W / S)</small>`;
     bar.querySelectorAll('b').forEach(b => (b.onclick = () => this.cycleStage(+b.dataset.d)));
   }
   cycleStage(d) {
+    if (this.mode === 'online' && !this.online.isHost) return;
     const i = STAGE_KEYS.indexOf(this.stagePick);
     this.stagePick = STAGE_KEYS[(i + d + STAGE_KEYS.length) % STAGE_KEYS.length];
     this.audio.play('ui');
     this.refreshStageBar();
+    if (this.mode === 'online') this.online.net?.send({ t: 'stage', key: this.stagePick });
+  }
+  // online: this phone's cursor to the other phone (by fighter id: the rosters could differ)
+  selMoved(k) {
+    if (this.mode !== 'online' || k !== this.online.local || !this.online.net) return;
+    this.online.net.send({ t: 'sel', id: ROSTER[this.sel.i[k]], done: !!this.sel.done[k] });
+  }
+  onlineResend() {
+    if (this.mode !== 'online' || this.state !== 'select') return;
+    this.selMoved(this.online.local);
+    if (this.online.isHost) this.online.net?.send({ t: 'stage', key: this.stagePick });
+  }
+  // the other phone's cursor
+  onlineSel(m) {
+    if (this.mode !== 'online' || this.state !== 'select' || !this.sel) return;
+    const R = 1 - this.online.local, idx = ROSTER.indexOf(String(m.id));
+    if (idx < 0) return;
+    const was = this.sel.done[R];
+    this.sel.i[R] = idx; this.sel.done[R] = !!m.done;
+    if (m.done && !was) { this.audio.preloadVoices([ROSTER[idx]]); this.audio.voice({ id: ROSTER[idx] }, 'attack'); } else this.audio.play('ui');
+    this.refreshSel();
+    this.onlineBoth();
+  }
+  onlineStage(key) {
+    if (this.mode !== 'online' || this.online.isHost || !STAGES[key]) return;
+    this.stagePick = key;
+    if (this.state === 'select') { this.audio.play('ui'); this.refreshStageBar(); }
+  }
+  onlineNames() { if (this.mode === 'online' && this.state === 'select') this.refreshSel(); }
+  // host: both have picked: a moment to see both ready, then the fight
+  onlineBoth() {
+    if (!this.online.isHost || !this.sel.done[0] || !this.sel.done[1]) return;
+    clearTimeout(this._goT);
+    this._goT = setTimeout(() => {
+      if (this.state !== 'select' || this.mode !== 'online' || !this.sel.done[0] || !this.sel.done[1]) return;
+      this.online.bothPicked(ROSTER[this.sel.i[0]], ROSTER[this.sel.i[1]], this.stagePick);
+    }, 700);
   }
   refreshSel() {
+    const vs = this.isVs();
     const cards = [...document.querySelectorAll('#select .card')];
     cards.forEach((c, k) => {
       c.classList.toggle('p1', k === this.sel.i[0]);
-      c.classList.toggle('p2', this.mode === 'versus' && k === this.sel.i[1]);
+      c.classList.toggle('p2', vs && k === this.sel.i[1]);
       c.querySelectorAll('.tag').forEach(t => t.remove());
       if (k === this.sel.i[0]) c.insertAdjacentHTML('beforeend', '<div class="tag t1">1P</div>');
-      if (this.mode === 'versus' && k === this.sel.i[1]) c.insertAdjacentHTML('beforeend', '<div class="tag t2">2P</div>');
+      if (vs && k === this.sel.i[1]) c.insertAdjacentHTML('beforeend', '<div class="tag t2">2P</div>');
     });
-    const info = (el, id, ready) => {
+    // online: whose side is whose, and this phone's marked
+    const who = (i) => {
+      if (this.mode !== 'online') return '';
+      const n = this.online.names(), me = i === this.online.local;
+      return `<div class="who ${me ? 'me' : ''}">${me ? '<i>TÚ</i>' : ''}${n[i].replace(/[&<>"']/g, '')}</div>`;
+    };
+    const info = (el, id, ready, i) => {
       const s = STYLES[id], st = s.stats;
       const bar = (v, mx) => `<span class="trk"><i style="width:${Math.round(v / mx * 110)}px"></i></span>`;
-      el.innerHTML = `<div class="ttl">${s.title.toUpperCase()}</div><div class="big">${this.meta[id].display}</div><div class="dsc">${s.desc}</div>
+      el.innerHTML = `${who(i)}<div class="ttl">${s.title.toUpperCase()}</div><div class="big">${this.meta[id].display}</div><div class="dsc">${s.desc}</div>
         <div class="stats"><div class="stat"><b>FUERZA</b>${bar(st.power, 1.25)}</div><div class="stat"><b>VELOCIDAD</b>${bar(st.speed, 1.15)}</div><div class="stat"><b>AGUANTE</b>${bar(st.health, 200)}</div></div>
         ${ready ? '<div class="ready">¡LISTO!</div>' : ''}`;
     };
-    info($('#select .left'), ROSTER[this.sel.i[0]], this.sel.done[0]);
-    if (this.mode === 'versus') info($('#select .right'), ROSTER[this.sel.i[1]], this.sel.done[1]);
+    info($('#select .left'), ROSTER[this.sel.i[0]], this.sel.done[0], 0);
+    if (vs) info($('#select .right'), ROSTER[this.sel.i[1]], this.sel.done[1], 1);
     else $('#select .right').innerHTML = this.mode === 'training' ? '<div class="ttl">SPARRING</div><div class="big">CPU</div>' : '<div class="ttl">RIVALES</div><div class="big">???</div>';
     this.updatePreview();
   }
   updatePreview() {
+    const vs = this.isVs();
     // show the hovered fighters in 3D behind the UI
-    const ids = [ROSTER[this.sel.i[0]], this.mode === 'versus' ? ROSTER[this.sel.i[1]] : (this.previewIds?.[1] || ROSTER[(this.sel.i[0] + 1) % ROSTER.length])];
+    const ids = [ROSTER[this.sel.i[0]], vs ? ROSTER[this.sel.i[1]] : (this.previewIds?.[1] || ROSTER[(this.sel.i[0] + 1) % ROSTER.length])];
     if (this.previewIds && this.previewIds[0] === ids[0] && this.previewIds[1] === ids[1] && this.match) return;
     // not downloaded yet: keep the current preview and come back when the mesh arrives
     if (!this.chars[ids[0]] || !this.chars[ids[1]]) {
@@ -449,14 +525,30 @@ class Game {
     this.match.phase = 'showcase';
     const [a, b] = this.match.fighters;
     // single player: the fighter stands clear of the info panel and faces the camera
-    if (this.mode === 'versus') { a.pos.set(-0.75, 0, 0.6); b.pos.set(0.75, 0, 0.6); a.yaw = 0.35; b.yaw = -0.35; }
+    if (vs) { a.pos.set(-0.75, 0, 0.6); b.pos.set(0.75, 0, 0.6); a.yaw = 0.35; b.yaw = -0.35; }
     else { a.pos.set(0.15, 0, 0.6); b.pos.set(2.5, 0, 0.6); a.yaw = -0.12; b.yaw = -0.35; a.lookAt = new THREE.Vector3(0, 1.1, 6.44); }
     for (const f of this.match.fighters) { f.setState('idle'); f.play('intro', 1); f.prevPos.copy(f.pos); f.prevYaw = f.yaw; }
-    if (this.mode !== 'versus') b.ch.group.visible = false;
+    if (!vs) b.ch.group.visible = false;
     this.camCtl.setMode('select', true);
   }
   selectInput(keys, pads) {
     const s = this.sel;
+    if (this.mode === 'online') {
+      // this phone's player only, with either keyboard layout or the first pad
+      const L = this.online.local;
+      const l = keys.has('KeyA') || keys.has('ArrowLeft') || pads[0].left, r = keys.has('KeyD') || keys.has('ArrowRight') || pads[0].right;
+      const ok = keys.has('KeyU') || keys.has('Enter') || keys.has('Space') || keys.has('Numpad4') || pads[0].ok, back = keys.has('Escape') || keys.has('KeyK') || keys.has('Backspace') || pads[0].back;
+      if (this.online.isHost) {
+        if (keys.has('KeyW') || keys.has('ArrowUp') || pads[0].up) this.cycleStage(-1);
+        if (keys.has('KeyS') || keys.has('ArrowDown') || pads[0].down) this.cycleStage(1);
+      }
+      if (s.done[L]) { if (back) { s.done[L] = false; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); } return; }
+      if (l) { s.i[L] = (s.i[L] + ROSTER.length - 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); }
+      if (r) { s.i[L] = (s.i[L] + 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); }
+      if (ok) { this.audio.play('uiok'); this.confirmSel(L); }
+      else if (back) this.online.backFromSelect();
+      return;
+    }
     const P = [
       { l: keys.has('KeyA') || pads[0].left, r: keys.has('KeyD') || pads[0].right, ok: keys.has('KeyU') || keys.has('Enter') || keys.has('Space') || pads[0].ok, back: keys.has('Escape') || keys.has('KeyK') || pads[0].back },
       { l: keys.has('ArrowLeft') || pads[1].left, r: keys.has('ArrowRight') || pads[1].right, ok: keys.has('Numpad4') || keys.has('Digit7') || keys.has('NumpadEnter') || pads[1].ok, back: keys.has('Backspace') || pads[1].back },
@@ -482,6 +574,7 @@ class Game {
     this.sel.done[i] = true;
     this.refreshSel();
     this.audio.voice({ id: ROSTER[this.sel.i[i]] }, 'attack');
+    if (this.mode === 'online') { this.selMoved(i); this.onlineBoth(); return; }
     if (this.sel.done[0] && this.sel.done[1]) setTimeout(() => this.startMode(), 700);
   }
 
@@ -511,10 +604,11 @@ class Game {
     const stale = () => seq !== this.fightSeq;
     this.state = 'loading';
     this.menu = null;
+    $('#fade .txt').textContent = 'CARGANDO…';
     // loading card: who fights next (and where in the arcade ladder), shown until the fight is ready
     const vs = $('#fadeVs'), stp = $('#fadeStep');
     if (vs) vs.textContent = `${this.meta[id1]?.display || id1}  vs  ${this.meta[id2]?.display || id2}`;
-    if (stp) stp.textContent = this.mode === 'arcade' && this.arcade ? `COMBATE ${this.arcade.stage + 1} DE ${this.arcade.ladder.length}` : '';
+    if (stp) stp.textContent = this.mode === 'arcade' && this.arcade ? `COMBATE ${this.arcade.stage + 1} DE ${this.arcade.ladder.length}` : opts.online ? `VERSUS ONLINE · ${this.online.names().join('  vs  ')}` : opts.replay ? 'REPETICIÓN' : '';
     this.fade(true);
     await new Promise(r => setTimeout(r, 380));
     if (stale()) return;
@@ -522,7 +616,7 @@ class Game {
     const done = () => { clearTimeout(busy); $('#fade').classList.remove('busy'); };
     this.audio.preloadVoices([id1, id2]);
     try { await Promise.all([this.ensureChar(id1), this.ensureChar(id2)]); }
-    catch (e) { if (stale()) return; done(); this.fade(false); this.showOverlay('<h3>SIN CONEXIÓN</h3><p>No se pudo descargar un luchador. Revisa la conexión e inténtalo de nuevo.</p>', () => this.startFight(id1, id2, opts), () => this.backToTitle(), { ok: 'REINTENTAR', back: 'MENÚ' }); return; }
+    catch (e) { if (stale()) return; done(); if (opts.online) { opts.online.fail(); return; } this.fade(false); this.showOverlay('<h3>SIN CONEXIÓN</h3><p>No se pudo descargar un luchador. Revisa la conexión e inténtalo de nuevo.</p>', () => this.startFight(id1, id2, opts), () => this.backToTitle(), { ok: 'REINTENTAR', back: 'MENÚ' }); return; }
     if (stale()) return;
     this.clearFighters();
     const stageKey = this.stageFor(opts);
@@ -533,7 +627,11 @@ class Game {
     await texturesReady();
     if (stale()) { chars.forEach(c => { this.scene.remove(c.group); c.group.traverse(o => o.geometry?.dispose?.()); }); return; }
     done();
+    if (opts.online) { this.onlineFight(chars, id1, id2, opts); return; }
+    if (opts.replay) { this.replayFight(chars, id1, id2, opts); return; }
     this.match = new Match(this, chars, [id1, id2], { training: !!opts.training });
+    this.hud.setRounds(this.match.opts.rounds);
+    this.camCtl.normalFrom = null; this.ragdolls.drivePos = true; // (as they are outside an online fight)
     const [a, b] = this.match.fighters;
     a.ctrl = this.p1ctrl;
     if (opts.human2) b.ctrl = this.p2keys;
@@ -556,9 +654,65 @@ class Game {
   }
   fade(on) { $('#fade').classList.toggle('on', on); }
 
+  // online: the match built for both phones alike (det: nothing but the inputs counts), its presentation through the
+  // online module (effects shown once, camera from the match state). It waits behind the black screen until the
+  // other phone is ready too; then netBegin.
+  onlineFight(chars, id1, id2, opts) {
+    const o = opts.online, sp = o.spec;
+    this.match = new Match(o.make(), chars, [id1, id2], { det: true, rounds: sp.rounds, time: sp.time });
+    this.fightOpts = { id1, id2, ...opts };
+    this.hud.setFighters(this.match.fighters);
+    this.hud.setRounds(sp.rounds);
+    this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
+    $('#trainingInfo').classList.remove('on');
+    this.match.startIntro();
+    this.state = 'netwait';
+    $('#fade').classList.add('busy');
+    $('#fade .txt').textContent = 'ESPERANDO AL RIVAL…';
+    o.ready(this.match);
+  }
+  // online: the last fight replayed on this phone from both players' inputs (same rules, same stage)
+  replayFight(chars, id1, id2, opts) {
+    const r = opts.replay, sp = r.spec;
+    const m = (this.match = new Match(this, chars, [id1, id2], { det: true, rounds: sp.rounds, time: sp.time }));
+    m.fighters.forEach((f, i) => { f.ctrl = this.online.replayCtrl(m, r, i); });
+    this.fightOpts = { id1, id2, ...opts };
+    this.camCtl.normalFrom = m.viewN;
+    this.ragdolls.drivePos = false;
+    this.hud.setFighters(m.fighters);
+    this.hud.setRounds(sp.rounds);
+    this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
+    $('#trainingInfo').classList.remove('on');
+    this.showScreen('none');
+    m.startIntro();
+    this.state = 'fight';
+    this.acc = 0;
+    $('#replayTag').classList.add('on');
+    this.audio.music(STAGES[this.stageKey].music);
+    this.fade(false);
+  }
+  get replaying() { return !!(this.fightOpts && this.fightOpts.replay && this.online.watching); }
+  netBegin(m) {
+    if (m !== this.match) return;
+    $('#fade').classList.remove('busy');
+    $('#fade .txt').textContent = 'CARGANDO…';
+    this.showScreen('none');
+    const hint = $('.movelist-hint');
+    hint.textContent = document.body.classList.contains('touchui') ? 'II: pausa y lista de movimientos' : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
+    clearTimeout(this.hintT); this.hintT = setTimeout(() => hint.classList.add('fade'), 6000);
+    this.state = 'fight';
+    this.acc = 0;
+    this.audio.music(STAGES[this.stageKey].music);
+    this.fade(false);
+  }
+
   onKO(att, def, p) {
-    this.effects.radial = 0.6; this.effects.hitFlash = 0.5;
     this.ragdolls.spawn(def, att, p);
+    this.koEffects(att, def);
+  }
+  // (online, a knockout replayed after a correction spawns the body again but shows these once)
+  koEffects(att, def) {
+    this.effects.radial = 0.6; this.effects.hitFlash = 0.5;
     def.rig?.setLids(0.92); // knocked out: eyes shut
     this.stage.cheer?.();
     this.audio.crowdSwell?.();
@@ -570,6 +724,8 @@ class Game {
     // under the finger)
     if (match !== this.match || match.endHandled) return;
     match.endHandled = true;
+    // (online and replays: the online module has its own results screen)
+    if (this.fightOpts && (this.fightOpts.replay || this.fightOpts.online)) { if (this.replaying) this.online.replayEnded(); return; }
     const won = match.winner === 0;
     if (this.mode === 'arcade') {
       if (won) {
@@ -601,10 +757,13 @@ class Game {
   }
 
   pause(on) {
+    // online the pause is shared by both phones (js/ui/online.js); a replay simply ends
+    if (this.online.inFight) { if (on) this.online.requestPause(); else this.online.requestResume(); return; }
+    if (this.replaying) { if (on) this.online.replayEnded(); return; }
     if (on) {
       this.state = 'pause';
       $('#pause').classList.add('on');
-      this.setupMenu('#pause .menu', (act) => {
+      this.setupMenu('#pause .menu.local', (act) => {
         if (act === 'resume') this.pause(false);
         else if (act === 'restart') { $('#pause').classList.remove('on'); this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts); }
         else if (act === 'quit') { $('#pause').classList.remove('on'); this.backToTitle(); }
@@ -619,7 +778,7 @@ class Game {
     this.syncTouchUI();
   }
   showMoveList() {
-    const f = this.match.fighters[0];
+    const f = this.match.fighters[this.online.inFight ? this.online.local : 0];
     const rows = f.commands.map(c => `<tr><td>${c.str.replace(/\+/g, ' + ')}</td><td>${f.moves[c.move].name}</td><td>${f.moves[c.move].hit ? ({ high: 'Alto', mid: 'Medio', low: 'Bajo', smid: 'Medio esp.', throw: 'Agarre' })[f.moves[c.move].hit.lvl] : ''}</td></tr>`).join('');
     this.showOverlay(`<h3>${f.ch.meta.display} — MOVIMIENTOS</h3><table>${rows}</table><p style="color:#999;font-size:14px;margin-top:10px">1 = puño izq · 2 = puño der · 3 = patada izq · 4 = patada der · f = hacia el rival · b = atrás · d = abajo · u = arriba</p>`, () => this.pause(true), null, { ok: 'VOLVER' });
     this.state = 'overlay-pause';
@@ -709,18 +868,28 @@ class Game {
     else if (this.state === 'overlay' || this.state === 'overlay-pause') {
       if (keys.has('Enter') || keys.has('KeyU') || keys.has('Space') || pads[0].ok) this.overlayCb.ok();
       else if (keys.has('Escape') || keys.has('KeyK') || pads[0].back) this.overlayCb.back();
+    } else if (this.state === 'fight' && this.replaying) {
+      if (keys.size || pads[0].ok || pads[0].start || pads[0].back) this.online.replayEnded();
     } else if (this.state === 'fight') {
       if (keys.has('Escape') || pads[0].start || pads[1].start || (keys.has('Enter') && this.match?.phase === 'fight')) this.pause(true);
+    } else if (this.state === 'online') {
+      if (keys.has('Escape')) this.online.escape();
+    } else if (this.state === 'netresults') {
+      if (keys.has('Enter') || pads[0].ok) this.online.choose('rematch');
     }
+    // online: the rollback session plays the frames (both phones' inputs), whatever this screen is showing
+    this.online.tick(dt);
+    const netRun = !!this.online.session && this.match === this.online.match;
     // simulation
     const m = this.match;
     let alpha = 1;
     this.syncTouchUI();
     if (m) {
-      const running = this.state === 'fight' || this.state === 'title' || this.state === 'select';
-      if (running) {
+      const running = !netRun && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'online' || this.state === 'netresults');
+      if (netRun) alpha = this.online.session.alpha;
+      else if (running) {
         let scale = 1;
-        if (m.slowmo > 0) { m.slowmo -= dt; scale = 0.28; }
+        if (m.slowmo > 0) { if (!m.det) m.slowmo -= dt; scale = SLOWMO; }
         this.acc += dt * scale;
         let steps = 0;
         let maxSteps = +(q.get('maxsteps') || 6);
@@ -792,8 +961,12 @@ class Game {
     e.desat += (targetDesat - e.desat) * (1 - Math.exp(-dt * 6));
     const lb = m && (m.phase === 'intro' || m.phase === 'matchEnd') ? 1 : 0;
     e.letterbox += (lb - e.letterbox) * (1 - Math.exp(-dt * 4));
+    // phones: the player's own fighter taking a blow is felt in the hand too (the vibration option rules)
+    const mine = this.online.inFight ? this.online.local : 0, feel = document.body.classList.contains('touchui') && this.state === 'fight' && !this.replaying;
     if (m) for (const ev of m.events) {
       if (ev.t === 'hit' && (ev.heavy || ev.ch)) { e.radial = Math.max(e.radial, ev.ch ? 0.35 : 0.2); e.hitFlash = Math.max(e.hitFlash, ev.ch ? 0.35 : 0.18); }
+      if (feel && ev.t === 'hit' && ev.def && ev.def.index === mine) haptic(ev.def.ko ? 90 : ev.heavy || ev.ch ? 40 : 14);
+      if (feel && ev.t === 'block' && ev.f && ev.f.index === mine) haptic(8);
       if (ev.t === 'rageArt') { e.radial = 0.8; e.hitFlash = 0.6; e.desat = 0.5; }
       if (ev.t === 'rage') { e.hitFlash = Math.max(e.hitFlash, 0.25); }
     }
@@ -802,7 +975,7 @@ class Game {
     this.fx.update(this.capFrozen ? (this.capFrozen++ === 1 ? (+(q.get('hitage') || 2)) / FPS : 0) : dt);
     this.stage.update(dt, this.camera);
     if (q.get('fxtest')) { const [r, h, d] = q.get('fxtest').split(',').map(Number); e.radial = r; e.hitFlash = h; e.desat = d || 0; }
-    if (this.post) {
+    if (this.post && !q.get('norender')) {
       const u = this.post.u;
       u.hitFlash.value = e.hitFlash; u.radial.value = e.radial; u.desat.value = e.desat; u.letterbox.value = e.letterbox;
       if (this.post.bokeh) {

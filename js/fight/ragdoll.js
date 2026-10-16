@@ -39,6 +39,7 @@ const MINS = [['shL', 'wrL', 0.45], ['shR', 'wrR', 0.45], ['hipL', 'anL', 0.5], 
 
 class Ragdoll {
   constructor(f, impulse) {
+    this.isRagdoll = true;
     this.f = f;
     this.rig = f.rig;
     this.p = {}; this.o = {}; this.r = {}; this.m = {};
@@ -119,8 +120,10 @@ class Ragdoll {
     pb.addScaledVector(_a, -diff * wb);
   }
 
-  // rebuild bone rotations from particle positions
-  apply() {
+  // rebuild bone rotations from particle positions (on the rig's render skeleton: the simulation's stays as the
+  // knockout left it)
+  apply() { this.rig.renderScope(() => this._apply()); }
+  _apply() {
     const f = this.f, rig = this.rig, b = rig.b, P = this.p, R = this.restP;
     const g = f.ch.group;
     g.position.set(0, 0, 0); g.rotation.set(0, 0, 0);
@@ -185,7 +188,9 @@ class Ragdoll {
 }
 
 export class Ragdolls {
-  constructor(scene) { this.list = []; this.scene = scene; }
+  // drivePos: the knocked-out fighter's position follows the body (off online, where the position belongs to the
+  // simulation both phones run and the ragdoll is only drawn)
+  constructor(scene) { this.list = []; this.scene = scene; this.drivePos = true; }
   spawn(def, att, point) {
     const dir = new THREE.Vector3().subVectors(def.pos, att.pos).setY(0).normalize().setY(0.35).normalize();
     const heavy = 1;
@@ -199,7 +204,7 @@ export class Ragdolls {
     for (const r of this.list) {
       r.apply();
       // keep the logical position in sync for the camera
-      r.f.pos.copy(r.p.pelvis).setY(0);
+      if (this.drivePos) r.f.pos.copy(r.p.pelvis).setY(0);
     }
   }
   freeze() { for (const r of this.list) r.frozen = true; }

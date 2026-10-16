@@ -39,9 +39,52 @@ Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, C
 |---|---|
 | Arcade | Te enfrentas a los otros cinco, uno tras otro (la pantalla de carga indica «COMBATE X DE 5»). Al vencerlos a todos eres **Campeón del barrio**. La CPU se endurece en cada combate y los escenarios se alternan. |
 | Versus | Dos jugadores, con teclado o mandos. En la selección se elige escenario con **W/S** o con las flechas ◀ ▶. |
+| Versus online | Dos jugadores, **cada uno en su móvil**, por WiFi (o por QR sin internet). Ver [Versus online](#versus-online-dos-móviles). |
 | Entrenamiento | Rival pasivo. En pantalla se ve el estado del rival y la ventaja en frames de cada golpe. |
 
 **Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU en cada uno de los cinco combates del arcade.
+
+## Versus online (dos móviles)
+
+Cada jugador pelea desde su propio móvil (Android o iPhone), en la misma WiFi o en el punto de acceso de uno de ellos. No hace falta instalar nada ni ningún servidor propio. Está hecho a partir de la plantilla de `PlantillaWeb/plantilla/multijugador/` y de sus notas (`PlantillaWeb/notas/multijugador-wifi-qr.md`).
+
+**Cómo se juega**
+
+1. En los dos móviles: **VERSUS ONLINE** en el menú principal. Cada uno escribe su nombre.
+2. Uno pulsa **CREAR PARTIDA** y sale un código de 4 cifras. Al otro móvil, si está en la misma WiFi, **la partida le aparece sola** en «Partidas en esta WiFi». Si no, pulsa **UNIRSE CON CÓDIGO** y lo escribe.
+3. **Sin internet:** **CREAR CON QR** en uno y **UNIRSE CON QR** en el otro. Cada móvil enseña un QR que el otro lee con la cámara. La cámara solo funciona con https (la web publicada, no `http://192.168…`).
+4. El anfitrión elige las **reglas**: rondas para ganar (1, 2 o 3), tiempo (30, 60 o 99 s) y retardo de entrada (automático o de 1 a 4 fotogramas). Después pulsa **¡A LUCHAR!**.
+5. Los dos eligen luchador en la misma pantalla y cada uno ve el cursor del otro en directo. El anfitrión elige el escenario.
+6. Al acabar: marcador de la noche (y el historial contra ese rival), **REVANCHA**, **CAMBIAR LUCHADOR**, **▶ REPETICIÓN** del combate o **SALIR**.
+
+**Durante el combate**
+
+- Bajo el reloj está el **medidor de conexión**: barras y ping. Si lo tocas, muestra el retardo, la corrección media y el estado de la sincronía.
+- La **pausa es compartida**: si un jugador pausa, el combate se para en los dos móviles. Al continuar hay una cuenta atrás 3-2-1 en los dos. Desde la pausa se puede abandonar el combate (lo gana el rival).
+- Si la WiFi se corta un momento, el combate espera solo («Esperando a…»). Si se pierde la conexión y la partida es con código, el móvil invitado vuelve solo a su sitio y el combate sigue donde estaba. Con QR no hay vuelta atrás.
+- En el móvil, el gesto **atrás** pide confirmación: hay que hacerlo dos veces para salir de la partida. La pantalla no se apaga mientras se juega.
+- Tu luchador lleva la marca **TÚ** bajo la barra de vida y, en el móvil, los golpes fuertes que recibes se notan con una vibración (si la tienes activada en Opciones).
+
+**Cómo funciona (netcode rollback)**
+
+Es el sistema de los juegos de lucha grandes (GGPO: Street Fighter 6, Tekken 8…):
+
+- **Los dos móviles simulan el combate entero.** Por la red solo viajan los mandos: 2 bytes por fotograma y jugador.
+- Tus golpes se ejecutan al instante, con un retardo fijo de 1 o 2 fotogramas. En **AUTO**, el retardo se calcula según el ping.
+- Para los fotogramas cuyo mando del rival aún no ha llegado, el juego **predice** que sigue haciendo lo mismo.
+- Cada fotograma se guarda (unos 30 µs). Si el mando real del rival era otro, el combate **retrocede** a ese fotograma y lo vuelve a jugar en el mismo refresco de pantalla. Con una WiFi normal son correcciones de 1 o 2 fotogramas, invisibles.
+- El móvil que va por delante frena un poco hasta que los dos juegan el mismo fotograma a la vez.
+- Cada medio segundo los dos comparan una huella del estado. Si alguna vez no coincidieran (por un error, o porque dos navegadores redondean distinto un seno), el móvil invitado toma el estado del anfitrión y sigue.
+- La simulación es **determinista**: no depende del azar, ni de la cámara de cada móvil, ni de cuántos fotogramas por segundo dibuje. Por eso la repetición del combate sale exacta.
+- Los efectos (chispas, sonidos, rótulos) de un fotograma que se vuelve a jugar no se repiten.
+
+**Versión:** los dos móviles tienen que tener la misma versión del juego. Si no, el que se une recibe un aviso para recargar la página. La versión (`js/net/config.js`) es `NET_RELEASE` más una huella de los movimientos de todos los luchadores. **Si cambias el código de la simulación del combate, sube `NET_RELEASE`.**
+
+**Límites**
+
+- El código y la búsqueda en la WiFi usan el servidor gratuito de PeerJS solo para presentar a los dos móviles; después todo va directo de móvil a móvil. Si ese servidor falla, el QR sigue funcionando.
+- Las WiFi con aislamiento de clientes (de invitados, de hoteles) no dejan que los móviles se vean. Con código puede funcionar por el relé TURN (más lento). Si no, usad el punto de acceso de uno de los móviles.
+- **Todavía no se ha probado con móviles de verdad.** Está probado con navegadores en el ordenador (Chromium hace de Android y WebKit de iPhone), con el servidor de códigos de prueba y también con el servidor real de PeerJS (16/10/2026). Antes de dar por buena una versión, echad una partida real con dos móviles: misma WiFi, código, QR sin datos, Android contra iPhone y un móvil que bloquea la pantalla a mitad de combate.
 
 ## Escenarios
 
@@ -134,6 +177,9 @@ La lista completa de movimientos está en el menú de pausa. Al ganar, cada luch
   - **Gritos de los luchadores** grabados por actores, en `assets/voice/fx/` (unos 820 KB). Cada luchador tiene su propia combinación de voz y tono, con variantes de ataque, dolor, golpe fuerte y K.O. que no se repiten dos veces seguidas.
     - Voces de [HaelDB](https://opengameart.org/content/male-gruntyelling-sounds) (CC0) y de VoiceBosch ([esfuerzos](https://opengameart.org/content/effort-sounds-male-audio-pack) y [daño](https://opengameart.org/content/damage-sounds-male-audio-pack), CC-BY-SA 4.0).
     - Créditos y licencias en `assets/voice/fx/CREDITS.txt`.
+- **Online** (`js/net/`, `js/ui/online.js`): netcode rollback propio (`rollback.js`), con estado del combate guardado y restaurado en un búfer plano (`simstate.js`). La conexión WebRTC, el servidor de códigos, la búsqueda en la misma WiFi y los QR vienen de la plantilla de PlantillaWeb (`netplay.js`, `link.js`, `signal.js`, `lan.js`, `sdp.js`, `qr.js`).
+  - QR: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT) para dibujarlos y [jsQR](https://github.com/cozmo/jsQR) (Apache 2.0, licencia en `vendor/qr/LICENSE-jsQR`) para leerlos donde el navegador no tiene `BarcodeDetector`.
+  - Presentación de los móviles (código y WiFi): servidor público gratuito de [PeerJS](https://peerjs.com).
 - **Móvil y producción** (`js/engine/device.js`, `js/ui/touch.js`):
   - El perfil del dispositivo (móvil, tablet u ordenador; memoria) fija la calidad por defecto, el límite de *pixel ratio* y el tamaño máximo de textura.
   - Carga diferida de personajes con precarga en segundo plano, y mallas comprimidas con gzip que se descomprimen con `DecompressionStream`.
@@ -156,6 +202,12 @@ Son los scripts usados para generar los personajes y probar el juego. Se incluye
   - `tools/voicetest.mjs` y `tools/musictest.mjs`: cargan y reproducen todas las voces y gritos, y la música del menú y de los escenarios (cambios de pista, pausa al ocultar la página, público de la calle).
   - `tools/netaudit.mjs`: mide los bytes descargados hasta que el título responde y en una sesión completa, y lista los ficheros que nunca se piden.
   - `tools/perfprobe.mjs`: cuenta las llamadas de dibujo, los triángulos y la memoria de texturas de un combate con cada calidad.
+- Modo online (ver [Versus online](#versus-online-dos-móviles)):
+  - `node --import ./register.mjs netsim.mjs`: sin navegador. Comprueba que las mismas entradas dan el mismo combate bit a bit y que más de 5000 retrocesos aleatorios se rejuegan exactos. También que una copia del estado por la red sigue igual. Usa 4 parejas de luchadores, con agarres, Rage Arts, KO y fin del combate.
+  - `netsim.mjs --only session` (con `netsession.mjs`): dos sesiones de rollback unidas por una red simulada en 5 situaciones (WiFi buena, cargada, móvil lento, red mala con un 20 % de pérdida y una desincronización forzada). En todas acaban en el mismo estado, que es el del combate sin red, y la desincronización forzada se corrige sola.
+  - `netflow.mjs [salida] [chromium|webkit] [wifi|code]`: dos navegadores de principio a fin. Prueba la partida encontrada sola en la «WiFi» (o el código), los nombres, las reglas y la selección sincronizada. Después el combate con rollback y sus comprobaciones de estado, la pausa compartida, un corte de WiFi con vuelta sola y el final. Por último, la repetición (que acaba exactamente igual), la revancha y la salida de un jugador. Con `webkit`, el invitado usa el motor del iPhone.
+  - `netqr.mjs [salida]`: sin internet, por QR, con la cámara falsa de Chromium leyendo el QR del otro móvil. Comprueba también que un QR de otro juego o de otra versión se rechaza, el combate y el aviso al perder la conexión.
+  - `mocksignal.mjs`: servidor de códigos de prueba (imita al de PeerJS) para que las pruebas no dependan de internet. Las páginas lo usan con `?sig=ws://localhost:PUERTO/peerjs`. Con `?lankey=testnet` todas las páginas están en la misma «WiFi», y `?netdebug=1` saca mensajes `[net]` en la consola.
 - Páginas de laboratorio: `viewer.html` (personajes), `poselab.html` y `animlab.html` (poses y golpes), `fightlab.html` (tiras de fotogramas de combates guionizados sobre suelo cuadriculado), `lineup.html` (proporciones con regla), `stagelab.html` (escenarios) y `crowdlab.html` (público).
 - Control de calidad de la animación (se ejecutan con `node --import ./register.mjs <herramienta>` desde `tools/`):
   - `animaudit.mjs`: la auditoría principal. Recorre todos los golpes de todos los luchadores contra dos rivales, más movimiento, agarres, Rage Arts, poses y combates de la IA, y usa los mismos volúmenes corporales que el rig. Informa de:

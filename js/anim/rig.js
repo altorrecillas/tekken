@@ -222,6 +222,22 @@ export class Rig {
     if (logic) this.logicDriven = true;
     const stepState = logic || !this.logicDriven;
     this._stepState = stepState;
+    // a render pass (the pose interpolated between two simulation frames) solves on its own copy of the skeleton:
+    // the simulation keeps reading the bones and bend directions its last frame left, whenever and however often
+    // the screen was drawn in between (two phones playing the same fight online must compute exactly the same)
+    if (!stepState) this.renderScope(() => this._apply(p));
+    else this._apply(p);
+  }
+
+  // runs fn with the render copies of this.world and this.bendDir in place (the ragdoll draws through it too)
+  renderScope(fn) {
+    const w = this.world, bd = this.bendDir;
+    this.world = this._rWorld || (this._rWorld = {});
+    this.bendDir = this._rBend || (this._rBend = { L: bd.L.clone(), R: bd.R.clone(), kL: bd.kL.clone(), kR: bd.kR.clone() });
+    try { return fn(); } finally { this.world = w; this.bendDir = bd; }
+  }
+
+  _apply(p) {
     const b = this.b;
     // root
     const rp = POSE.rootPos[0];
@@ -258,7 +274,7 @@ export class Rig {
     // the eyes lead but the head follows the look target smoothly
     const L = this.look;
     if (!L.init || this.snapLook) { L.yaw = lookYaw; L.pitch = lookPitch; L.init = true; this.snapLook = false; }
-    else if (stepState) { L.yaw += (lookYaw - L.yaw) * 0.3; L.pitch += (lookPitch - L.pitch) * 0.3; }
+    else if (this._stepState) { L.yaw += (lookYaw - L.yaw) * 0.3; L.pitch += (lookPitch - L.pitch) * 0.3; }
     // anatomical range of the neck (authored turn + look): about 75 degrees of turn, 45 of nod
     const yawT = THREE.MathUtils.clamp(p[nk + 1] + L.yaw, -1.3, 1.3), pitchT = THREE.MathUtils.clamp(p[nk] + L.pitch, -0.8, 0.85);
     for (let i = 0; i < NECK.length; i++) {
