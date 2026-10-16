@@ -35,7 +35,7 @@ function setHTML(el, html) { if (el && el._html !== html) { el._html = html; el.
 // why a connection did not happen, for people
 function netError(e) {
   const m = (e && e.message) || '';
-  if (m.startsWith('version:')) return 'El otro móvil tiene otra versión del juego. Recargad la página en los dos (con internet) y volved a probar.';
+  if (m.startsWith('version:')) return `El otro móvil tiene la versión ${esc(m.slice(8).split('-')[0])} y este la ${esc(VERSION_SHOWN)}. Recargad la página en los dos (con internet) para tener la misma.`;
   if (m === 'notfound') return 'No encuentro esa partida. Revisa el código y que el otro móvil siga en CREAR PARTIDA.';
   if (m === 'busy' || m === 'full') return 'Esa partida ya tiene dos jugadores.';
   if (m === 'nolink') return 'No se han podido conectar. ¿Estáis los dos en la misma WiFi?';
@@ -80,7 +80,7 @@ export class Online {
     addEventListener('popstate', () => {
       if (this.phase === 'off') return;
       if (!this.net) {
-        if (this.phase === 'join') { history.pushState({ pdbOnline: 1 }, ''); this.toLobby(); } else { this.close(); this.g.toTitle(); }
+        if (this.phase === 'join') { history.pushState({ pdbOnline: 1 }, ''); this.toLobby(); } else { this.close(); this.g.toTitle(); this.g.showTitleMenu('vs'); }
         return;
       }
       history.pushState({ pdbOnline: 1 }, '');
@@ -165,7 +165,7 @@ export class Online {
       else if (!list.length) box.innerHTML = '<div class="ol-muted">Ninguna todavía. Cuando alguien pulse CREAR PARTIDA, aparecerá aquí.</div>';
       else {
         box.innerHTML = list.map((g) => (g.v !== VERSION
-          ? `<button class="ol-game" disabled><b>${esc(g.code)}</b><span>OTRA VERSIÓN DEL JUEGO</span></button>`
+          ? `<button class="ol-game" disabled><b>${esc(g.code)}</b><span>OTRA VERSIÓN (v${esc(g.v.split('-')[0])})</span></button>`
           : g.n >= g.max ? `<button class="ol-game" disabled><b>${esc(g.code)}</b><span>COMPLETA</span></button>`
             : `<button class="ol-game go" data-a="found" data-code="${esc(g.code)}"><b>${esc(g.code)}</b><span>UNIRSE · ${g.n}/${g.max}</span></button>`)).join('');
       }
@@ -178,7 +178,7 @@ export class Online {
       join: () => { saveName(); stop(); this.joinCode(''); },
       qrjoin: () => { saveName(); stop(); this.joinQR(); },
       found: (b) => { saveName(); stop(); this.joinCode(b.dataset.code); },
-      back: () => { stop(); this.close(); this.g.toTitle(); },
+      back: () => { stop(); this.close(); this.g.toTitle(); this.g.showTitleMenu('vs'); },
     });
     lanKey().then((key) => {
       if (!el.isConnected) return;
@@ -190,7 +190,7 @@ export class Online {
 
   // Escape on the online screens: one step back where that is harmless
   escape() {
-    if (this.phase === 'lobby') { this.close(); this.g.toTitle(); } else if (this.phase === 'join') { this.close(); this.toLobby(); }
+    if (this.phase === 'lobby') { this.close(); this.g.toTitle(); this.g.showTitleMenu('vs'); } else if (this.phase === 'join') { this.close(); this.toLobby(); }
   }
 
   // a new connection, wired to this module (whatever arrives for an older one is ignored)
@@ -710,16 +710,17 @@ export class Online {
     if (!el) return;
     const s = this.session;
     if (!s || !this.net) { el.classList.remove('on'); return; }
-    const rtt = Math.round(this.net.rttLow || 0), stall = s.stallT > 0.3 || this.stalled;
+    const rtt = Math.round(this.net.rttLow || 0), stall = s.stallT > 0.25 || this.stalled;
     // (not over the cinematic intro, unless the connection is in trouble)
     if (this.match && this.match.phase === 'intro' && !stall) { el.classList.remove('on'); return; }
     const bars = stall ? 0 : rtt < 40 ? 4 : rtt < 80 ? 3 : rtt < 140 ? 2 : 1;
     el.className = `on q${bars}${el.classList.contains('more') ? ' more' : ''}`;
     const st = s.stats, avg = st.rollbacks ? st.rolled / st.rollbacks : 0;
     el.innerHTML = `<span class="bars">${[1, 2, 3, 4].map((k) => `<i class="${k <= bars ? 'on' : ''}"></i>`).join('')}</span><span class="ms">${stall ? '···' : rtt + ' ms'}</span>` +
-      `<span class="det">RETARDO ${s.delay} · CORRECCIÓN ${avg.toFixed(1)} F · ${st.desyncs ? `RESINC. ${st.resyncs}` : 'SINCRONÍA OK'}</span>`;
-    // waiting for the other phone (its inputs stopped coming)
-    const waiting = !this.lostOn && !this.paused && (s.stallT > 0.4 || this.stalled);
+      `<span class="det">RETARDO ${s.delay} · CORRECCIÓN ${avg.toFixed(1)} F · ESPERAS ${st.stalls} · ${st.desyncs ? `RESINC. ${st.resyncs}` : 'SINCRONÍA OK'}</span>`;
+    // waiting for the other phone (its inputs stopped coming): the notice only for a real freeze, a second long (a
+    // shorter one is a hiccup, and the meter shows it)
+    const waiting = !this.lostOn && !this.paused && (s.stallT > 1 || this.stalled);
     if (waiting !== !!this._waitShown) {
       this._waitShown = waiting;
       if (waiting) { this.msgEl.innerHTML = `<i class="ol-spin"></i>Esperando a <b>${esc(this.peerName)}</b>…`; this.msgEl.classList.add('on'); this.msgEl.classList.remove('panel'); }
@@ -729,12 +730,8 @@ export class Online {
   // the camera's mode follows the match state (a replay may move a throw or a knockout by a frame or two)
   syncCamera() {
     const m = this.match, cam = this.g.camCtl;
-    let mode = 'fight', focus = null;
-    if (m.phase === 'intro') mode = 'intro';
-    else if (m.phase === 'matchEnd') { mode = 'win'; focus = m.fighters[m.winner] || null; }
-    else if (m.phase === 'ko') { mode = 'ko'; focus = m.fighters.find((f) => f.ko) || m.fighters[1 - (m.koWinner | 0)]; cam.koWinner = m.fighters[m.koWinner | 0]; }
-    else if (m.rageLock) { mode = 'rage'; focus = m.rageLock.att; }
-    else if (m.throwLock) mode = 'throw';
+    const [mode, focus] = this.g.cameraFor(m);
+    if (mode === 'ko') cam.koWinner = m.fighters[m.koWinner | 0];
     const newRound = m.round !== this.lastRound;
     this.lastRound = m.round;
     if (newRound && mode === 'fight') { cam.setMode('fight', true); this.lastMode = 'fight'; this.lastFocus = null; return; }

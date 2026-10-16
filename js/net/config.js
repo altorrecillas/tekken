@@ -2,14 +2,15 @@
 // game's) is the same for every game. Two games with the same APP_ID would find each other's rooms on the PeerJS
 // cloud, so each has its own.
 import { STYLES } from '../fight/styles.js';
+import { GAME_VERSION } from '../version.js';
 
 // the ids of this game on the PeerJS cloud start with this: letters and digits, words joined by a single '-'
 export const APP_ID = 'punos-de-barrio';
 // Both phones simulate the whole fight, so they must run exactly the same game: a phone with another version is
 // turned away with a message instead of playing a fight that slowly turns into another one. The version is the
-// online release (raise it whenever the fight simulation's code changes) and a fingerprint of every fighter's
-// moves and stats, so that a phone with an older copy cached is caught even if the release was not raised.
-const NET_RELEASE = '1.0';
+// game's (js/version.js, raised with every change) and a fingerprint of every fighter's moves and stats, so that a
+// phone with an older copy cached is caught even if the version was not raised.
+const NET_RELEASE = GAME_VERSION;
 function fingerprint(s) {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);

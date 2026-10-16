@@ -45,6 +45,12 @@ export async function sessionTest({ makeMatch, check, rnd }) {
     { name: 'no delay, slow phone', lat: 10, jit: 15, loss: 0.03, delay: 0, fpsA: 60, fpsB: 30 },
     { name: 'bad network', lat: 70, jit: 90, loss: 0.2, delay: 3, fpsA: 50, fpsB: 60 },
     { name: 'forced desync', lat: 8, jit: 8, loss: 0.02, delay: 2, fpsA: 60, fpsB: 60, corrupt: 1500 },
+    // a phone that gets stuck now and then (a garbage collection, a first texture: 150-450 ms), on a good WiFi; the
+    // game used to hand the session at most 0.1 s per refresh, so the frames lost in a hiccup were never caught up
+    // and the other phone had to wait for them ('esperando a...' with a ping of 30 ms)
+    { name: 'phone hiccups, as before', lat: 15, jit: 10, loss: 0.01, delay: 2, fpsA: 60, fpsB: 60, hitch: [0.006, 150, 450], cap: 0.1, maxPredict: 8 },
+    { name: 'phone hiccups, window 12', lat: 15, jit: 10, loss: 0.01, delay: 2, fpsA: 60, fpsB: 60, hitch: [0.006, 150, 450], cap: 0.5, maxPredict: 12 },
+    { name: 'phone hiccups', lat: 15, jit: 10, loss: 0.01, delay: 2, fpsA: 60, fpsB: 60, hitch: [0.006, 150, 450], cap: 0.5 },
   ];
   for (const sc of scenarios) {
     // the inputs each phone reads: its player's recorded input for the frame it is reading for
@@ -58,9 +64,9 @@ export async function sessionTest({ makeMatch, check, rnd }) {
       const m = makeMatch(ids);
       m.startIntro();
       const gate = new FxGate();
-      const P = { m, local, gate, t: 0, fps: local ? sc.fpsB : sc.fpsA, ended: false };
+      const P = { m, local, gate, t: 0, last: 0, fps: local ? sc.fpsB : sc.fpsA, ended: false };
       P.s = new RollbackSession({
-        match: m, local, delay: D, host: local === 0, gate,
+        match: m, local, delay: D, host: local === 0, gate, maxPredict: sc.maxPredict,
         poll: () => input(P.s.linMax, local),
         send: (buf) => net.fast(buf, phones[1 - local].s),
         sendRel: (msg) => net.rel(msg, phones[1 - local].s),
@@ -70,17 +76,28 @@ export async function sessionTest({ makeMatch, check, rnd }) {
       return P;
     });
     // run: each phone refreshes at its own uneven rate, the network delivers in between
-    let corrupted = false, maxAhead = 0, maxGap = 0;
+    let corrupted = false, maxAhead = 0, maxGap = 0, longWaits = 0, oldNotices = 0;
+    const oldT = [0, 0]; // (the notice's old rule: any refresh that hit the limit counted as waiting, 0.4 s showed it)
     const tEnd = (REC / 60) * 1000 * 1.6;
     while (clock.t < tEnd && !phones.every((p) => p.s.frame >= REC - 20)) {
       clock.t += 1;
       net.deliver();
       for (const p of phones) {
         if (clock.t < p.t) continue;
-        const dt = (1000 / p.fps) * (0.75 + rnd() * 0.5);
-        p.t = clock.t + dt;
+        // the time since this phone's last refresh (the game hands the session up to `cap` seconds of it), then
+        // when the next one comes: a frame of its rate, now and then (guest) a hiccup
+        const elapsed = clock.t - p.last;
+        p.last = clock.t;
+        let next = (1000 / p.fps) * (0.75 + rnd() * 0.5);
+        if (sc.hitch && p.local === 1 && rnd() < sc.hitch[0]) next += sc.hitch[1] + rnd() * (sc.hitch[2] - sc.hitch[1]);
+        p.t = clock.t + next;
         if (p.s.frame >= REC - 20) continue;
-        p.s.update(dt / 1000);
+        const w0 = p.s.stallT;
+        p.s.update(Math.min(sc.cap || 0.5, elapsed / 1000));
+        if (w0 <= 1 && p.s.stallT > 1) longWaits++; // (the 'waiting for the other phone' notice would show)
+        const o0 = oldT[p.local];
+        oldT[p.local] = p.s.waited ? o0 + Math.min(sc.cap || 0.5, elapsed / 1000) : 0;
+        if (o0 <= 0.4 && oldT[p.local] > 0.4) oldNotices++;
         p.gate.flush();
         maxAhead = Math.max(maxAhead, p.s.ahead);
       }
@@ -91,8 +108,12 @@ export async function sessionTest({ makeMatch, check, rnd }) {
     // the last checkpoint both have: same hash, and the reference's
     const lastCk = Math.floor(Math.min(A.checked, B.checked) / CHECK_EVERY) * CHECK_EVERY;
     const hA = A.finalHash.get(lastCk), hB = B.finalHash.get(lastCk);
-    const st = (s) => `${s.stats.rollbacks} rewinds (avg ${(s.stats.rolled / Math.max(1, s.stats.rollbacks)).toFixed(1)}, max ${s.stats.maxRoll}), ${Math.round(s.stats.stallMs)} ms waiting`;
-    console.log(`  [${sc.name}] lat ${sc.lat}±${sc.jit} ms, loss ${sc.loss * 100}%, delay ${D}, ${sc.fpsA}/${sc.fpsB} fps: frames ${A.frame}/${B.frame}, ${A.stats.checks} checks; host ${st(A)}; guest ${st(B)}; max ${maxAhead} predicted, max ${maxGap} apart`);
+    const st = (s) => `${s.stats.rollbacks} rewinds (avg ${(s.stats.rolled / Math.max(1, s.stats.rollbacks)).toFixed(1)}, max ${s.stats.maxRoll}), ${s.stats.stalls} waits ${Math.round(s.stats.stallMs)} ms`;
+    console.log(`  [${sc.name}] lat ${sc.lat}±${sc.jit} ms, loss ${sc.loss * 100}%, delay ${D}, ${sc.fpsA}/${sc.fpsB} fps: frames ${A.frame}/${B.frame}, ${A.stats.checks} checks; host ${st(A)}; guest ${st(B)}; max ${maxAhead} predicted, max ${maxGap} apart; notices: ${longWaits} (with the old rule ${oldNotices})`);
+    if (sc.hitch && sc.cap >= 0.5 && !sc.maxPredict) {
+      ok(longWaits === 0, `[${sc.name}] no 'waiting for the other phone' notice (a freeze of over a second)`);
+      ok(A.stats.stallMs < 2500, `[${sc.name}] the other phone stands still ${Math.round(A.stats.stallMs)} ms in two minutes (6.4 s before the catch-up and the wider window)`);
+    }
     if (sc.corrupt) {
       ok(B.stats.desyncs >= 1 && B.stats.resyncs >= 1, `[${sc.name}] the nudged guest is spotted (${B.stats.desyncs}) and takes the host's state (${B.stats.resyncs})`);
       ok(hA !== undefined && hA === hB, `[${sc.name}] both agree again afterwards (checkpoint ${lastCk})`);

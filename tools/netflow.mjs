@@ -83,8 +83,8 @@ try {
   check(true, `both phones at the title (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 
   // ---------------------------------------------------------------- the room
-  await H.click('#title .menu button[data-act="online"]');
-  await G.click('#title .menu button[data-act="online"]');
+  await H.click('#title .menu button[data-act="vsmenu"]'); await H.click('#title .menu button[data-act="online"]');
+  await G.click('#title .menu button[data-act="vsmenu"]'); await G.click('#title .menu button[data-act="online"]');
   await H.fill('#online [data-k=name]', 'Alex'); await H.press('#online [data-k=name]', 'Enter');
   await G.fill('#online [data-k=name]', 'Dani'); await G.press('#online [data-k=name]', 'Enter');
   await H.click('#online [data-a=host]');

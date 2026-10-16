@@ -53,14 +53,14 @@ const t0 = Date.now();
 try {
   await H.goto(URL_);
   await waitFor(H, () => !!document.querySelector('#title.on'), null, 180000, 'title');
-  await H.click('#title .menu button[data-act="online"]');
+  await H.click('#title .menu button[data-act="vsmenu"]'); await H.click('#title .menu button[data-act="online"]');
   await waitFor(H, () => /Sin internet/.test(document.querySelector('#online [data-k=list]')?.textContent || ''), null, 15000, 'no internet notice');
   check(true, 'no internet: the WiFi list says so and points to the QR codes');
   await H.click('#online [data-a=qrhost]');
   await waitFor(H, () => !!document.querySelector('#online .ol-room [data-k=qr]')?.dataset.text, null, 30000, 'host QR');
   const offer = await H.evaluate(() => document.querySelector('#online .ol-room [data-k=qr]').dataset.text);
   const modules = await H.evaluate(() => +document.querySelector('#online .ol-room [data-k=qr] canvas').dataset.modules);
-  check(/^PDB1\|1\.0-\w+\|o\|/.test(offer) && offer.length < 240, `the host shows its connection as a QR (${offer.length} characters, ${modules}×${modules} squares)`);
+  check(/^PDB1\|[\d.]+-\w+\|o\|/.test(offer) && offer.length < 240, `the host shows its connection as a QR (${offer.length} characters, ${modules}×${modules} squares)`);
   check(await decodeIn(H, '#online .ol-room [data-k=qr]') === offer, 'the QR drawn reads back as the same text');
   await H.screenshot({ path: path.join(OUT, 'netqr_host.png') });
 
@@ -74,12 +74,12 @@ try {
   watch(G, 'guest');
   await G.goto(URL_);
   await waitFor(G, () => !!document.querySelector('#title.on'), null, 180000, 'guest title');
-  await G.click('#title .menu button[data-act="online"]');
+  await G.click('#title .menu button[data-act="vsmenu"]'); await G.click('#title .menu button[data-act="online"]');
   await G.click('#online [data-a=qrjoin]');
   // the real one, through the camera
   await waitFor(G, () => !!document.querySelector('#online .ol-joinqr [data-k=mine] [data-k=qr]')?.dataset.text, null, 60000, 'the camera read the QR');
   const answer = await G.evaluate(() => document.querySelector('#online .ol-joinqr [data-k=qr]').dataset.text);
-  check(/^PDB1\|1\.0-\w+\|a\|/.test(answer) && await decodeIn(G, '#online .ol-joinqr [data-k=mine] [data-k=qr]') === answer, `the guest's camera read the host's QR (jsQR) and shows its answer as a QR (${answer.length} characters)`);
+  check(/^PDB1\|[\d.]+-\w+\|a\|/.test(answer) && await decodeIn(G, '#online .ol-joinqr [data-k=mine] [data-k=qr]') === answer, `the guest's camera read the host's QR (jsQR) and shows its answer as a QR (${answer.length} characters)`);
   await G.screenshot({ path: path.join(OUT, 'netqr_guest.png') });
   // the host's camera: first a QR of another game, then an answer from another version (turned down with a clear
   // message), then the real answer
@@ -89,7 +89,7 @@ try {
     await H.waitForTimeout(500);
     wrong.push(await H.evaluate(() => document.querySelector('#online .ol-room [data-k=msg]').textContent));
   }
-  check(/no es de una partida/.test(wrong[0]) && /otra versión/.test(wrong[1]), `a QR from another app or another version is turned down ("${wrong[0].slice(0, 34)}…" / "${wrong[1].slice(0, 34)}…")`);
+  check(/no es de una partida/.test(wrong[0]) && /versión 0\.9/.test(wrong[1]), `a QR from another app or another version is turned down ("${wrong[0].slice(0, 34)}…" / "${wrong[1].slice(0, 34)}…")`);
   await H.evaluate((t) => window.__online.scanner.feed(t), answer);
   await waitFor(H, () => !document.querySelector('#online [data-a=go]').disabled, null, 30000, 'QR room: guest in');
   await waitFor(G, () => !!document.querySelector('#online .ol-wait'), null, 30000, 'QR guest connected');

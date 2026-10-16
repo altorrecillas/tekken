@@ -237,12 +237,28 @@ export class FX {
     this.trails.push({ fighter, limb, t0: this.clock, dur: duration, tr: new Trail(this.scene, color) });
   }
 
+  // One spark, ring, dust cloud, swoosh and sweat spray far below the stage while a fight loads: the first of each
+  // compiled its shaders on the spot in the middle of the fight (a stutter on a phone, and online a phone stuck
+  // for a moment makes the other one wait for it)
+  warmup() {
+    const p = new THREE.Vector3(0, -60, 0);
+    this.hitSpark(p, true, true, null, null);
+    this.hitSpark(p, false, false, null, null);
+    this.blockSpark(p);
+    this.dust(p, 1);
+    this.sweat(p, 2);
+    const tr = new Trail(this.scene, new THREE.Color(0.9, 0.95, 1.0));
+    tr.push(p, this.clock); tr.push(p.clone().setX(0.3), this.clock);
+    this.trails.push({ fighter: null, limb: null, t0: this.clock, dur: 0, tr });
+    for (const r of this.rings) r.m.frustumCulled = false; // (drawn although out of sight: that is when it compiles)
+  }
+
   updateTrails() {
     for (let i = this.trails.length - 1; i >= 0; i--) {
       const T = this.trails[i];
       const age = this.clock - T.t0;
       if (age > T.dur + 0.2) { T.tr.dispose(this.scene); this.trails.splice(i, 1); continue; }
-      if (age <= T.dur) {
+      if (age <= T.dur && T.fighter) {
         const b = T.fighter.ch.bones[T.limb.bone];
         if (b) { const p = new THREE.Vector3(); b.getWorldPosition(p); T.tr.push(p, this.clock); }
       }

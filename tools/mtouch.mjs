@@ -25,8 +25,14 @@ await p.goto(`http://127.0.0.1:${PORT}/index.html?frames=0&q=low&nodynres=1`, { 
 await p.waitForFunction('window.__ready===true', null, { timeout: 600000, polling: 500 });
 await wait(800);
 check('touch UI detected', await p.evaluate("document.body.classList.contains('touchui')"));
-check('versus hidden without gamepad', await p.evaluate(`getComputedStyle(document.querySelector('#title .menu button[data-act=versus]')).display === 'none'`));
 check('touch controls hidden on title', await p.evaluate(`!document.querySelector('#touch').classList.contains('on')`));
+// VERSUS: a submenu (2 players on this screen needs a gamepad on a touch screen; online on two phones)
+await tapSel('#title .menu button[data-act=vsmenu]');
+await wait(500);
+check('VERSUS opens its submenu, 2 players marked as needing a gamepad', await p.evaluate(`!document.querySelector('#title .menu.vs').hidden && document.querySelector('#title .menu.main').hidden && document.querySelector('#title .menu.vs [data-act=versus]').classList.contains('off') && /MANDO/.test(document.querySelector('#title .menu.vs [data-act=versus]').textContent)`));
+await tapSel('#title .menu.vs button[data-act=back]');
+await wait(500);
+check('VOLVER goes back to the main menu', await p.evaluate(`!document.querySelector('#title .menu.main').hidden && document.querySelector('#title .menu.vs').hidden`));
 // menus by tap
 await tapSel('#title .menu button[data-act=training]');
 await wait(900);

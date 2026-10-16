@@ -21,6 +21,9 @@ import { Accessories } from './fx/accessories.js';
 import { Ragdolls } from './fight/ragdoll.js';
 import { ContactShadows } from './fx/contact.js';
 import { Online } from './ui/online.js';
+import { Snap, saveMatch, loadMatch, packSnap, unpackSnap, RAGDOLL_WANTED } from './net/simstate.js';
+import { VERSION } from './net/config.js';
+import { GAME_VERSION } from './version.js';
 const _fkv = new THREE.Vector3();
 
 const ROSTER = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani'];
@@ -42,6 +45,8 @@ const DIFFICULTY = {
   hard: { name: 'DIFÍCIL', ai: [3, 4, 5, 5, 5] },
 };
 const DIFF_KEYS = Object.keys(DIFFICULTY);
+// the arcade run kept on the device for CONTINUAR (see saveArcade)
+const SAVE_KEY = 'pdb_save', SAVE_FORMAT = 1;
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
 const $ = (s) => document.querySelector(s);
 const q = new URLSearchParams(location.search);
@@ -79,6 +84,9 @@ class Game {
     this.p1ctrl = new MergedController(new KeyboardController(KEYMAPS.p1), new GamepadController(0), this.touch);
     this.p2keys = new MergedController(new KeyboardController(KEYMAPS.p2), new GamepadController(1));
     this.roster = ROSTER;
+    // the version, small in a corner (which build this is: see js/version.js); out of the way during a fight
+    this.verEl = $('#ver');
+    if (this.verEl) this.verEl.textContent = 'v' + GAME_VERSION;
     // two phones over the WiFi (lobby, synchronised select, rollback fight): js/ui/online.js
     this.online = new Online(this);
     this.loadAudioPrefs();
@@ -102,9 +110,11 @@ class Game {
     $('#touchPause').addEventListener('click', () => { if (this.state === 'fight') this.pause(true); });
     // app switched away / screen locked: pause the fight and silence the audio
     document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.saveArcade(); // (a phone may close a hidden page without warning)
       if (document.hidden && this.state === 'fight' && this.match?.phase === 'fight' && !this.online.inFight) this.pause(true);
       this.audio.setHidden(document.hidden);
     });
+    addEventListener('pagehide', () => this.saveArcade());
     // rotated to portrait mid-fight (touch devices play in landscape): pause behind the rotate prompt
     matchMedia('(orientation: portrait)').addEventListener?.('change', (e) => { if (e.matches && document.body.classList.contains('touchui') && this.state === 'fight') this.pause(true); });
     // mobile browsers drop the GPU context under memory pressure or after long backgrounding
@@ -115,6 +125,8 @@ class Game {
   // on-screen controls: only while fighting (dimmed after a KO), hidden in cinematics (a tap anywhere skips the
   // intro or leaves the victory screen) and while a gamepad is in use
   syncTouchUI() {
+    const verOff = this.state === 'fight' || this.state === 'netwait';
+    if (this.verEl && verOff !== this._verOff) { this._verOff = verOff; this.verEl.classList.toggle('off', verOff); }
     this.camCtl.touchFrame = this.touch.enabled && document.body.classList.contains('touchui') && !this.padActive;
     if (!this.touch.enabled) return;
     const m = this.match;
@@ -132,7 +144,22 @@ class Game {
   // VERSUS needs a second controller: hidden on touch-only devices until a gamepad shows up
   refreshModeButtons() {
     const vs = document.querySelector('#title .menu button[data-act="versus"]');
-    if (vs) vs.style.display = document.body.classList.contains('touchui') && !this.padActive && !navigator.getGamepads?.()?.[0] ? 'none' : '';
+    if (vs) {
+      const off = this.needsPad();
+      vs.classList.toggle('off', off);
+      vs.querySelector('.cont').textContent = off ? 'NECESITA MANDO' : 'MISMA PANTALLA';
+    }
+    this.refreshContinue();
+    if (this.state === 'title') this.setupMenu(`#title .menu.${this.titleMenu || 'main'}`, (act) => this.titleAction(act));
+  }
+  // two players on one touch screen do not fit: the local versus wants a gamepad (or a keyboard) there
+  needsPad() { return document.body.classList.contains('touchui') && !this.padActive && !navigator.getGamepads?.()?.[0]; }
+  // the title's main menu or its VERSUS submenu (2 players on this screen, online on two phones)
+  showTitleMenu(which) {
+    this.titleMenu = which;
+    $('#title .menu.main').hidden = which !== 'main';
+    $('#title .menu.vs').hidden = which !== 'vs';
+    this.setupMenu(`#title .menu.${which}`, (act) => this.titleAction(act));
   }
 
   async boot() {
@@ -202,6 +229,9 @@ class Game {
     let ns = d.scale;
     if (avg > 0.021 && d.scale > 0.6) ns = Math.max(0.6, d.scale * 0.88);
     else if (avg < 0.0135 && d.scale < 1) ns = Math.min(1, d.scale * 1.08);
+    // (online, only down during a fight: every change rebuilds the render targets, a stutter the other phone would
+    // have to wait for; it climbs back between fights)
+    if (this.online.inFight && ns > d.scale) ns = d.scale;
     d.t = 0; d.acc = 0; d.n = 0;
     if (Math.abs(ns - d.scale) > 0.01) {
       d.scale = ns;
@@ -324,6 +354,7 @@ class Game {
   // back to the title from a finished or abandoned fight: the fighters go, the title showcase comes back (then: a
   // screen to show over it instead of the title menu, as the online menu)
   backToTitle(then = null) {
+    this.arcadeLive = false; // (an arcade run left here keeps the moment it was saved at)
     this.fightSeq = (this.fightSeq || 0) + 1; // cancels a fight that may still be loading
     $('#fade').classList.remove('busy'); this.fade(false);
     $('#pause').classList.remove('on'); $('#overlay').classList.remove('on');
@@ -339,13 +370,15 @@ class Game {
     });
   }
   toTitle() {
+    this.arcadeLive = false;
     this.state = 'title';
     this.showScreen('title');
     this.refreshDifficulty();
     this.hud.show(false);
     this.menuIndex = 0;
-    this.setupMenu('#title .menu', (act) => this.titleAction(act));
-    this.refreshModeButtons();
+    this.titleMenu = 'main';
+    $('#title .menu.main').hidden = false; $('#title .menu.vs').hidden = true;
+    this.refreshModeButtons(); // (sets the menu up with the buttons that show: CONTINUAR)
     $('#title .presskey').textContent = document.body.classList.contains('touchui') ? 'TOCA UNA OPCIÓN' : 'PULSA ENTER O ⓧ';
     this.audio.music('menu');
     this.audio.ambience(STAGES[this.stageKey]?.amb || 'terrace');
@@ -355,7 +388,7 @@ class Game {
     for (const s of document.querySelectorAll('.screen')) if (s.id !== 'hud' && s.id !== 'loading') s.classList.toggle('on', s.id === id);
   }
   setupMenu(sel, cb) {
-    const btns = [...document.querySelectorAll(`${sel} button`)];
+    const btns = [...document.querySelectorAll(`${sel} button`)].filter((b) => !b.hidden && b.style.display !== 'none');
     this.menu = { btns, cb, idx: 0 };
     btns.forEach((b, i) => {
       b.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; this.menu.idx = i; this.refreshMenu(); };
@@ -375,8 +408,12 @@ class Game {
     this.audio.init();
     // phones: go fullscreen + landscape on the first tap (needs a user gesture; unsupported on iPhone Safari)
     if (document.body.classList.contains('touchui') && !this.fsAsked && !DEVICE.standalone && fullscreenSupported()) { this.fsAsked = true; goFullscreenLandscape(); }
+    if (act === 'versus' && this.needsPad()) { this.online.toast('Para jugar dos en el mismo aparato hace falta un mando (o un teclado). En dos móviles: ONLINE.', 3200); return; }
     if (act === 'arcade' || act === 'versus' || act === 'training') { this.mode = act; this.toSelect(); }
+    else if (act === 'vsmenu') this.showTitleMenu('vs');
+    else if (act === 'back') this.showTitleMenu('main');
     else if (act === 'online') this.online.open();
+    else if (act === 'continue') this.continueArcade();
     else if (act === 'difficulty') { this.difficulty = DIFF_KEYS[(DIFF_KEYS.indexOf(this.difficulty) + 1) % DIFF_KEYS.length]; lsSet('pdb_diff', this.difficulty); this.refreshDifficulty(); }
     else if (act === 'options') this.showOptions();
     else if (act === 'controls') this.showControls();
@@ -638,7 +675,8 @@ class Game {
     else if (opts.training) { b.ctrl = { poll: () => ({ dx: 0, dy: 0, held: 0, pressed: 0 }) }; }
     else { const ai = new AIController(opts.ai || 3); ai.attach(b, this.match); b.ctrl = ai; }
     if (opts.demo && !opts.training) { const ai1 = new AIController(opts.ai || 3); ai1.attach(a, this.match); a.ctrl = ai1; }
-    this.fightOpts = { id1, id2, ...opts };
+    // (without the saved moment: REINICIAR and the rematch start the fight from the beginning)
+    this.fightOpts = { id1, id2, ...opts, resume: null };
     this.showScreen('none');
     this.hud.setFighters(this.match.fighters);
     this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
@@ -647,12 +685,89 @@ class Game {
     hint.textContent = document.body.classList.contains('touchui') ? 'II: pausa y lista de movimientos' : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
     clearTimeout(this.hintT); this.hintT = setTimeout(() => hint.classList.add('fade'), 6000);
     this.state = 'fight';
-    if (opts.training) this.match.startRound(); else this.match.startIntro();
+    this.fx.warmup();
+    if (opts.resume) {
+      // CONTINUAR: the saved fight where it was, after a 3, 2, 1 (a save this game cannot read: the fight again)
+      if (!this.resumeFight(opts.resume)) { this.startFight(id1, id2, { ...opts, resume: null }); return; }
+      this.resumeT = 3; this._resumeShown = null;
+    } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
     this.audio.music(STAGES[this.stageKey].music);
     this.fade(false);
+    this.saveT = 3;
+    if (this.mode === 'arcade') { this.arcadeLive = true; this.saveArcade(); }
   }
   fade(on) { $('#fade').classList.toggle('on', on); }
+
+  // ------------------------------------------------------------------ continue (arcade)
+  // The arcade run is kept on the device until it is won or a new one starts: the ladder, its difficulty and,
+  // during a fight, the fight itself to the frame (the snapshot of js/net/simstate.js, the one the online mode
+  // rewinds with). It is saved every few seconds and whenever the game leaves the screen (another app, the phone
+  // locked, the tab closed), so a run that had to be left goes on from the title's CONTINUAR.
+  saveArcade() {
+    // (only while a run is being played: back at the title, the saved moment must stay as it was left)
+    if (this.mode !== 'arcade' || !this.arcade || !this.arcadeLive || this.online.net) return;
+    const m = this.match;
+    let fight = null;
+    // the fight to the frame while it is on (from its intro it starts again; between fights there is none)
+    if (m && this.fightOpts && !this.fightOpts.replay && ['fight', 'pause', 'overlay-pause'].includes(this.state) && ['ready', 'fight', 'ko', 'end'].includes(m.phase) && !m.endSent) {
+      try { fight = packSnap(m, saveMatch(m, this._saveSnap || (this._saveSnap = new Snap()))); } catch (e) { fight = null; }
+    }
+    const a = this.arcade;
+    const data = { f: SAVE_FORMAT, v: VERSION, t: Date.now(), arcade: { p1: a.p1, ladder: a.ladder, stage: a.stage, diff: a.diff }, fight };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) { /* storage full or private mode */ }
+  }
+  // the saved run, if this roster can play it
+  readSave() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; }
+    const a = s && s.arcade;
+    if (!a || !this.meta[a.p1] || !Array.isArray(a.ladder) || !a.ladder.length || a.ladder.some((id) => !this.meta[id]) || !(a.stage >= 0 && a.stage < a.ladder.length) || !DIFFICULTY[a.diff]) return null;
+    return s;
+  }
+  clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* private mode */ } }
+  // the title's CONTINUAR, when there is a run to go on with (whose, and how far up the ladder)
+  refreshContinue() {
+    const b = $('#title .menu button[data-act="continue"]');
+    if (!b) return;
+    const s = this.readSave();
+    b.hidden = !s;
+    if (s) b.querySelector('.cont').textContent = `ARCADE · ${this.meta[s.arcade.p1].display} · ${s.arcade.stage + 1}/${s.arcade.ladder.length}`;
+  }
+  continueArcade() {
+    const s = this.readSave();
+    if (!s) { this.refreshContinue(); return; }
+    this.mode = 'arcade';
+    this.arcade = { p1: s.arcade.p1, ladder: s.arcade.ladder.slice(), stage: s.arcade.stage | 0, diff: s.arcade.diff };
+    // the fight to the frame only from this very version of the game (another one starts that fight again)
+    const resume = s.fight && s.v === VERSION && s.f === SAVE_FORMAT ? s.fight : null;
+    this.startFight(this.arcade.p1, this.arcade.ladder[this.arcade.stage], { ai: this.arcadeAI(this.arcade.stage), resume });
+  }
+  // a saved fight back where it was: the match to the frame, a knocked-out body, the bars and the camera's shot
+  resumeFight(packed) {
+    const m = this.match;
+    try {
+      const s = unpackSnap(m, packed);
+      if (!s) return false;
+      loadMatch(m, s);
+    } catch (e) { console.warn('saved fight not loaded:', e.message); return false; }
+    for (const f of m.fighters) if (f.ragdoll === RAGDOLL_WANTED) { f.ragdoll = null; this.ragdolls.spawn(f, f.opp, f.boneWorld('spine02')); }
+    this.hud.roundStart(m.round, m.wins, m.fighters);
+    this.hud.update(m);
+    const [mode, focus] = this.cameraFor(m);
+    if (mode === 'ko') this.camCtl.koWinner = m.fighters[m.koWinner | 0];
+    this.camCtl.setMode(mode, true, focus);
+    return true;
+  }
+  // the camera shot the match state calls for (a resumed fight, and online, where the match does not drive it)
+  cameraFor(m) {
+    if (m.phase === 'intro') return ['intro', null];
+    if (m.phase === 'matchEnd') return ['win', m.fighters[m.winner] || null];
+    if (m.phase === 'ko') return ['ko', m.fighters.find((f) => f.ko) || m.fighters[1 - (m.koWinner | 0)]];
+    if (m.rageLock) return ['rage', m.rageLock.att];
+    if (m.throwLock) return ['throw', null];
+    return ['fight', null];
+  }
 
   // online: the match built for both phones alike (det: nothing but the inputs counts), its presentation through the
   // online module (effects shown once, camera from the match state). It waits behind the black screen until the
@@ -666,6 +781,7 @@ class Game {
     this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
     $('#trainingInfo').classList.remove('on');
     this.match.startIntro();
+    this.fx.warmup();
     this.state = 'netwait';
     $('#fade').classList.add('busy');
     $('#fade .txt').textContent = 'ESPERANDO AL RIVAL…';
@@ -731,13 +847,16 @@ class Game {
       if (won) {
         this.arcade.stage++;
         if (this.arcade.stage >= this.arcade.ladder.length) {
+          this.clearSave(); // (the run is won: nothing left to continue)
           const names = this.arcade.ladder.map(id => this.meta[id].display).join(', ');
           this.showOverlay(`<h3>¡CAMPEÓN DEL BARRIO!</h3><p style="font-size:20px">${this.meta[this.arcade.p1].display} ha vencido a todos sus amigos: ${names}.</p><p style="font-size:15px;opacity:.75">Dificultad ${DIFFICULTY[this.arcade.diff].name}</p>`, () => this.backToTitle(), null, { ok: 'MENÚ PRINCIPAL' });
           return;
         }
         const next = this.arcade.ladder[this.arcade.stage];
+        this.saveArcade(); // (the next rival, from the start, if the game is closed while it loads)
         this.startFight(this.arcade.p1, next, { ai: this.arcadeAI(this.arcade.stage) });
       } else {
+        this.saveArcade(); // (lost: CONTINUAR fights that rival again)
         this.showOverlay('<h3>HAS PERDIDO</h3><p style="font-size:20px">¿Quieres la revancha?</p>', () => this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts), () => this.backToTitle(), { ok: 'CONTINUAR', back: 'MENÚ' });
       }
     } else {
@@ -763,10 +882,12 @@ class Game {
     if (on) {
       this.state = 'pause';
       $('#pause').classList.add('on');
+      // (the arcade run is kept: CONTINUAR goes on from this very moment)
+      $('#pause .menu.local [data-act="quit"]').textContent = this.mode === 'arcade' ? 'GUARDAR Y SALIR' : 'SALIR AL MENÚ';
       this.setupMenu('#pause .menu.local', (act) => {
         if (act === 'resume') this.pause(false);
         else if (act === 'restart') { $('#pause').classList.remove('on'); this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts); }
-        else if (act === 'quit') { $('#pause').classList.remove('on'); this.backToTitle(); }
+        else if (act === 'quit') { $('#pause').classList.remove('on'); this.saveArcade(); this.backToTitle(); }
         else if (act === 'movelist') this.showMoveList();
       });
     } else {
@@ -858,11 +979,14 @@ class Game {
     else requestAnimationFrame(() => this.loop());
     const now = performance.now();
     let dt = Math.min(0.1, (now - this.last) / 1000);
+    // (the online session gets the time that really went by, up to half a second: a phone that was stuck a moment
+    // catches its frames up instead of making the other phone wait for them)
+    const realDt = Math.min(0.5, (now - this.last) / 1000);
     this.last = now;
     if (this.state === 'fight') this.dynRes(dt);
     const keys = menuKeysPressed();
     const pads = this.padMenuState();
-    if (this.state === 'title') this.menuInput(keys, pads[0]);
+    if (this.state === 'title') { if (this.titleMenu === 'vs' && (keys.has('Escape') || keys.has('Backspace') || pads[0].back)) { this.audio.play('ui'); this.showTitleMenu('main'); } else this.menuInput(keys, pads[0]); }
     else if (this.state === 'select') this.selectInput(keys, pads);
     else if (this.state === 'pause') { this.menuInput(keys, pads[0]); if (keys.has('Escape') || pads[0].start) this.pause(false); }
     else if (this.state === 'overlay' || this.state === 'overlay-pause') {
@@ -878,14 +1002,23 @@ class Game {
       if (keys.has('Enter') || pads[0].ok) this.online.choose('rematch');
     }
     // online: the rollback session plays the frames (both phones' inputs), whatever this screen is showing
-    this.online.tick(dt);
+    this.online.tick(realDt);
     const netRun = !!this.online.session && this.match === this.online.match;
+    // a resumed arcade fight: 3, 2, 1 before it goes on (the fight stands still meanwhile)
+    const counting = this.resumeT > 0 && this.state === 'fight';
+    if (counting) {
+      this.resumeT = Math.max(0, this.resumeT - dt);
+      const n = Math.ceil(this.resumeT);
+      if (n !== this._resumeShown) { this._resumeShown = n; if (n > 0) { this.hud.announce(String(n), 'round'); this.audio.play('ui'); } else this.hud.announce('¡A LUCHAR!', 'fight'); }
+    }
+    // the arcade run on the device every few seconds of fight (and as the game leaves the screen: see the constructor)
+    if (this.mode === 'arcade' && this.state === 'fight' && !counting && (this.saveT -= dt) <= 0) { this.saveT = 3; this.saveArcade(); }
     // simulation
     const m = this.match;
     let alpha = 1;
     this.syncTouchUI();
     if (m) {
-      const running = !netRun && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'online' || this.state === 'netresults');
+      const running = !netRun && !counting && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'online' || this.state === 'netresults');
       if (netRun) alpha = this.online.session.alpha;
       else if (running) {
         let scale = 1;

@@ -38,11 +38,24 @@ Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, C
 | Modo | Descripción |
 |---|---|
 | Arcade | Te enfrentas a los otros cinco, uno tras otro (la pantalla de carga indica «COMBATE X DE 5»). Al vencerlos a todos eres **Campeón del barrio**. La CPU se endurece en cada combate y los escenarios se alternan. |
-| Versus | Dos jugadores, con teclado o mandos. En la selección se elige escenario con **W/S** o con las flechas ◀ ▶. |
-| Versus online | Dos jugadores, **cada uno en su móvil**, por WiFi (o por QR sin internet). Ver [Versus online](#versus-online-dos-móviles). |
+| Versus → 2 jugadores | Dos jugadores en la misma pantalla, con teclado o mandos (en un móvil o tablet sin mando aparece atenuado: hace falta un mando). En la selección se elige escenario con **W/S** o con las flechas ◀ ▶. |
+| Versus → Online | Dos jugadores, **cada uno en su móvil**, por WiFi (o por QR sin internet). Ver [Versus online](#versus-online-dos-móviles). |
+
+Los dos versus están en el submenú **VERSUS** del menú principal.
+
+**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.68»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
 | Entrenamiento | Rival pasivo. En pantalla se ve el estado del rival y la ventaja en frames de cada golpe. |
 
 **Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU en cada uno de los cinco combates del arcade.
+
+**Continuar (arcade):** el arcade se guarda solo en el dispositivo. Guarda la escalera de rivales, la dificultad y, a mitad de un combate, el combate exacto: ronda, vida, posiciones y reloj.
+- **Cuándo se guarda:** cada 3 segundos de combate y siempre que el juego deja la pantalla (cambias de app, bloqueas el móvil o cierras la pestaña).
+- **Al volver:** el primer botón del menú es **CONTINUAR** (por ejemplo «ARCADE · RAFA · 3/5»). El combate sigue donde estaba tras una cuenta atrás 3-2-1.
+- En la pausa del arcade, **GUARDAR Y SALIR** vuelve al menú sin perder la partida.
+- **Entre combates:** si has ganado, CONTINUAR pasa al siguiente rival; si has perdido, repite ese combate.
+- **Cuándo se borra:** al ser campeón o al empezar un arcade nuevo.
+- El Versus, el Entrenamiento y el modo online no se guardan.
+- Si el juego se actualiza entre medias, el combate guardado empieza de nuevo, pero se conserva el progreso de la escalera.
 
 ## Versus online (dos móviles)
 
@@ -50,7 +63,7 @@ Cada jugador pelea desde su propio móvil (Android o iPhone), en la misma WiFi o
 
 **Cómo se juega**
 
-1. En los dos móviles: **VERSUS ONLINE** en el menú principal. Cada uno escribe su nombre.
+1. En los dos móviles: **VERSUS → ONLINE** en el menú principal. Cada uno escribe su nombre.
 2. Uno pulsa **CREAR PARTIDA** y sale un código de 4 cifras. Al otro móvil, si está en la misma WiFi, **la partida le aparece sola** en «Partidas en esta WiFi». Si no, pulsa **UNIRSE CON CÓDIGO** y lo escribe.
 3. **Sin internet:** **CREAR CON QR** en uno y **UNIRSE CON QR** en el otro. Cada móvil enseña un QR que el otro lee con la cámara. La cámara solo funciona con https (la web publicada, no `http://192.168…`).
 4. El anfitrión elige las **reglas**: rondas para ganar (1, 2 o 3), tiempo (30, 60 o 99 s) y retardo de entrada (automático o de 1 a 4 fotogramas). Después pulsa **¡A LUCHAR!**.
@@ -59,9 +72,9 @@ Cada jugador pelea desde su propio móvil (Android o iPhone), en la misma WiFi o
 
 **Durante el combate**
 
-- Bajo el reloj está el **medidor de conexión**: barras y ping. Si lo tocas, muestra el retardo, la corrección media y el estado de la sincronía.
+- Bajo el reloj está el **medidor de conexión**: barras y ping. Si lo tocas, muestra el retardo, la corrección media, las esperas y el estado de la sincronía.
 - La **pausa es compartida**: si un jugador pausa, el combate se para en los dos móviles. Al continuar hay una cuenta atrás 3-2-1 en los dos. Desde la pausa se puede abandonar el combate (lo gana el rival).
-- Si la WiFi se corta un momento, el combate espera solo («Esperando a…»). Si se pierde la conexión y la partida es con código, el móvil invitado vuelve solo a su sitio y el combate sigue donde estaba. Con QR no hay vuelta atrás.
+- Si la WiFi se corta o el otro móvil se atasca un momento, el combate lo absorbe. Si el parón pasa de un segundo, sale el aviso «Esperando a…». Si se pierde la conexión y la partida es con código, el móvil invitado vuelve solo a su sitio y el combate sigue donde estaba. Con QR no hay vuelta atrás.
 - En el móvil, el gesto **atrás** pide confirmación: hay que hacerlo dos veces para salir de la partida. La pantalla no se apaga mientras se juega.
 - Tu luchador lleva la marca **TÚ** bajo la barra de vida y, en el móvil, los golpes fuertes que recibes se notan con una vibración (si la tienes activada en Opciones).
 
@@ -71,14 +84,17 @@ Es el sistema de los juegos de lucha grandes (GGPO: Street Fighter 6, Tekken 8�
 
 - **Los dos móviles simulan el combate entero.** Por la red solo viajan los mandos: 2 bytes por fotograma y jugador.
 - Tus golpes se ejecutan al instante, con un retardo fijo de 1 o 2 fotogramas. En **AUTO**, el retardo se calcula según el ping.
-- Para los fotogramas cuyo mando del rival aún no ha llegado, el juego **predice** que sigue haciendo lo mismo.
+- Para los fotogramas cuyo mando del rival aún no ha llegado, el juego **predice** que sigue haciendo lo mismo. Puede ir hasta 18 fotogramas (300 ms) por delante antes de esperar. Los móviles se atascan más que un ordenador (al recoger basura de memoria o subir una textura), y así el combate no se para por un tirón de la WiFi o del otro móvil.
+- Si un móvil se atasca, en cuanto vuelve recupera de golpe los fotogramas que le faltan, en vez de obligar al otro a esperarle. Con tirones simulados de 150 a 450 ms, el otro móvil pasó de estar parado 6,4 s cada dos minutos a 1,4 s.
+- Los efectos (chispas, polvo, estelas) se preparan ocultos mientras carga el combate. Antes, la primera vez que salían, el móvil compilaba sus shaders a mitad de pelea y daba un tirón.
+- Durante el combate online, la resolución dinámica solo baja, nunca sube: cada cambio reconstruye los búferes de imagen y es otro tirón. Vuelve a subir entre combates.
 - Cada fotograma se guarda (unos 30 µs). Si el mando real del rival era otro, el combate **retrocede** a ese fotograma y lo vuelve a jugar en el mismo refresco de pantalla. Con una WiFi normal son correcciones de 1 o 2 fotogramas, invisibles.
 - El móvil que va por delante frena un poco hasta que los dos juegan el mismo fotograma a la vez.
 - Cada medio segundo los dos comparan una huella del estado. Si alguna vez no coincidieran (por un error, o porque dos navegadores redondean distinto un seno), el móvil invitado toma el estado del anfitrión y sigue.
 - La simulación es **determinista**: no depende del azar, ni de la cámara de cada móvil, ni de cuántos fotogramas por segundo dibuje. Por eso la repetición del combate sale exacta.
 - Los efectos (chispas, sonidos, rótulos) de un fotograma que se vuelve a jugar no se repiten.
 
-**Versión:** los dos móviles tienen que tener la misma versión del juego. Si no, el que se une recibe un aviso para recargar la página. La versión (`js/net/config.js`) es `NET_RELEASE` más una huella de los movimientos de todos los luchadores. **Si cambias el código de la simulación del combate, sube `NET_RELEASE`.**
+**Versión:** los dos móviles tienen que tener la misma versión del juego. Si no, el que se une recibe un aviso para recargar la página. La versión de red (`js/net/config.js`) es la del juego (`js/version.js`) más una huella de los movimientos de todos los luchadores. **Con cada cambio, sube la versión en `js/version.js`.**
 
 **Límites**
 
@@ -199,12 +215,16 @@ Son los scripts usados para generar los personajes y probar el juego. Se incluye
   - `tools/mshot.mjs`: capturas con perfiles de móvil y tablet (844×390 @3x, 667×375 @2x, vertical, 1180×820 @2x).
   - `tools/mtouch.mjs`: prueba los controles táctiles con toques multitáctiles reales (menús, joystick, botones, pulsaciones dobles, deslizamientos, pausa, opciones); son 20 comprobaciones.
   - `tools/arcadetest.mjs`: juega el modo arcade completo (los cinco rivales, pantalla de carga «COMBATE X DE 5», banner de campeón y vuelta al menú) y comprueba que cada combate carga exactamente dos luchadores.
+  - `tools/continuetest.mjs [salida]`: el «continuar» del arcade. Simula que el juego pasa a segundo plano a mitad de combate y se cierra. Comprueba que al volver aparece CONTINUAR, que el combate sigue exactamente igual (fotograma, vida, posiciones, reloj y rival), la cuenta atrás, el guardado solo cada pocos segundos, GUARDAR Y SALIR, el paso al siguiente rival y el borrado al ser campeón.
   - `tools/voicetest.mjs` y `tools/musictest.mjs`: cargan y reproducen todas las voces y gritos, y la música del menú y de los escenarios (cambios de pista, pausa al ocultar la página, público de la calle).
   - `tools/netaudit.mjs`: mide los bytes descargados hasta que el título responde y en una sesión completa, y lista los ficheros que nunca se piden.
   - `tools/perfprobe.mjs`: cuenta las llamadas de dibujo, los triángulos y la memoria de texturas de un combate con cada calidad.
 - Modo online (ver [Versus online](#versus-online-dos-móviles)):
   - `node --import ./register.mjs netsim.mjs`: sin navegador. Comprueba que las mismas entradas dan el mismo combate bit a bit y que más de 5000 retrocesos aleatorios se rejuegan exactos. También que una copia del estado por la red sigue igual. Usa 4 parejas de luchadores, con agarres, Rage Arts, KO y fin del combate.
-  - `netsim.mjs --only session` (con `netsession.mjs`): dos sesiones de rollback unidas por una red simulada en 5 situaciones (WiFi buena, cargada, móvil lento, red mala con un 20 % de pérdida y una desincronización forzada). En todas acaban en el mismo estado, que es el del combate sin red, y la desincronización forzada se corrige sola.
+  - `netsim.mjs --only session` (con `netsession.mjs`): dos sesiones de rollback unidas por una red simulada. Las situaciones son WiFi buena, WiFi cargada, móvil lento, red mala con un 20 % de pérdida, una desincronización forzada y un móvil que se atasca de 150 a 450 ms de vez en cuando (con los ajustes de antes y con los de ahora).
+    - En todas acaban en el mismo estado, que es el del combate sin red.
+    - La desincronización forzada se corrige sola.
+    - Con los tirones, el otro móvil no llega a ver el aviso «Esperando a…» y pasa menos de 2,5 s parado cada dos minutos.
   - `netflow.mjs [salida] [chromium|webkit] [wifi|code]`: dos navegadores de principio a fin. Prueba la partida encontrada sola en la «WiFi» (o el código), los nombres, las reglas y la selección sincronizada. Después el combate con rollback y sus comprobaciones de estado, la pausa compartida, un corte de WiFi con vuelta sola y el final. Por último, la repetición (que acaba exactamente igual), la revancha y la salida de un jugador. Con `webkit`, el invitado usa el motor del iPhone.
   - `netqr.mjs [salida]`: sin internet, por QR, con la cámara falsa de Chromium leyendo el QR del otro móvil. Comprueba también que un QR de otro juego o de otra versión se rechaza, el combate y el aviso al perder la conexión.
   - `mocksignal.mjs`: servidor de códigos de prueba (imita al de PeerJS) para que las pruebas no dependan de internet. Las páginas lo usan con `?sig=ws://localhost:PUERTO/peerjs`. Con `?lankey=testnet` todas las páginas están en la misma «WiFi», y `?netdebug=1` saca mensajes `[net]` en la consola.

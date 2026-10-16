@@ -18,7 +18,14 @@ import { SLOWMO } from '../fight/match.js';
 
 const FPS = 60, DT = 1 / FPS;
 const HIST = 1024;               // frames of input kept (replays, a resync, resends)
-export const MAX_PREDICT = 8;     // frames played ahead of the other phone's newest input before waiting for it
+// frames played ahead of the other phone's newest input before waiting for it: 300 ms, enough to ride out a WiFi
+// hiccup or a phone stuck a moment (a garbage collection, a first texture) without the fight freezing. Phones
+// stutter more than computers: with 8 frames (the GGPO default) a simulated phone with hiccups of 150-450 ms made
+// the other one wait 6.4 s in two minutes, with 18 (and the catch-up below) 1.4 s (tools/netsession.mjs)
+export const MAX_PREDICT = 18;
+// frames one refresh may play: after a phone was stuck, it catches up at once (the time it lost is not lost, or
+// the other phone would have to wait for it)
+const MAX_STEPS = 24;
 const RING = MAX_PREDICT + 3;    // snapshots kept (a rewind never goes further back than the predicted frames)
 export const CHECK_EVERY = 30;   // frames between two state checks
 const PKT_INPUT = 0x31, HEAD = 20;
@@ -36,6 +43,7 @@ export class RollbackSession {
   constructor(o) {
     this.m = o.match; this.local = o.local; this.host = !!o.host;
     this.delay = Math.max(0, Math.min(8, o.delay | 0));
+    this.maxPredict = Math.min(MAX_PREDICT, o.maxPredict || MAX_PREDICT); // (the tests try smaller windows)
     this.poll = o.poll; this.send = o.send; this.sendRel = o.sendRel || (() => {});
     this.rtt = o.rtt || (() => 0);
     this.gate = o.gate || null; this.onFrame = o.onFrame || null;
@@ -58,7 +66,7 @@ export class RollbackSession {
     this.log = new Uint16Array(8192); this.logN = 0;
     this.paused = false; this.stopped = false;
     this.stallT = 0;             // seconds waiting for the other phone (now)
-    this.stats = { frames: 0, rollbacks: 0, rolled: 0, maxRoll: 0, predicted: 0, stallMs: 0, checks: 0, desyncs: 0, resyncs: 0, sent: 0, got: 0, lastDesync: -1 };
+    this.stats = { frames: 0, rollbacks: 0, rolled: 0, maxRoll: 0, predicted: 0, stalls: 0, stallMs: 0, checks: 0, desyncs: 0, resyncs: 0, sent: 0, got: 0, lastDesync: -1 };
     this._in = [{}, {}];
     this.m.fighters.forEach((f, i) => { f.ctrl = { poll: () => this._input(i) }; });
   }
@@ -108,18 +116,22 @@ export class RollbackSession {
     let n = 0;
     if (!this.paused && !this.stopped) {
       const rate = (this.m.slowmo > 0 ? SLOWMO : 1) * this._syncRate();
-      this.acc = Math.min(this.acc + dt * rate, DT * 8);
+      this.acc = Math.min(this.acc + dt * rate, DT * MAX_STEPS);
       let waited = false;
-      while (this.acc >= DT && n < 8) {
+      while (this.acc >= DT && n < MAX_STEPS) {
         // too far ahead of the other phone's inputs: wait for them (the fight stands still)
-        if (this.frame - this.rinMax > MAX_PREDICT) { waited = true; this.acc = Math.min(this.acc, DT); break; }
+        if (this.frame - this.rinMax > this.maxPredict) { waited = true; this.acc = Math.min(this.acc, DT); break; }
         // this phone's input, played `delay` frames from now on both phones
         const F = ++this.linMax;
         this.lin[F % HIST] = packIn(this.poll());
         this._advance(false);
         this.acc -= DT; n++;
       }
-      if (waited) { this.stallT += dt; this.stats.stallMs += dt * 1000; } else if (n) this.stallT = 0;
+      // stallT: how long the fight has stood still waiting (a refresh that played frames, even up to the limit, is
+      // no wait: counting those made the 'waiting' notice show while the fight was going on)
+      if (n) this.stallT = 0;
+      else if (waited) { if (this.stallT === 0) this.stats.stalls++; this.stallT += dt; this.stats.stallMs += dt * 1000; }
+      this.waited = waited;
       this.alpha = Math.max(0, Math.min(1, this.acc / DT));
     }
     this._sendInputs();
