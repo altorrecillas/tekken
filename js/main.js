@@ -183,21 +183,34 @@ class Game {
   }
 
   async boot() {
-    const bar = $('#loading .bar i'), tip = $('#loading .tip');
+    const bar = $('#loading .bar i'), tip = $('#loading .tip'), status = $('#loading .st');
     const tips = ['Consejo: mantén atrás para bloquear golpes altos y medios.', 'Consejo: agáchate (abajo-atrás) para bloquear los golpes bajos.',
       'Consejo: toca arriba o abajo para esquivar lateralmente.', 'Consejo: abajo-adelante + 2 lanza al rival por los aires.', 'Consejo: 1+3 agarra; pulsa 1 o 2 para zafarte de un agarre.', 'Consejo: pulsa un botón justo al caer al suelo para recuperarte rodando.'];
     tip.textContent = tips[Math.floor(Math.random() * tips.length)];
-    const prog = (p) => (bar.style.width = `${Math.round(p * 100)}%`);
-    prog(0.05);
+    // (the bar runs on its own while the code downloads: index.html; from here on it shows the real progress)
+    $('#loading .bar').classList.remove('indet');
+    let shown = 0;
+    const prog = (p) => { shown = Math.max(shown, p); bar.style.width = `${Math.round(shown * 100)}%`; };
+    const say = (t) => { if (status) status.textContent = t; };
+    prog(0.08);
+    const T0 = performance.now(), times = (window.__bootTimes = {}), mark = (k) => { times[k] = Math.round(performance.now() - T0); };
+    // the first screen only waits for the code, the stage and the menus' small files: the title comes up over the
+    // stage, the two fighters of its backdrop walk in as soon as they have arrived and the rest of the roster follows
+    // quietly, one at a time (a fighter is 5 to 8 MB: all of them first made a phone wait half a minute)
     this.stagePick = STAGES[q.get('stage')] ? q.get('stage') : MAIN_STAGE;
+    say(`Preparando ${STAGES[this.stagePick].name.toLowerCase().replace(/^./, (c) => c.toUpperCase())}…`);
+    const LM = THREE.DefaultLoadingManager;
+    LM.onProgress = (url, done, total) => prog(0.08 + 0.72 * done / Math.max(1, total));
     await this.setStage(this.stagePick, false);
-    prog(0.35);
+    LM.onProgress = undefined; // (three.js calls it whenever it is not undefined)
+    mark('stage');
+    prog(0.8);
     // portraits (pre-rendered)
     this.portraits = {};
     for (const id of ROSTER) this.portraits[id] = `assets/portraits/${id}.jpg`;
     this.hud.portraits = this.portraits;
-    // menus only need the descriptors; meshes load on demand (the two title fighters now, the rest in the
-    // background once the title is up), so the first screen does not wait for the whole roster
+    // menus only need the descriptors; meshes load on demand
+    say('Preparando a los luchadores…');
     const metas = await Promise.all(ROSTER.map(id => loadCharacterMeta(id).catch(() => null)));
     // a fighter whose files cannot be loaded is left out of the roster instead of stopping the boot
     for (let i = ROSTER.length - 1; i >= 0; i--) {
@@ -206,28 +219,33 @@ class Game {
     }
     // achievements, endings and unlocks kept on this device (js/ui/progress.js)
     this.progress = new Progress({ roster: ROSTER, stageKeys: STAGE_KEYS });
-    this.showcaseIds = this.pickShowcase();
-    let n = 0;
-    await Promise.all(this.showcaseIds.map(id => this.ensureChar(id).then(() => prog(0.35 + 0.45 * ++n / 2))));
+    mark('metas');
+    prog(0.86);
+    say('Montando el escenario…');
     this.post = new PostFX(this.renderer, this.scene, this.camera, this.quality);
+    mark('post');
     this.bakeStage();
+    mark('bake');
     this.applyGrade();
-    prog(0.9);
     this.accessories = new Accessories();
     this.ragdolls = new Ragdolls(this.scene);
     // stage obstacles (whichever stage is current): ragdolls stop at walls / barriers, cameras stay out of the set
     this.ragdolls.clampWalk = (p, r) => this.stage?.clampWalk?.(p, r);
     this.camCtl.clampCam = (p) => this.stage?.clampCam?.(p) || p;
     this.contact = new ContactShadows(this.scene);
-    // show two fighters in the background of the title
-    await this.setupShowcase();
-    await texturesReady();
-    prog(1);
+    // until the backdrop's fighters are there, the title frames the stage where they will stand
+    this.titleGhosts = [{ pos: new THREE.Vector3(-1.4, 0, 0), yaw: Math.PI / 2 }, { pos: new THREE.Vector3(1.4, 0, 0), yaw: -Math.PI / 2 }];
+    // the shaders compiled before the first frame, in parallel where the GPU allows it (KHR_parallel_shader_compile):
+    // the first frame used to compile them all at once and freeze the page for seconds
+    say('Encendiendo los focos…');
     this.resize();
+    try { await this.renderer.compileAsync?.(this.scene, this.camera); } catch (e) { /* compiled on first use */ }
+    mark('compile');
+    prog(1);
     this.loop();
-    // fetch the rest of the roster quietly, one at a time
-    setTimeout(async () => { for (const id of ROSTER) { try { await this.ensureChar(id); } catch (e) { /* retried on demand */ } } }, 1500);
+    mark('loop');
     setTimeout(() => {
+      mark('title');
       $('#loading').classList.remove('on');
       if (q.get('demo')) {
         this.mode = 'versus';
@@ -239,6 +257,13 @@ class Game {
         if (q.get('frames') === '0') setTimeout(() => (window.__ready = true), 2500);
       }
     }, 300);
+    // then the backdrop's two fighters (they walk in if the title is still up) and the rest of the roster
+    const ids = this.pickShowcase();
+    try {
+      await Promise.all(ids.map(id => this.ensureChar(id)));
+      if (this.state === 'title' && !this.match) { this.showcaseIds = ids; await this.setupShowcase({ entrance: true }); }
+    } catch (e) { console.warn('title fighters:', e.message); }
+    for (const id of ROSTER) { try { await this.ensureChar(id); } catch (e) { /* retried on demand */ } }
   }
 
   // dynamic resolution: keep ~60 fps by scaling the internal render resolution
@@ -356,23 +381,36 @@ class Game {
   costumeList(id) { return costumeChoices(id, (x) => this.champUnlocked(x)); }
 
   // ------------------------------------------------------------------ showcase / title
-  async setupShowcase() {
+  // entrance: the first time, the fighters walk in from beyond the edges of the shot to where the title framed the
+  // empty stage for them (js/main.js boot)
+  async setupShowcase({ entrance = false } = {}) {
     const ids = this.showcaseIds || this.pickShowcase();
     this.showcaseIds = null;
     await Promise.all(ids.map(id => this.ensureChar(id)));
     this.clearFighters();
     const chars = ids.map(id => this.makeFighterModel(id));
+    // (their shaders compiled before they appear: no hitch as they walk into the title)
+    if (entrance) { try { await Promise.all(chars.map((c) => this.renderer.compileAsync?.(c.group, this.camera, this.scene))); } catch (e) { /* on first use */ } }
     chars.forEach(c => this.scene.add(c.group));
     this.match = new Match(this, chars, ids, { rounds: 2 });
     for (const f of this.match.fighters) f.ctrl = null;
     this.match.startIntro();
     this.match.phase = 'showcase';
     this.match.fighters.forEach(f => { f.setState('idle'); f.play('idle', 1); });
+    this.entrance = null;
+    if (entrance) {
+      for (const f of this.match.fighters) {
+        f.pos.x = Math.sign(f.pos.x) * 4.3; f.prevPos.copy(f.pos);
+        f.setState('walkF'); f.play('walkF', 1);
+      }
+      this.entrance = { m: this.match };
+    }
     this.camCtl.setMode('fight', true);
   }
   clearFighters() {
     if (this.match) for (const f of this.match.fighters) { this.scene.remove(f.ch.group); f.ch.group.traverse(o => o.geometry?.dispose?.()); }
     this.match = null;
+    this.entrance = null;
     this.camCtl.normalFrom = null; // (a det match's side view: the next one sets its own)
     this.contact?.clear();
     this.ragdolls?.clear();
@@ -1405,7 +1443,8 @@ class Game {
       this.stage.keyBoost = m.phase === 'intro' || m.phase === 'matchEnd' ? 1.4 : 1; // cinematic close-ups get more face light
       this.stage.followCamera(this.camera, c);
       this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null;
-      this.camCtl.update(dt, m.fighters);
+      // (the title's fighters walking in: the shot stays where they are heading)
+      this.camCtl.update(dt, this.entrance?.m === m ? this.titleGhosts : m.fighters);
       // per-fighter key light (view space): from in front of each fighter, above and towards the lens, so a face in
       // profile is lit whichever side of the screen it is on; the rim kicks in from behind the fighter
       this.camera.updateMatrixWorld();
@@ -1416,6 +1455,14 @@ class Game {
         k.rimDir.value.set(-fv.x * 0.6, 0.35, -0.75).normalize();
       }
       this.accessories.update(dt);
+    } else if (this.titleGhosts && this.stage) {
+      // the title before its two fighters have arrived: the stage framed as it will be with them
+      const G = this.titleGhosts, c = new THREE.Vector3().addVectors(G[0].pos, G[1].pos).multiplyScalar(0.5);
+      this.stage.followShadow(c, G[0].pos.distanceTo(G[1].pos));
+      this.stage.keyBoost = 1;
+      this.stage.followCamera(this.camera, c);
+      this.camCtl.introT = null;
+      this.camCtl.update(dt, G);
     }
     // effects
     const e = this.effects;
@@ -1461,12 +1508,21 @@ class Game {
   }
 
   showcaseStep(m) {
+    const E = this.entrance && this.entrance.m === m ? this.entrance : null;
     for (const f of m.fighters) {
       f.inp = { d: 5, fwd: 0, up: 0, held: 0, pressed: 0 };
       f.prevPos.copy(f.pos); f.prevYaw = f.yaw;
       if (f.clipName === 'intro' && f.cf > 90) f.play('idle', 10);
+      if (E && f.state === 'walkF') {
+        // walking in, at a guard's walking pace, to the spot of the start of a round
+        const to = Math.sign(f.pos.x) * 1.4, d = to - f.pos.x;
+        f.pos.x += Math.sign(d) * Math.min(Math.abs(d), 1.35 / FPS);
+        if (Math.abs(to - f.pos.x) < 1e-3) { f.pos.x = to; f.setState('idle'); f.play('idle', 10); }
+      }
       f.animate();
     }
+    if (E && m.fighters.every((f) => f.state !== 'walkF')) this.entrance = null;
+    if (E) return;
     // idle sparring loop on the title screen: occasionally throw a move for the backdrop
     if (this.state === 'title' && Math.random() < 0.012) {
       const f = m.fighters[Math.random() < 0.5 ? 0 : 1];

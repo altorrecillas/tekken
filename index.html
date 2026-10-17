@@ -7,6 +7,8 @@
 <meta name="description" content="Puños de Barrio: juego de lucha 3D al estilo Tekken con los amigos del barrio. Juega en el navegador con teclado, mando o controles táctiles.">
 <meta name="theme-color" content="#0b0b10">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preload" href="assets/fonts/BebasNeue-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Teko.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,10 +17,11 @@
 <meta name="apple-mobile-web-app-title" content="Puños de Barrio">
 <meta name="format-detection" content="telephone=no">
 <style>
-@font-face { font-family: 'Bebas'; src: url('assets/fonts/BebasNeue-Regular.ttf') format('truetype'); font-display: block; }
-@font-face { font-family: 'Rajdhani'; src: url('assets/fonts/Rajdhani-Bold.ttf') format('truetype'); font-weight: 700; font-display: block; }
-@font-face { font-family: 'Rajdhani'; src: url('assets/fonts/Rajdhani-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: block; }
-@font-face { font-family: 'Teko'; src: url('assets/fonts/Teko.ttf') format('truetype'); font-weight: 300 700; font-display: block; }
+/* (WOFF2 subsets of the game's own characters, 11 KB each; tools/README: pyftsubset. The TTF stays as the fallback) */
+@font-face { font-family: 'Bebas'; src: url('assets/fonts/BebasNeue-Regular.woff2') format('woff2'), url('assets/fonts/BebasNeue-Regular.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Rajdhani'; src: url('assets/fonts/Rajdhani-Bold.woff2') format('woff2'), url('assets/fonts/Rajdhani-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Rajdhani'; src: url('assets/fonts/Rajdhani-SemiBold.woff2') format('woff2'), url('assets/fonts/Rajdhani-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Teko'; src: url('assets/fonts/Teko.woff2') format('woff2'), url('assets/fonts/Teko.ttf') format('truetype'); font-weight: 300 700; font-display: swap; }
 :root {
   --gold: #ffcf4a; --gold2: #ff9a1f; --red: #ff3b2f; --hp1: #ffd54a; --hp2: #ff8a1c; --ink: #0b0b10; --glass: rgba(10, 12, 20, 0.55);
   --p1: #3aa6ff; --p2: #ff4d5a;
@@ -34,12 +37,16 @@ button { touch-action: manipulation; }
 /* ---------- loading ---------- */
 #loading { background: radial-gradient(ellipse at 50% 40%, #1a1420 0%, #07070a 70%); align-items: center; justify-content: center; flex-direction: column; z-index: 50; }
 #loading.on { display: flex; }
-#loading .logo { font-family: 'Bebas'; font-size: min(15vw, 150px); letter-spacing: 0.04em; line-height: 1.02; padding-top: .12em; text-align: center;
+#loading .logo { font-family: 'Bebas', Impact, 'Arial Narrow', sans-serif; font-size: min(15vw, 150px); letter-spacing: 0.04em; line-height: 1.02; padding-top: .12em; text-align: center;
   background: linear-gradient(180deg, #fff 0%, #ffe38a 40%, #ff8a1c 75%, #b3260f 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 6px 0 #000) drop-shadow(0 0 30px rgba(255,120,30,.35)); }
 #loading .sub { font-family: 'Teko'; font-size: 22px; letter-spacing: .5em; color: #d8c7a2; margin-top: 10px; }
 #loading .bar { width: min(60vw, 520px); height: 6px; background: #1b1b22; margin-top: 44px; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px #2c2c36; }
 #loading .bar i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #ff8a1c, #ffd54a); box-shadow: 0 0 12px #ff9a1f; transition: width .25s; }
+/* (before the code runs: a glow sweeping along the bar, so a slow connection never looks like a frozen screen) */
+#loading .bar.indet i { width: 35% !important; animation: barsweep 1.3s ease-in-out infinite; }
+@keyframes barsweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(300%); } }
+#loading .st { margin-top: 12px; font-family: 'Teko', 'Arial Narrow', sans-serif; font-size: 18px; letter-spacing: .18em; color: #d8c7a2; min-height: 22px; text-transform: uppercase; }
 #loading .tip { margin-top: 18px; font-size: 15px; color: #8d8a99; letter-spacing: .08em; min-height: 20px; text-align: center; padding: 0 20px; }
 #loading .err { color: #ff6b6b; max-width: 80vw; text-align: center; margin-top: 20px; font-size: 14px; }
 
@@ -601,6 +608,78 @@ button { touch-action: manipulation; }
 }
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+<!-- modulepreload:begin -->
+<link rel="modulepreload" href="vendor/three/build/three.core.js">
+<link rel="modulepreload" href="vendor/three/build/three.module.js">
+<link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/ui/online.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/SMAAPass.js">
+<link rel="modulepreload" href="js/fight/styles.js">
+<link rel="modulepreload" href="js/fight/moves.js">
+<link rel="modulepreload" href="js/stage/terrace.js">
+<link rel="modulepreload" href="js/anim/rig.js">
+<link rel="modulepreload" href="js/stage/festival.js">
+<link rel="modulepreload" href="js/stage/street.js">
+<link rel="modulepreload" href="vendor/three/jsm/utils/BufferGeometryUtils.js">
+<link rel="modulepreload" href="js/fight/fighter.js">
+<link rel="modulepreload" href="js/fight/match.js">
+<link rel="modulepreload" href="js/stage/porche.js">
+<link rel="modulepreload" href="js/net/netplay.js">
+<link rel="modulepreload" href="js/audio/audio.js">
+<link rel="modulepreload" href="js/fx/fx.js">
+<link rel="modulepreload" href="vendor/qr/qrcode.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/GTAOPass.js">
+<link rel="modulepreload" href="js/materials.js">
+<link rel="modulepreload" href="js/fx/accessories.js">
+<link rel="modulepreload" href="js/ui/training.js">
+<link rel="modulepreload" href="js/net/rollback.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/UnrealBloomPass.js">
+<link rel="modulepreload" href="vendor/three/jsm/math/SimplexNoise.js">
+<link rel="modulepreload" href="vendor/three/jsm/shaders/SMAAShader.js">
+<link rel="modulepreload" href="js/net/simstate.js">
+<link rel="modulepreload" href="js/ui/touch.js">
+<link rel="modulepreload" href="js/anim/body.js">
+<link rel="modulepreload" href="vendor/three/jsm/shaders/GTAOShader.js">
+<link rel="modulepreload" href="js/fight/camera.js">
+<link rel="modulepreload" href="vendor/three/jsm/objects/Reflector.js">
+<link rel="modulepreload" href="js/fight/ragdoll.js">
+<link rel="modulepreload" href="js/engine/post.js">
+<link rel="modulepreload" href="vendor/three/jsm/lights/SunLightShadow.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/EffectComposer.js">
+<link rel="modulepreload" href="js/fight/ai.js">
+<link rel="modulepreload" href="js/ui/progress.js">
+<link rel="modulepreload" href="js/anim/feet.js">
+<link rel="modulepreload" href="vendor/three/jsm/shaders/PoissonDenoiseShader.js">
+<link rel="modulepreload" href="js/engine/sunshadow.js">
+<link rel="modulepreload" href="js/anim/clip.js">
+<link rel="modulepreload" href="js/charloader.js">
+<link rel="modulepreload" href="js/engine/device.js">
+<link rel="modulepreload" href="vendor/three/jsm/shaders/BokehShader.js">
+<link rel="modulepreload" href="js/net/lan.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/BokehPass.js">
+<link rel="modulepreload" href="js/ui/hud.js">
+<link rel="modulepreload" href="js/net/link.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/MaskPass.js">
+<link rel="modulepreload" href="js/fight/throws.js">
+<link rel="modulepreload" href="js/fight/replay.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/RenderPass.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/Pass.js">
+<link rel="modulepreload" href="js/net/qr.js">
+<link rel="modulepreload" href="js/net/sdp.js">
+<link rel="modulepreload" href="js/fight/costumes.js">
+<link rel="modulepreload" href="js/fight/input.js">
+<link rel="modulepreload" href="js/fight/stats.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
+<link rel="modulepreload" href="js/net/signal.js">
+<link rel="modulepreload" href="js/fx/contact.js">
+<link rel="modulepreload" href="js/ui/endings.js">
+<link rel="modulepreload" href="js/anim/poses.js">
+<link rel="modulepreload" href="vendor/three/jsm/lights/SunLight.js">
+<link rel="modulepreload" href="js/net/config.js">
+<link rel="modulepreload" href="vendor/three/jsm/shaders/LuminosityHighPassShader.js">
+<link rel="modulepreload" href="vendor/three/jsm/shaders/CopyShader.js">
+<link rel="modulepreload" href="js/version.js">
+<!-- modulepreload:end -->
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -609,8 +688,9 @@ button { touch-action: manipulation; }
 <div id="loading" class="screen on">
   <div class="logo">PUÑOS<br>DE BARRIO</div>
   <div class="sub">TORNEO DE LOS AMIGOS</div>
-  <div class="bar"><i></i></div>
-  <div class="tip">Cargando…</div>
+  <div class="bar indet"><i></i></div>
+  <div class="st">Descargando el juego…</div>
+  <div class="tip">Consejo: mantén atrás para bloquear golpes altos y medios.</div>
   <div class="err"></div>
 </div>
 

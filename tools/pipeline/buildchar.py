@@ -696,11 +696,11 @@ def build(pid, quick=False):
                 a = 1 - 0.8 * np.clip((u - 0.05) / 0.4, 0, 1) - 0.35 * np.clip((-u - 0.3) / 0.35, 0, 1) - 0.3 * np.clip((x - 0.55) / 0.3, 0, 1)
                 ao[m] = np.clip(a, 0.22, 1)
             return np.stack([ao, ao * 0.97, ao * 0.95], 1)
-        return [('eyes', ~cornea, dict(type='eye', map='../../shared/eye_brown.png'), eye_ao),
+        return [('eyes', ~cornea, dict(type='eye', map='../../shared/eye_brown.webp'), eye_ao),
                 ('cornea', cornea, dict(type='cornea'))]
 
     add_proxy('eyes', os.path.join(M.MHD, 'eyes/high-poly/high-poly.mhclo'), None, split=eye_split)
-    add_proxy('eyelashes', os.path.join(M.MHA, 'eyelashes/eyelashes01/eyelashes01.mhclo'), dict(type='lash', map='../../shared/eyelashes.png'))
+    add_proxy('eyelashes', os.path.join(M.MHA, 'eyelashes/eyelashes01/eyelashes01.mhclo'), dict(type='lash', map='../../shared/eyelashes.webp'))
     if not P.get('neutral_mouth', True):
         from facecam import bake_proxy_photo
         from facefit import LIPS_IN
@@ -714,7 +714,7 @@ def build(pid, quick=False):
         cv2.imwrite(os.path.join(outdir, 'teeth.png'), ttex)
         add_proxy('teeth', os.path.join(M.MHA, 'teeth/teeth_base/teeth_base.mhclo'), dict(type='teeth', map='teeth.png'))
     else:
-        add_proxy('teeth', os.path.join(M.MHA, 'teeth/teeth_base/teeth_base.mhclo'), dict(type='teeth', map='../../shared/teeth.png'))
+        add_proxy('teeth', os.path.join(M.MHA, 'teeth/teeth_base/teeth_base.mhclo'), dict(type='teeth', map='../../shared/teeth.webp'))
     add_proxy('shoes', os.path.join(M.MHA, f'clothes/{shoe[0]}/{shoe[0]}.mhclo'),
               dict(type='cloth', map='shoes.jpg', roughness=0.6, sheen=0.2))
     if P.get('hair_cards'):
@@ -800,7 +800,7 @@ def build(pid, quick=False):
         order = np.argsort(perm[tri_strand], kind='stable')
         hidx = hidx[order]
         ex.add_part('hair', to_m(hp_, ground), hn, huv, si, sw, hidx.ravel(),
-                    dict(type='haircards', lod=True, map='../../shared/' + hc.get('atlas', 'hair_cards.png'), tint=list(tint)), color=col, tangent=tang)
+                    dict(type='haircards', lod=True, map='../../shared/' + hc.get('atlas', 'hair_cards.png').replace('.png', '.webp'), tint=list(tint)), color=col, tangent=tang)
         print(f'  hair cards: {len(hp_)} verts, {len(hidx)} tris')
         if band is not None:
             # elastic hair tie around the knot
@@ -880,7 +880,7 @@ def build(pid, quick=False):
             sw_b = np.zeros((len(bp_), 4), np.float32); sw_b[:, 0] = 1
             bcol = np.array(P.get('brow_color', [c * 0.8 for c in P.get('hair_color', (0.03, 0.025, 0.02))]), np.float32)
             ex.add_part('brows', to_m(bp_, ground), bn_, buv_, si_b, sw_b, bidx_.ravel(),
-                        dict(type='haircards', map='../../shared/hair_cards.png', tint=bcol.tolist()),
+                        dict(type='haircards', map='../../shared/hair_cards.webp', tint=bcol.tolist()),
                         color=np.stack([bao_, bao_, bao_], 1), tangent=np.concatenate([tl_, np.ones((len(tl_), 1), np.float32)], 1))
             print(f'  brows: {len(bp_)} verts')
     extra = dict(
@@ -908,6 +908,10 @@ def shared_assets():
     # the same strands with the dense roots at the card's root (see strand_atlas)
     cv2.imwrite(os.path.join(d, 'hair_cards_r.png'), strand_atlas(1, False, roots_v0=True))
     cv2.imwrite(os.path.join(d, 'hair_cards_curly_r.png'), strand_atlas(2, True, roots_v0=True))
+    # the game loads WebP copies (a tenth of the size, the alpha kept exact); the PNGs stay as the sources
+    from PIL import Image as _Image
+    for n in ('hair_cards', 'hair_cards_curly', 'hair_cards_r', 'hair_cards_curly_r'):
+        _Image.open(os.path.join(d, n + '.png')).save(os.path.join(d, n + '.webp'), 'WEBP', quality=90, alpha_quality=100, method=6)
     import shutil
     eye = cv2.imread(os.path.join(M.MHA, 'eyes/materials/brownlight_eye.png'), cv2.IMREAD_UNCHANGED)
     hsv = cv2.cvtColor(eye[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)
@@ -924,6 +928,8 @@ def shared_assets():
     shutil.copy(os.path.join(M.MHA, 'eyelashes/eyelashes01/eyelashes01.png'), os.path.join(d, 'eyelashes.png'))
     t = cv2.imread(os.path.join(M.MHA, 'teeth/materials/teeth.png'), cv2.IMREAD_UNCHANGED)
     cv2.imwrite(os.path.join(d, 'teeth.png'), cv2.resize(t, (1024, 1024), interpolation=cv2.INTER_AREA))
+    for n in ('eye_brown', 'eyelashes', 'teeth'):
+        _Image.open(os.path.join(d, n + '.png')).save(os.path.join(d, n + '.webp'), 'WEBP', quality=90, alpha_quality=100, method=6)
     for h in ('short01', 'short02', 'short04'):
         dif = cv2.imread(os.path.join(M.MHA, f'hair/{h}/{h}_diffuse.png'), cv2.IMREAD_UNCHANGED)
         cv2.imwrite(os.path.join(d, f'hair_{h}.png'), dif)
