@@ -408,5 +408,92 @@ def outfit_dani(ctx, P):
             G('socks', socks, socks_offset(ctx), (0.97, 0.97, 0.96), rough=0.95, knit=1.2, fold=0.4, hem_depth=0.5, snap=dict(leg=1.94))]
 
 
+def coat_v(ctx, bottom, half_w, margin=0.0):
+    """Body vertices inside the V opening at the front of a coat: from the neck down to `bottom` (dm), half-width
+    `half_w` at the neckline narrowing to the point; `margin` widens it (an inner layer that must reach under)."""
+    V = ctx.V[:ctx.n]
+    x, y, z = V[:, 0], V[:, 1], V[:, 2]
+    top = ctx.y_neck + 0.2
+    f = np.clip((y - bottom) / (top - bottom), 0, 1.2)
+    w = half_w * f + margin
+    return (z > 0.05) & (y > bottom - margin) & (np.abs(x) < w) & (ctx.armness < 0.4) & (ctx.legness < 0.5)
+
+
+def pocket_img(w=360, h=300, color=(244, 244, 242), pens=False):
+    """Patch pocket of a white coat: double topstitching and a folded top edge (optionally two pens clipped in)."""
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    if pens:
+        for x0, col, cap in ((w * 0.3, (30, 70, 170, 255), (25, 50, 130, 255)), (w * 0.52, (200, 30, 40, 255), (150, 20, 30, 255))):
+            d.rounded_rectangle([x0, 0, x0 + 26, h * 0.42], 10, fill=col)
+            d.rectangle([x0 + 9, 0, x0 + 17, h * 0.34], fill=(205, 205, 210, 255))  # clip
+            d.ellipse([x0 + 4, -6, x0 + 22, 14], fill=cap)
+    d.rectangle([8, h * 0.18, w - 8, h - 8], fill=color + (255,))
+    st = tuple(int(c * 0.72) for c in color) + (255,)
+    for o in (16, 26):
+        for x in range(o, w - o, 14):
+            d.line([(x, h - o), (x + 7, h - o)], fill=st, width=3)
+        for y in range(int(h * 0.18) + 20, h - o, 14):
+            d.line([(o, y), (o, y + 7)], fill=st, width=3)
+            d.line([(w - o, y), (w - o, y + 7)], fill=st, width=3)
+    d.line([(8, h * 0.18 + 30), (w - 8, h * 0.18 + 30)], fill=tuple(int(c * 0.8) for c in color) + (255,), width=4)
+    return pil_to_bgra(im)
+
+
+def name_img(text, color=(26, 60, 140)):
+    """Name embroidered on the coat (thread colour, slightly raised)."""
+    return pil_to_bgra(text_img(text, 420, 110, font('NotoSans-BoldItalic.ttf', 74), fill=color + (255,)))
+
+
+def lapel_img(W=700, H=900, color=(244, 244, 242)):
+    """Notched lapels and the edges of the V opening, painted over the coat: soft fold shadow along each edge,
+    stitching, and the notch where collar and lapel meet."""
+    im = np.zeros((H, W, 4), np.uint8)
+    base = np.array(color[::-1], np.float32)
+    for sgn in (1, -1):
+        # lapel edge from the notch (top outer) down to the button point (bottom centre)
+        top = (W / 2 + sgn * W * 0.36, H * 0.05)
+        bot = (W / 2 + sgn * W * 0.02, H * 0.97)
+        fold = (W / 2 + sgn * W * 0.47, H * 0.62)  # roll line of the lapel (outer)
+        poly = np.array([top, bot, fold], np.int32)
+        cv2.fillPoly(im, [poly], tuple(int(c) for c in base * 0.985) + (255,))
+        cv2.line(im, (int(top[0]), int(top[1])), (int(bot[0]), int(bot[1])), tuple(int(c) for c in base * 0.8) + (255,), 6, cv2.LINE_AA)
+        cv2.line(im, (int(top[0]), int(top[1])), (int(fold[0]), int(fold[1])), tuple(int(c) for c in base * 0.9) + (200,), 4, cv2.LINE_AA)
+        # notch
+        n0 = (int(top[0]), int(top[1])); n1 = (int(top[0] + sgn * W * 0.08), int(top[1] + H * 0.06))
+        cv2.line(im, n0, n1, tuple(int(c) for c in base * 0.75) + (255,), 5, cv2.LINE_AA)
+    im = cv2.GaussianBlur(im, (0, 0), 1.2)
+    return im
+
+
+def outfit_noemi(ctx, P):
+    """White coat (hip length, as long as a coat can be on a fighter) open in a V over a pink top + dark jeans."""
+    yN, yC, yH = ctx.y_neck, ctx.y_chest, ctx.y_hip
+    V = ctx.V[:ctx.n]
+    torso = (ctx.armness < 0.3) & (ctx.legness < 0.5) & (ctx.neckness < 0.2)
+    apex_y = float(V[torso][np.argmax(V[torso][:, 2]), 1])  # height of the bust's front-most point
+    v_bottom, v_half, v_top = yC - 0.75, 0.82, yN + 0.2
+    coat = cover_top(ctx, sleeve=1.8, hem=yH - 0.42, neck=0.5) & ~coat_v(ctx, v_bottom, v_half)
+    white = (0.93, 0.93, 0.915)
+    wbgr = (int(white[2] * 255), int(white[1] * 255), int(white[0] * 255))
+    decals = [front_decal(ctx, lapel_img(color=wbgr), 0.0, (yN + v_bottom) / 2 + 0.1, 2.3, yN - v_bottom + 0.55, min_facing=0.2, bump=1.2),
+              front_decal(ctx, pocket_img(color=wbgr, pens=True), 0.95, yC - 0.35, 0.62, 0.55, min_facing=0.3, bump=1.4),
+              front_decal(ctx, name_img('Noemí'), 0.95, yC + 0.1, 0.62, 0.17, min_facing=0.35, bump=0.6),
+              front_decal(ctx, pocket_img(420, 400, color=wbgr), 1.05, yH + 0.12, 0.85, 0.8, min_facing=0.25, bump=1.4),
+              front_decal(ctx, pocket_img(420, 400, color=wbgr), -1.05, yH + 0.12, 0.85, 0.8, min_facing=0.25, bump=1.4)]
+    inner = coat_v(ctx, v_bottom - 0.1, v_half, margin=0.3) & cover_top(ctx, sleeve=0.2, hem=v_bottom - 0.6, neck=0.62)
+    pink = (0.88, 0.5, 0.6)
+    pants = cover_bottom(ctx, length=1.93, waist=ctx.y_navel - 0.15)
+    jacket = G('jacket', coat, loose(ctx, 0.2, 0.16), white, rough=0.78, knit=0.35, fold=1.5, decals=decals, sheen=0.35,
+               sheen_color=(1, 1, 1), snap=dict(arm=1.8, y_low=yH - 0.42, v=(v_bottom, v_half, v_top)), hem_depth=0.8)
+    jacket.relax = 30
+    jacket.drape = dict(y_top=apex_y + 0.35, y_bottom=yH - 0.6, slope=0.32, side=1.4, radius=1.2)
+    top = G('top', inner, 0.07, pink, rough=0.85, knit=1.1, fold=0.8, sheen=0.5, sheen_color=(1.0, 0.7, 0.8), hem_depth=0.5)
+    # the knit spans the cleavage instead of following it
+    top.drape = dict(y_top=apex_y + 0.5, y_bottom=v_bottom - 0.7, slope=0.4, side=1.0, radius=0.9, z_min=0.0)
+    return [jacket, top,
+            G('pants', pants, loose(ctx, 0.15, 0, 0.1), (0.07, 0.1, 0.2), rough=0.9, knit=0.2, fold=1.6, extra=denim_extra,
+              sheen=0.12, sheen_color=(0.4, 0.5, 0.7), snap=dict(leg=1.93, y_high=ctx.y_navel - 0.15))]
+
 OUTFITS = dict(alejandro=outfit_alejandro, alejandro_pool=outfit_alejandro_pool, alejandro_alt=outfit_alejandro_alt, arnau=outfit_arnau, camilo=outfit_camilo,
-               rafa=outfit_rafa, zapponi=outfit_zapponi, dani=outfit_dani)
+               rafa=outfit_rafa, zapponi=outfit_zapponi, dani=outfit_dani, noemi=outfit_noemi)

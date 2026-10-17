@@ -91,6 +91,46 @@ export function makeFighterKey() {
     rimDir: { value: FIGHTER_KEY.rimDir.value.clone() }, rim: FIGHTER_KEY.rim };
 }
 
+// costume colour change of a garment (linear colour): 1 = hue turned by uCosA.x (turns), saturation and value scaled
+// by uCosA.y / uCosA.z; 2 = dyed uCosB.rgb keeping the fabric's own shading (its luminance against uCosB.a, the
+// luminance of the garment's original colour)
+const COSTUME_GLSL = `uniform float uCosMode; uniform vec3 uCosA; uniform vec4 uCosB;
+vec3 pdbCostume( vec3 c ) {
+  if ( uCosMode > 1.5 ) {
+    float l = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
+    return uCosB.rgb * clamp( l / max( uCosB.a, 1e-4 ), 0.35, 2.2 );
+  }
+  vec4 K = vec4( 0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0 );
+  vec4 p = mix( vec4( c.bg, K.wz ), vec4( c.gb, K.xy ), step( c.b, c.g ) );
+  vec4 q = mix( vec4( p.xyw, c.r ), vec4( c.r, p.yzx ), step( p.x, c.r ) );
+  float d = q.x - min( q.w, q.y );
+  vec3 h = vec3( abs( q.z + ( q.w - q.y ) / ( 6.0 * d + 1e-10 ) ), d / ( q.x + 1e-10 ), q.x );
+  h.x = fract( h.x + uCosA.x ); h.y = clamp( h.y * uCosA.y, 0.0, 1.0 ); h.z *= uCosA.z;
+  vec4 L = vec4( 1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0 );
+  vec3 r = abs( fract( h.xxx + L.xyz ) * 6.0 - L.www );
+  return h.z * mix( L.xxx, clamp( r - L.xxx, 0.0, 1.0 ), h.y );
+}`;
+// a costume onto a built fighter: spec = { parts: { garmentName: { hue: degrees, sat, val } | { dye: [r, g, b] (sRGB),
+// base: luminance of the original colour (linear) } } } (null: the original colours). Garments are the meshes of the
+// fighter by name ('shirt', 'jacket', 'collar', 'shorts', 'pants', 'top', 'socks'...); '*' is any other garment.
+export function applyCostume(ch, spec) {
+  const parts = spec?.parts || {};
+  for (const [name, mesh] of Object.entries(ch.meshes)) {
+    const cos = mesh.material?.userData?.costume;
+    if (!cos) continue;
+    const key = Object.keys(parts).find((k) => k !== '*' && (name === k || name.startsWith(k + '_')));
+    const p = key ? parts[key] : parts['*'];
+    if (!p) { cos.mode.value = 0; continue; }
+    if (p.dye) {
+      const c = new THREE.Color().setRGB(...p.dye, THREE.SRGBColorSpace);
+      cos.mode.value = 2; cos.b.value.set(c.r, c.g, c.b, p.base ?? 0.2);
+    } else {
+      cos.mode.value = 1; cos.a.value.set(((p.hue || 0) / 360) % 1, p.sat ?? 1, p.val ?? 1);
+    }
+  }
+  ch.costume = spec || null;
+}
+
 export function addFighterKey(mat, key = FIGHTER_KEY) {
   if (!mat || mat.isMeshBasicMaterial || mat.isShaderMaterial || mat.userData.fighterKey) return mat;
   mat.userData.fighterKey = true;
@@ -211,10 +251,16 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
       // the inside of a garment sits in the body's shadow: darken back faces. Open sheets (collar leaves, flaps)
       // show their underside to the light, so they only darken a little
       const inside = def.double ? '0.8' : '0.3';
+      // the costume (js/fight/costumes.js): the garment's colours turned round the colour wheel or dyed another
+      // colour, through uniforms, so changing a costume never recompiles anything
+      const cos = m.userData.costume = { mode: { value: 0 }, a: { value: new THREE.Vector3(0, 1, 1) }, b: { value: new THREE.Vector4(1, 1, 1, 0.5) } };
+      m.userData.cloth = true;
       m.onBeforeCompile = (sh) => {
-        sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\n\tif ( ! gl_FrontFacing ) diffuseColor.rgb *= ${inside};`);
+        sh.uniforms.uCosMode = cos.mode; sh.uniforms.uCosA = cos.a; sh.uniforms.uCosB = cos.b;
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + COSTUME_GLSL)
+          .replace('#include <color_fragment>', `#include <color_fragment>\n\tif ( uCosMode > 0.5 ) diffuseColor.rgb = pdbCostume( diffuseColor.rgb );\n\tif ( ! gl_FrontFacing ) diffuseColor.rgb *= ${inside};`);
       };
-      m.customProgramCacheKey = () => 'clothInside' + inside;
+      m.customProgramCacheKey = () => 'clothCos' + inside;
       if (def.normalMap) {
         m.normalMap = loadTex(url(def.normalMap), false);
         const ns = 0.55 * (def.normalScale ?? 1);
@@ -236,16 +282,19 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
         strandScale: { value: new THREE.Vector2(...(def.scale || [40, 80])) },
         beardDark: { value: new THREE.Color().setRGB(...def.color, THREE.SRGBColorSpace) },
         beardGrey: { value: new THREE.Color().setRGB(...(def.greyColor || [0.45, 0.44, 0.43]), THREE.SRGBColorSpace) }, greyFrac: { value: def.grey || 0 },
+        // the share of grey strands per texel (the density map's green channel: a whiter chin), or one for the beard
+        greyMapOn: { value: def.greyMap ? 1 : 0 },
       };
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, uni);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float shellOff;')
           .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize( objectNormal ) * shellOff;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-          uniform sampler2D densMap, strandMap; uniform float shellT, shellThr, farCov, greyFrac; uniform vec2 strandScale; uniform vec3 beardDark, beardGrey;`)
+          uniform sampler2D densMap, strandMap; uniform float shellT, shellThr, farCov, greyFrac, greyMapOn; uniform vec2 strandScale; uniform vec3 beardDark, beardGrey;`)
           .replace('#include <color_fragment>', `#include <color_fragment>
           {
-            float dens = texture2D( densMap, vUv ).r;
+            vec4 dt = texture2D( densMap, vUv );
+            float dens = dt.r, gFrac = mix( greyFrac, dt.g, greyMapOn );
             vec2 suv = vUv * strandScale + vec2( 0.0, 0.01 * shellT );
             vec4 st = textureLod( strandMap, suv, 0.0 );
             // strands smaller than a pixel: switch to their expected coverage instead of aliasing
@@ -257,7 +306,7 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
             float clump = textureLod( strandMap, suv * 0.09 + 0.37, 0.0 ).r;
             float a = mix( aNear, farCov * dens * ( 0.2 + 0.55 * smoothstep( 0.0, 0.6, clump ) ), farK );
             if ( a < 0.01 ) discard;
-            float grey = mix( step( fract( st.g * 17.31 ), greyFrac ), greyFrac, farK );
+            float grey = mix( step( fract( st.g * 17.31 ), gFrac ), gFrac, farK );
             vec3 c = mix( beardDark, beardGrey, grey ) * mix( 0.5, 1.0, shellT );
             diffuseColor = vec4( c, min( a, 1.0 ) );
           }`);

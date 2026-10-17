@@ -5,7 +5,7 @@ const GAME = decodeURIComponent(new URL('..', import.meta.url).pathname).replace
 globalThis.window = globalThis; globalThis.document = { createElement: () => ({ getContext: () => null }) };
 const THREE = await import('three');
 const { buildCharacter } = await import(GAME + '/js/charloader.js');
-const ids = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani'];
+const ids = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi'];
 const REF = { head: [0.130, 0.12, 0.14], shoulderW: [0.259, 0.24, 0.28], upperArm: [0.186, 0.17, 0.20], forearm: [0.146, 0.135, 0.16],
   hand: [0.108, 0.10, 0.117], thigh: [0.245, 0.23, 0.26], shank: [0.246, 0.23, 0.26], foot: [0.152, 0.14, 0.165], shoe: [0.165, 0.15, 0.18], span: [1.0, 0.97, 1.06],
   wristY: [0.485, 0.46, 0.51], elbowY: [0.63, 0.61, 0.65] };

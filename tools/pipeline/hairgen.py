@@ -4,10 +4,21 @@ import cv2
 from scipy.spatial import cKDTree
 
 ATLAS_W, ATLAS_H, NVAR = 1024, 1024, 8
+# a list to collect every strand grow_bob makes (paths, angles), for inspecting a hairstyle from a script
+DEBUG = None
 
 
-def strand_atlas(seed=0, curly=False):
-    """RGBA atlas: NVAR vertical card variants side by side. White-ish strands, alpha tapered at the tip."""
+def smoothstep(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def strand_atlas(seed=0, curly=False, roots_v0=False):
+    """RGBA atlas: NVAR vertical card variants side by side. White-ish strands, alpha tapered at the tip.
+    The strands are drawn from the top row down, and textures load with flipY, so in the first atlases (hair_cards.png,
+    hair_cards_curly.png) a card's root (v=0) gets the strands' faded tips and its tip the dense roots: the first
+    quarter of every card is almost transparent. roots_v0 flips the image so the dense roots sit at v=0 as intended
+    (the *_r.png atlases)."""
     rng = np.random.default_rng(seed)
     img = np.zeros((ATLAS_H, ATLAS_W, 4), np.float32)
     cw = ATLAS_W // NVAR
@@ -39,7 +50,9 @@ def strand_atlas(seed=0, curly=False):
         img[:, x0:x0 + cw, 2] = col
         img[:, x0:x0 + cw, 3] = alpha
     out = (np.clip(img, 0, 1) * 255).astype(np.uint8)
-    # v=0 at the root (bottom of the image in GL convention -> row H-1)
+    if roots_v0:
+        # v=0 at the root (bottom of the image in GL convention -> row H-1)
+        out = np.ascontiguousarray(out[::-1])
     return cv2.cvtColor(out, cv2.COLOR_RGBA2BGRA)
 
 
@@ -343,5 +356,205 @@ def grow_brows(V, N, tris, frame, n_per=650, length=(0.035, 0.065), width=0.01, 
                 pts.append(pp)
             nfn = lambda x, qn=qn: qn
             base = _card(out, base, np.array(pts), width * rng.uniform(0.8, 1.2), rng.integers(0, NVAR), 0.55, nfn, rng.random() < 0.5, taper=0.7)
+    op, ouv, oao, ot, oi = out
+    return (np.array(op, np.float32), np.array(ouv, np.float32), np.array(oao, np.float32), np.array(ot, np.float32), np.array(oi, np.int64))
+
+
+def grow_bob(V, N, tris, cover, frame, style, coll_idx=None, seed=5):
+    """Curly bob (Noemi): strands combed off a side parting over the top and down past the ears to about the chin,
+    full of volume towards the ends, springy curls, the face kept clear.
+    Every strand is laid out in spherical coordinates around the head centre: its azimuth travels from the root to the
+    end early (the top is combed sideways first), its elevation drops later (then it falls), and its distance from the
+    centre never goes below the outer surface of the head, face, neck and shoulders plus the hair's own lift. The outer
+    surface is a map of the largest radius seen in each direction (coll_idx: the vertices that count), so the inner
+    surfaces of the mouth and the eye sockets never pull a strand inside the head.
+    style: part_az (parting, degrees, + = her left), sweep (degrees the top strands travel), spread (end radius from the
+    head axis at the sides, dm), back_spread, end_dy (end height above the chin, dm), back_dy (extra height at the nape),
+    face_clear (degrees of azimuth kept free of hair below the brows), curl (curl radius, dm), pitch (curl length, dm),
+    width (card width, dm), seg (segment length, dm), layers=[(n, length scale, offset, ao, lift, curl scale)]."""
+    rng = np.random.default_rng(seed)
+    C = frame.C
+    lm = frame.lm
+    cidx = np.unique(tris) if coll_idx is None else np.asarray(coll_idx)
+    # ---- outer surface radius per direction (3 degree cells, wrapped in azimuth): the head and the neck only (seen
+    # from the head centre, the shoulders are what lies below-outwards, and would throw the strands out to them)
+    chin_y = float(lm[152][1])
+    Pc = V[cidx]
+    keep = (Pc[:, 1] > chin_y - 0.45) & (np.hypot(Pc[:, 0] - C[0], Pc[:, 2] - C[2]) < 0.95)
+    cidx = cidx[keep]
+    D = V[cidx] - C
+    Rv = np.linalg.norm(D, axis=1)
+    az_v = np.degrees(np.arctan2(D[:, 0], D[:, 2]))
+    el_v = np.degrees(np.arcsin(np.clip(D[:, 1] / np.maximum(Rv, 1e-9), -1, 1)))
+    AZN, ELN, STEP = 120, 60, 3.0
+    grid = np.full((ELN, AZN), -1.0)
+    ia = (np.floor((az_v + 180) / STEP).astype(int)) % AZN
+    ie = np.clip(np.floor((el_v + 90) / STEP).astype(int), 0, ELN - 1)
+    np.maximum.at(grid, (ie, ia), Rv)
+    def shift(g, i, j):  # neighbour cells: azimuth wraps round, elevation stops at the poles
+        g = np.roll(g, j, 1)
+        if i > 0: g = np.concatenate([g[:1], g[:-1]], 0)
+        elif i < 0: g = np.concatenate([g[1:], g[-1:]], 0)
+        return g
+    for _ in range(60):  # empty cells take the largest neighbour
+        if (grid >= 0).all():
+            break
+        nb = np.max(np.stack([shift(grid, 0, 1), shift(grid, 0, -1), shift(grid, 1, 0), shift(grid, -1, 0)]), 0)
+        grid = np.where(grid < 0, nb, grid)
+    grid = np.maximum(grid, 0.3)
+    big = np.max(np.stack([shift(grid, i, j) for i in (-1, 0, 1) for j in (-1, 0, 1)]), 0)
+    grid = cv2.GaussianBlur(big.astype(np.float32), (0, 0), 0.8, borderType=cv2.BORDER_REPLICATE)
+
+    def rsurf(az, el):
+        x = (az + 180) / STEP - 0.5
+        y = np.clip((el + 90) / STEP - 0.5, 0, ELN - 1.001)
+        x0 = int(np.floor(x)); y0 = int(np.floor(y)); fx = x - x0; fy = y - y0
+        x0 %= AZN; x1 = (x0 + 1) % AZN; y1 = min(y0 + 1, ELN - 1)
+        return float((grid[y0, x0] * (1 - fx) + grid[y0, x1] * fx) * (1 - fy) + (grid[y1, x0] * (1 - fx) + grid[y1, x1] * fx) * fy)
+
+    def dirv(az, el):
+        a, e = np.radians(az), np.radians(el)
+        return np.array([np.cos(e) * np.sin(a), np.sin(e), np.cos(e) * np.cos(a)])
+
+    def wrap(a):
+        return (a + 180.0) % 360.0 - 180.0
+
+    brow_el = float(frame.angles(lm[105][None])[0][0])
+    part = style.get('part_az', 30.0)
+    sweep = style.get('sweep', 70.0)
+    clear = style.get('face_clear', 58.0)
+    out = ([], [], [], [], [])
+    base = 0
+    # the crown's own layer (curly hair stands up off the top of the head): roots only up there
+    el_v2, _ = frame.angles(V)
+    crown_cover = cover * smoothstep(30.0, 55.0, el_v2)
+    layers = [(L, cover) for L in style['layers']] + [(L, crown_cover) for L in style.get('crown_layers', [])]
+    for (n, lscale, off0, ao0, lift, cscale), cov in layers:
+        roots, _ = area_sample(V, tris, cov, n, rng)
+        if roots is None:
+            continue
+        for r in roots:
+            el, az = frame.angles(r[None])
+            el, az = float(el[0]), float(az[0])
+            dpart = wrap(az - part)
+            top = el > style.get('top_el', 30.0)
+            if top and abs(az) < 155:
+                side = -1.0 if dpart < 0 else 1.0
+                travel = sweep * rng.uniform(0.75, 1.25) * np.clip(1.25 - abs(dpart) / 110, 0.3, 1.0)
+                az_e = az + side * travel
+            else:
+                side = 1.0 if az >= 0 else -1.0
+                az_e = az + rng.normal(0, 7)
+            if abs(wrap(az_e)) < clear + 14:  # nothing ends in front of the cheeks
+                s_ = np.sign(wrap(az_e)) if abs(wrap(az_e)) > 1e-3 else side
+                az_e = s_ * (clear + 14 + rng.uniform(0, 18))
+            az_e = float(np.clip(wrap(az_e), -179, 179)) if abs(az_e) <= 180 else wrap(az_e)
+            back = smoothstep(100, 168, abs(wrap(az_e)))
+            y_e = chin_y + style.get('end_dy', 0.05) + style.get('back_dy', 0.3) * back + rng.uniform(-0.14, 0.18)
+            spread = style.get('spread', 1.2) * (1 - back) + style.get('back_spread', 0.95) * back
+            R_e = spread * rng.uniform(0.88, 1.08)
+            E = np.array([C[0] + R_e * np.sin(np.radians(az_e)), y_e, C[2] + R_e * np.cos(np.radians(az_e))])
+            E = r + (E - r) * lscale  # the shorter inner layers end higher, closer in
+            dE = E - C
+            rE = float(np.linalg.norm(dE))
+            elE = float(np.degrees(np.arcsin(np.clip(dE[1] / rE, -1, 1))))
+            azE = float(np.degrees(np.arctan2(dE[0], dE[2])))
+            # the way round: as combed (the sweep direction), otherwise the short way
+            daz = wrap(azE - az)
+            if top and abs(az) < 155 and np.sign(daz) != side and abs(daz) > 20:
+                daz = daz + side * 360.0
+            rr = float(np.linalg.norm(r - C))
+            arc = np.radians(abs(daz)) * rr * 0.6 + abs(rE * np.sin(np.radians(elE)) - rr * np.sin(np.radians(el))) + 0.3
+            nseg = int(np.clip(arc / style.get('seg', 0.14), 8, 14))
+            t = np.linspace(0, 1, nseg + 1)
+            pts = np.zeros((nseg + 1, 3))
+            # the top of the head carries its volume off the scalp from the root on
+            topk = smoothstep(22.0, 60.0, el) * style.get('top_lift', 0.12)
+            # the hair over the forehead is combed up off it before it sweeps sideways and falls (front_rise: degrees
+            # it climbs), and its curls only start once it is past the forehead
+            front = float(smoothstep(70.0, 25.0, abs(az)) * smoothstep(62.0, 38.0, el))
+            rise = style.get('front_rise', 0.0) * front
+            for i, ti in enumerate(t):
+                ta = 1 - (1 - ti) ** 2.2
+                te = ti ** 1.5
+                a = az + daz * ta
+                e = el + (elE - el) * te + rise * np.sin(np.pi * min(ti / 0.55, 1.0))
+                if e < brow_el + 4 and abs(wrap(a)) < clear:
+                    a = (np.sign(wrap(a)) if abs(wrap(a)) > 1e-3 else side) * clear
+                h = off0 * 0.5 + topk * 0.35 if i == 0 else off0 + topk + lift * ti ** 0.75
+                rad = max(rsurf(a, e) + h, rr + (rE - rr) * smoothstep(0.6, 1.0, ti))
+                pts[i] = C + rad * dirv(a, e)
+            pts[0] = r + (pts[0] - r) * 0.3  # the root sits on the scalp
+            # springy curls: a helix around the strand that opens towards the tip (sideways it shows the curl,
+            # outwards it makes the silhouette bumpy)
+            amp = style.get('curl', 0.09) * cscale * rng.uniform(0.6, 1.3)
+            pitch = style.get('pitch', 0.45) * rng.uniform(0.75, 1.25)
+            ph = rng.uniform(0, 2 * np.pi)
+            arcl = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+            base_pts = pts.copy()
+            for i in range(1, len(pts)):
+                tdir = base_pts[min(i + 1, len(pts) - 1)] - base_pts[i - 1]
+                tdir /= np.linalg.norm(tdir) + 1e-9
+                outv = base_pts[i] - C
+                outv -= tdir * (outv @ tdir)
+                outv /= np.linalg.norm(outv) + 1e-9
+                bv = np.cross(tdir, outv)
+                ramp = smoothstep(0.08 + 0.3 * front, 0.55 + 0.2 * front, t[i])
+                w_ = ph + 2 * np.pi * arcl[i] / pitch
+                pts[i] = base_pts[i] + (bv * np.sin(w_) + outv * (0.55 + 0.45 * np.cos(w_))) * amp * ramp
+            # cards facing outwards, turned a different way each near the crown: lying flat on top of the head they
+            # would vanish edge-on from a fight camera at head height, whichever side it looks from
+            tilt = rng.normal(0, 1, 3) * np.array([1.0, 0.0, 1.0]); tilt /= np.linalg.norm(tilt) + 1e-9
+            tk = 0.75 * smoothstep(15, 65, el)
+            nfn = lambda q, tilt=tilt, tk=tk: (lambda o: o / (np.linalg.norm(o) + 1e-9))((q - C) * np.array([1.0, 0.3, 1.0]) + tilt * tk)
+            w = style['width'] * rng.uniform(0.8, 1.3)
+            if DEBUG is not None: DEBUG.append(dict(az=az, el=el, azE=azE, elE=elE, daz=daz, top=top, pts=pts.copy(), base=base_pts.copy(), rr=rr, rE=rE))
+            base = _card(out, base, pts, w, rng.integers(0, NVAR), ao0, nfn, rng.random() < 0.5, taper=0.35)
+    # loose curls along the front hairline: short springy strands, most lifting up and sideways into the swept hair, a
+    # few falling onto the forehead (a clean edge over a high forehead reads as a receding hairline). edge_curls: how
+    # many, edge_fall: the share that falls, edge_drop: degrees below the cards' root line they grow from (the cards
+    # hang half their width below their roots, so the hair's visible edge is lower than the root line)
+    ne = style.get('edge_curls', 0)
+    if ne > 0:
+        _, az_v2 = frame.angles(V)
+        edge = np.clip(cover * (1 - cover) * 4, 0, 1) * smoothstep(80.0, 50.0, np.abs(az_v2))
+        roots, _ = area_sample(V, tris, edge, ne, rng)
+        for r in (roots if roots is not None else []):
+            el, az = frame.angles(r[None])
+            el, az = float(el[0]), float(az[0])
+            drop = style.get('edge_drop', 0.0) * rng.uniform(0.6, 1.2)
+            if drop:
+                el -= drop
+                r = C + rsurf(az, el) * dirv(az, el)
+            rr = float(np.linalg.norm(r - C))
+            side = -1.0 if wrap(az - part) < 0 else 1.0
+            fall = rng.random() < style.get('edge_fall', 0.3)
+            L = rng.uniform(0.12, 0.24) * (0.6 if fall else 1.0)
+            th = np.radians(rng.uniform(-80, -40) if fall else rng.uniform(15, 70))
+            span = np.degrees(L / rr)
+            d_az = side * span * np.cos(th) / max(np.cos(np.radians(el)), 0.3)
+            d_el = span * np.sin(th)
+            n_ = 7
+            pts = np.zeros((n_, 3))
+            for i in range(n_):
+                ti = i / (n_ - 1)
+                a, e = az + d_az * ti, el + d_el * ti
+                pts[i] = C + max(rsurf(a, e) + 0.015 + 0.05 * ti, rr) * dirv(a, e)
+            pts[0] = r + (pts[0] - r) * 0.3
+            amp = style.get('curl', 0.09) * rng.uniform(0.3, 0.5)
+            pitch = rng.uniform(0.1, 0.15)
+            ph = rng.uniform(0, 2 * np.pi)
+            base_pts = pts.copy()
+            arcl = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+            for i in range(1, n_):
+                tdir = base_pts[min(i + 1, n_ - 1)] - base_pts[i - 1]
+                tdir /= np.linalg.norm(tdir) + 1e-9
+                outv = base_pts[i] - C
+                outv -= tdir * (outv @ tdir)
+                outv /= np.linalg.norm(outv) + 1e-9
+                w_ = ph + 2 * np.pi * arcl[i] / pitch
+                pts[i] = base_pts[i] + (np.cross(tdir, outv) * np.sin(w_) + outv * (0.55 + 0.45 * np.cos(w_))) * amp * smoothstep(0.1, 0.5, i / (n_ - 1))
+            nfn = lambda q: (q - C) / (np.linalg.norm(q - C) + 1e-9)
+            base = _card(out, base, pts, style['width'] * rng.uniform(0.4, 0.6), rng.integers(0, NVAR), 0.6, nfn, rng.random() < 0.5, taper=0.5)
     op, ouv, oao, ot, oi = out
     return (np.array(op, np.float32), np.array(ouv, np.float32), np.array(oao, np.float32), np.array(ot, np.float32), np.array(oi, np.int64))

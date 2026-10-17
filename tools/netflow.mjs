@@ -117,6 +117,11 @@ try {
   await Promise.all([H, G].map((p) => waitFor(p, () => window.__game.state === 'select' && window.__game.mode === 'online', null, 20000, 'select')));
   check(true, '¡A LUCHAR! takes both phones to the fighters\' select');
   // host: Rafa (keys: right x3 then confirm); guest: Zapponi by tapping its card twice (touch-like) / clicking
+  // (the mouse out of the way first: left where ¡A LUCHAR! was clicked it rests on a card, and a card under a mouse
+  // takes the cursor, as a hover preview)
+  await H.mouse.move(4, 4); await G.mouse.move(4, 4); await H.waitForTimeout(300);
+  await H.evaluate(() => { window.__game.sel.i[0] = 0; window.__game.refreshSel(); window.__game.selMoved(0); });
+  await waitFor(G, () => window.__game.sel.i[0] === 0, null, 5000, 'the host\'s cursor at the start');
   for (let i = 0; i < 3; i++) { await H.keyboard.press('KeyD'); await H.waitForTimeout(150); }
   await waitFor(G, () => window.__game.sel.i[0] === 3, null, 5000, 'the host\'s cursor on the guest');
   check(true, 'the guest sees the host\'s cursor move');
@@ -184,16 +189,42 @@ try {
   check(JSON.stringify(r[0].score) === JSON.stringify(r[1].score) && r[0].score[0] + r[0].score[1] === 1, `the fight is over on both, same score ${JSON.stringify(r[0].score)}`);
   const lastStats = [r[0].stats, r[1].stats];
   await shot(H, 'net_results_host.png'); await shot(G, 'net_results_guest.png');
+  // (how the fight ended, for the replay below: read now, a JUGADA puts its own match in the game)
+  const orig = await H.evaluate(() => ({ hp: window.__online.match.fighters.map((f) => f.hp), wins: window.__online.match.wins.slice() }));
+
+  // ---------------------------------------------------------------- JUGADA DEL COMBATE (on the host's phone)
+  // the best play again from the last final snapshot before it: the victim loses exactly the play's damage
+  if (await H.evaluate(() => !!document.querySelector('#overlay [data-a=hl]'))) {
+    const best = await H.evaluate(() => {
+      const g = window.__game, B = window.__online.match.best, play = g.playHighlight.bind(g);
+      window.__hlTrace = [];
+      g.playHighlight = (src, onEnd) => {
+        play(src, onEnd);
+        const m = g.hl?.m; if (!m) return;
+        window.__hlStart = m.frame;
+        const step = m.step.bind(m);
+        m.step = () => { step(); window.__hlTrace.push([m.frame, m.fighters[0].hp, m.fighters[1].hp]); };
+      };
+      return { att: B.att, f0: B.f0, f1: B.f1, dmg: B.dmg, hits: B.hits };
+    });
+    await H.click('#overlay [data-a=hl]');
+    await waitFor(H, () => window.__game.state === 'highlight' && document.querySelector('#hlTag.on'), null, 120000, 'highlight running');
+    await waitFor(H, () => window.__game.state !== 'highlight' && !!document.querySelector('#overlay.on .ol-results'), null, 240000, 'highlight to the end');
+    const tr = await H.evaluate(() => ({ start: window.__hlStart, t: window.__hlTrace }));
+    const hpAt = (f) => { const e = tr.t.find((x) => x[0] === f); return e ? e[2 - best.att] : null; };
+    const before = best.f0 > tr.start ? hpAt(best.f0) : null, after = hpAt(best.f1);
+    check(before !== null && after !== null && (Math.abs(before - after - best.dmg) < 0.01 || after <= 0),
+      `▶ JUGADA from the snapshot of frame ${tr.start}: ${best.hits} hits, the victim goes from ${before} to ${after} (play's damage ${best.dmg}), then the results again`);
+  } else check(true, 'no play of this fight is worth a JUGADA (no button, as it should be)');
 
   // ---------------------------------------------------------------- the replay (on the guest's phone)
   // the fight again from both players' recorded inputs: it must end exactly as it was played
-  const orig = await H.evaluate(() => ({ hp: window.__game.match.fighters.map((f) => f.hp), wins: window.__game.match.wins.slice() }));
   await G.click('#overlay [data-a=replay]');
   await waitFor(G, () => window.__game.replaying && window.__game.match.frame > 10 && document.querySelector('#replayTag.on'), null, 60000, 'replay running');
   check(true, 'REPETICIÓN plays the fight again on the guest\'s phone (REPETICIÓN tag on screen)');
   await waitFor(G, () => window.__game.match.phase === 'matchEnd', null, 240000, 'replay to the end');
   const rep = await G.evaluate(() => ({ hp: window.__game.match.fighters.map((f) => f.hp), wins: window.__game.match.wins.slice() }));
-  check(JSON.stringify(rep) === JSON.stringify(orig), `the replay ends exactly as the fight did (hp ${rep.hp}, rounds ${rep.wins})`);
+  check(JSON.stringify(rep) === JSON.stringify(orig), `the replay ends exactly as the fight did (hp ${rep.hp}, rounds ${rep.wins}${JSON.stringify(rep) === JSON.stringify(orig) ? '' : '; the fight: hp ' + orig.hp + ', rounds ' + orig.wins})`);
   await G.keyboard.press('KeyU'); // (any key ends it)
   await waitFor(G, () => !window.__game.replaying && !!document.querySelector('#overlay.on .ol-results'), null, 15000, 'back to the results');
   check(true, 'a key ends the replay and the results come back');

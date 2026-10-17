@@ -129,6 +129,17 @@ export class FightCamera {
       const fw = _cv.subVectors(tl, tp).setY(0).normalize();
       tl.x -= -fw.z * 0.42; tl.z -= fw.x * 0.42;
       fov = 32; lam = 2;
+    } else if (this.mode === 'ending') {
+      // the champion's ending: a slow swing round in front of him at eye level, a medium shot, the champion right of
+      // centre (his story takes the left of the screen)
+      const f = this.focus || a;
+      const fp = f.pos, hy = f.headWorld ? f.headWorld.y : 1.6;
+      const ang = f.yaw + Math.sin(this.modeT * 0.11) * 0.85;
+      const dir = _cv.set(Math.sin(ang), 0, Math.cos(ang));
+      tl.copy(fp).setY(hy - 0.32);
+      tp.copy(fp).addScaledVector(dir, 2.75).setY(hy - 0.02);
+      tl.x -= -dir.z * -0.5; tl.z -= dir.x * -0.5;
+      fov = 34; lam = 1.6;
     } else if (this.mode === 'rage') {
       const f = this.focus || a;
       const fp = f.pos;

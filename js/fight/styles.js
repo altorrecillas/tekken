@@ -17,7 +17,7 @@ export const STYLES = {
       [95, null, 'inout'],
     ],
     title: 'El Tatuado', desc: 'Kickboxer rápido y preciso. Patadas altas y rodillazos.',
-    quotes: ['¿Eso era todo? Ni me he despeinado.', 'Rápido y limpio, como a mí me gusta.', 'Cada tatuaje cuenta una victoria. Me toca hacerme otro.'],
+    say: '¿Eso era todo? Ni me he despeinado.', sayAt: 78, sayLen: 147, // (the line spoken on winning: tools/quotes_tts.py)
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
     aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3'], juggle: ['1', '2', '4'],
     bob: 0.022,
@@ -72,12 +72,23 @@ export const STYLES = {
         advance: [[0, 0], [8, 0.12], [22, 0.3], [50, 0.3]], sfx: 'heavy',
       },
     }),
+    // "¿eso era todo? ni me he despeinado": the hand smooths his hair back to the topknot, a shrug with both palms
+    // up, and a finger at the loser
     win: [
       [0, {}],
-      [25, { rootPos: [0, 0, 0], rootRot: [0, 0.2, 0], spine: [-0.1, 0, 0], neck: [-0.15, -0.2, 0], handL: [0.55, 0.35, 0.05], handR: [0.55, 0.35, 0.05], aimL: 1, aimR: 1,
-        twistL: 1.2, twistR: 1.2, fistL: 1, fistR: 1, footL: [0.2, 0.071, 0.05], footR: [0.2, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.2, 0], clavL: [0.2, 0], clavR: [0.2, 0] }, 'back'],
-      [60, { handL: [0.5, 0.42, 0.1], handR: [0.5, 0.42, 0.1] }, 'sine'],
-      [100, { handL: [0.55, 0.35, 0.05], handR: [0.55, 0.35, 0.05] }, 'sine'],
+      [22, { rootPos: [0, 0, 0], rootRot: [0, 0.14, 0], spine: [-0.04, 0, 0], neck: [0, 0, 0],
+        handL: [0.3, -0.68, 0.14], aimL: 1, fistL: 0.3, handR: [0.3, -0.62, 0.2], aimR: 1, fistR: 0.3, footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.22, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'out'],
+      // (the hand goes up beside the head, not through the face)
+      [36, { hgR: 1, hgPosR: [0.24, 0.08, 0.14], poleR: [0.8, -0.5, 0.2], fistR: 0.1, twistR: -0.6, neck: [-0.05, 0, 0.04] }, 'inout'],
+      [46, { hgPosR: [0.14, 0.1, 0.09] }, 'inout'],
+      [64, { hgPosR: [0.13, 0.09, -0.09], neck: [-0.12, 0.08, 0.06] }, 'inout'],
+      [76, { handR: [0.3, -0.36, 0.38], aimR: 1, poleR: [0.2, -1, -0.5], fistR: 0.1, twistR: -1.4, handL: [0.3, -0.36, 0.38], aimL: 1, fistL: 0.1, twistL: -1.4,
+        clavL: [0.16, 0], clavR: [0.16, 0], neck: [0.04, 0, 0.1] }, 'inout'],
+      [96, { clavL: [0.04, 0], clavR: [0.04, 0], neck: [0.04, 0.06, 0.06] }, 'sine'],
+      [128, { handL: [0.38, -0.52, -0.08], aimL: 1, poleL: [0.6, 0.2, -0.8], fistL: 0.6, twistL: 0, clavL: [0, 0],
+        handR: [0.22, 0.06, 0.72], fistR: 1, ptR: 1, twistR: 0.2, clavR: [0.06, 0], neck: [-0.04, 0, 0] }, 'back'],
+      [150, { handR: [0.22, 0.08, 0.74] }, 'sine'],
+      [200, { handR: [0.24, 0.06, 0.72], neck: [-0.06, 0.04, 0] }, 'sine'],
     ],
   },
   arnau: {
@@ -90,7 +101,7 @@ export const STYLES = {
       [95, null, 'inout'],
     ],
     title: 'El Gamer', desc: 'Joven e impredecible. Cabezazos y barridos.',
-    quotes: ['¡GG! Y sin revancha, que me voy a cenar.', 'En mi consola esto era más difícil.', '¡Combo desbloqueado!'],
+    say: '¡En mi consola esto era más difícil!', sayAt: 78, sayLen: 166, // (the line spoken on winning: tools/quotes_tts.py)
     stats: { health: 188, walk: 1.2, weight: 1.12, power: 1.12, speed: 1.04 },
     aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3'], juggle: ['1', '1', '2', 'b+2'],
     stance: { hgPosL: [0.09, -0.19, 0.28], hgPosR: [0.12, -0.23, 0.2], spine: [0.18, 0.1, 0], rootRot: [0.05, -0.35, 0], neck: [0.12, 0.15, 0] },
@@ -139,13 +150,22 @@ export const STYLES = {
         advance: [[0, 0], [18, 0.24], [44, 0.24]], sfx: 'heavy', // longer step: the upright finish reaches less
       },
     }),
+    // "¡en mi consola esto era más difícil!": thumbs mashing an invisible gamepad, eyes down on it; he looks up to say
+    // it, then raises his fist like a final boss beaten
     win: [
       [0, {}],
-      [20, { rootPos: [0, 0, 0], rootRot: [0, 0, 0], spine: [0, 0, 0], handR: [0.3, 0.8, 0.3], aimR: 1, fistR: 0.3, twistR: 1.5, handL: [0.2, -0.8, 0.2], aimL: 1, fistL: 0.4,
-        footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.1, 0], footRotR: [0, 0.1, 0], neck: [0, 0, 0] }, 'back'],
-      [40, { handR: [0.4, 0.75, 0.25] }, 'sine'],
-      [60, { handR: [0.25, 0.85, 0.3] }, 'sine'],
-      [80, { handR: [0.4, 0.75, 0.25] }, 'sine'],
+      [22, { rootPos: [0, 0, 0], rootRot: [0.03, 0, 0], spine: [0.08, 0, 0], neck: [0.3, 0, 0],
+        handL: [0.11, -0.42, 0.44], handR: [0.11, -0.42, 0.44], aimL: 1, aimR: 1, fistL: 0.6, fistR: 0.6, twistL: -0.5, twistR: -0.5, thL: 0.6, thR: 0.6,
+        footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.22, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'out'],
+      [28, { thL: 1, thR: 0.3 }, 'sine'], [34, { thL: 0.3, thR: 1 }, 'sine'], [40, { thL: 1, thR: 0.3 }, 'sine'], [46, { thL: 0.3, thR: 1 }, 'sine'],
+      [52, { thL: 1, thR: 0.4, rootRot: [0.03, 0.06, 0] }, 'sine'], [58, { thL: 0.3, thR: 1, rootRot: [0.03, -0.06, 0] }, 'sine'],
+      [64, { thL: 1, thR: 0.3 }, 'sine'], [70, { thL: 0.4, thR: 1, rootRot: [0.03, 0, 0] }, 'sine'],
+      [86, { neck: [0, 0.05, 0], spine: [0, 0, 0], handL: [0.15, -0.56, 0.34], handR: [0.15, -0.56, 0.34], thL: 0.5, thR: 0.5 }, 'inout'],
+      [126, { neck: [0.04, -0.08, 0.05] }, 'sine'],
+      [166, { handR: [0.3, 0.8, 0.3], fistR: 1, thR: 0, twistR: 1.5, handL: [0.25, -0.65, 0.15], fistL: 0.4, thL: 0, twistL: 0, neck: [-0.15, 0, 0] }, 'back'],
+      [186, { handR: [0.4, 0.75, 0.25] }, 'sine'],
+      [206, { handR: [0.25, 0.85, 0.3] }, 'sine'],
+      [226, { handR: [0.4, 0.75, 0.25] }, 'sine'],
     ],
   },
   camilo: {
@@ -159,7 +179,7 @@ export const STYLES = {
       [100, null, 'inout'],
     ],
     title: 'El Maratoniano', desc: 'Alcance enorme y fondo inagotable. Patadas a la carrera.',
-    quotes: ['Ni he empezado a sudar.', 'Tengo fondo para diez rondas más.', 'Esto se gana en los últimos metros.'],
+    say: 'No molestes, estoy trabajando.', sayAt: 78, sayLen: 127, // (the line spoken on winning: tools/quotes_tts.py)
     stats: { health: 174, walk: 1.4, weight: 0.95, power: 1.02, speed: 1.07 },
     aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
     stance: { rootPos: [0, -0.06, -0.02], hgPosL: [0.06, -0.13, 0.33], hgPosR: [0.12, -0.16, 0.2] },
@@ -210,12 +230,28 @@ export const STYLES = {
         advance: [[0, 0], [11, 0.08], [30, 0.08]], sfx: 'light',
       },
     }),
+    // "no molestes, estoy trabajando": the phone out of his pocket, the back of the other hand waves the loser away
+    // without even looking up, and he goes on tapping at it, the phone flat on his palm (js/fx/accessories.js)
     win: [
       [0, {}],
-      [30, { rootPos: [0, 0.02, 0], rootRot: [0, 0.3, 0], spine: [-0.1, 0, 0], handL: [0.3, 1.0, 0.1], handR: [0.2, -0.6, 0.35], aimL: 1, aimR: 1, fistL: 1, fistR: 0.6, jaw: 0.25,
-        footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.2, 0], neck: [-0.2, -0.2, 0] }, 'back'],
-      [55, { handL: [0.35, 0.95, 0.15], rootPos: [0, 0.06, 0] }, 'sine'],
-      [80, { handL: [0.3, 1.0, 0.1], rootPos: [0, 0.02, 0] }, 'sine'],
+      [12, { handR: [0.36, -0.68, 0.02], aimR: 1, fistR: 0.4, twistR: 0, handL: [0.3, -0.7, 0.1], aimL: 1, fistL: 0.25 }, 'out'],
+      [28, { rootPos: [0, 0, 0], rootRot: [0, 0.18, 0], spine: [0.04, 0, 0], neck: [0.38, -0.05, 0],
+        handR: [0.16, -0.3, 0.46], aimR: 1, fistR: 0, twistR: -1.4, wristR: [-0.2, 0], thR: 0, footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.22, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'inout'],
+      [40, { handL: [0.4, -0.12, 0.48], aimL: 1, fistL: 0, twistL: 0.4, wristL: [0.2, 0] }, 'inout'],
+      [47, { wristL: [-0.7, 0] }, 'inout'],
+      [54, { wristL: [0.3, 0] }, 'inout'],
+      [61, { wristL: [-0.7, 0] }, 'inout'],
+      [68, { wristL: [0.2, 0] }, 'inout'],
+      [82, { handL: [0.3, -0.7, 0.1], fistL: 0.25, twistL: 0, wristL: [0, 0] }, 'inout'],
+      [88, { wristR: [-0.13, 0], neck: [0.4, 0.06, 0] }, 'sine'], [94, { wristR: [-0.27, 0] }, 'sine'], [100, { wristR: [-0.13, 0] }, 'sine'],
+      [106, { wristR: [-0.27, 0] }, 'sine'], [112, { wristR: [-0.13, 0], neck: [0.4, -0.05, 0] }, 'sine'], [118, { wristR: [-0.27, 0] }, 'sine'],
+      [124, { wristR: [-0.13, 0] }, 'sine'], [130, { wristR: [-0.27, 0] }, 'sine'], [136, { wristR: [-0.13, 0], neck: [0.4, 0.06, 0] }, 'sine'],
+      [142, { wristR: [-0.27, 0] }, 'sine'], [148, { wristR: [-0.13, 0] }, 'sine'], [154, { wristR: [-0.27, 0] }, 'sine'],
+      [160, { wristR: [-0.13, 0], neck: [0.4, -0.05, 0] }, 'sine'], [166, { wristR: [-0.27, 0] }, 'sine'], [172, { wristR: [-0.13, 0] }, 'sine'],
+      [178, { wristR: [-0.27, 0] }, 'sine'], [184, { wristR: [-0.13, 0], neck: [0.4, 0.06, 0] }, 'sine'], [190, { wristR: [-0.27, 0] }, 'sine'],
+      [199, { wristR: [-0.13, 0] }, 'sine'], [208, { wristR: [-0.27, 0] }, 'sine'], [217, { wristR: [-0.13, 0], neck: [0.4, -0.05, 0] }, 'sine'],
+      [226, { wristR: [-0.27, 0] }, 'sine'], [235, { wristR: [-0.13, 0] }, 'sine'], [244, { wristR: [-0.27, 0] }, 'sine'],
+      [253, { wristR: [-0.13, 0], neck: [0.4, 0.06, 0] }, 'sine'],
     ],
   },
   rafa: {
@@ -229,7 +265,7 @@ export const STYLES = {
       [98, null, 'inout'],
     ],
     title: 'El Veterano', desc: 'Peso pesado con sarcasmo. Golpes lentos pero devastadores.',
-    quotes: ['¿Ya? Iba a empezar a calentar.', 'Con los años se aprende a pegar menos y mejor.', 'La próxima vez tráete refuerzos.'],
+    say: '¿Ya? Iba a empezar a calentar.', sayAt: 78, sayLen: 138, // (the line spoken on winning: tools/quotes_tts.py)
     stats: { health: 188, walk: 1.05, weight: 1.3, power: 1.08, speed: 0.99 },
     aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', '1+2'],
     stance: { rootPos: [0, -0.06, -0.03], rootRot: [0.04, -0.4, 0], hgPosL: [0.1, -0.21, 0.3], hgPosR: [0.13, -0.19, 0.14], footL: [0.1, 0.071, 0.24], footR: [0.24, 0.071, -0.2] },
@@ -270,12 +306,21 @@ export const STYLES = {
         advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 38, throwType: 'hug',
       },
     }),
+    // "¿ya? iba a empezar a calentar": a shrug with both palms up, a shake of the head, and the shoulders rolled like
+    // a warm-up nobody needed
     win: [
       [0, {}],
-      [30, { rootPos: [0, 0, 0], rootRot: [0, 0.2, 0], spine: [-0.05, 0, 0], handL: [0.2, -0.35, 0.35], handR: [0.2, -0.35, 0.35], aimL: 1, aimR: 1, fistL: 0.2, fistR: 0.2,
-        footL: [0.18, 0.071, 0.05], footR: [0.18, 0.071, -0.05], footRotL: [0, 0.25, 0], footRotR: [0, 0.25, 0], neck: [0.1, -0.25, 0.1] }, 'inout'],
-      [70, { neck: [-0.05, -0.3, -0.1], jaw: 0.1 }, 'sine'],
-      [110, { neck: [0.1, -0.25, 0.1], jaw: 0 }, 'sine'],
+      [22, { rootPos: [0, 0, 0], rootRot: [0, 0.15, 0], spine: [-0.03, 0, 0], neck: [0.05, -0.1, 0],
+        handL: [0.3, -0.65, 0.12], handR: [0.3, -0.65, 0.12], aimL: 1, aimR: 1, fistL: 0.3, fistR: 0.3,
+        footL: [0.18, 0.071, 0.05], footR: [0.18, 0.071, -0.05], footRotL: [0, 0.25, 0], footRotR: [0, 0.25, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'inout'],
+      [72, { handL: [0.4, -0.38, 0.35], handR: [0.4, -0.38, 0.35], fistL: 0.05, fistR: 0.05, twistL: -1.4, twistR: -1.4, clavL: [0.2, 0], clavR: [0.2, 0], neck: [0.05, 0, 0.12] }, 'inout'],
+      [92, { clavL: [0.08, 0], clavR: [0.08, 0] }, 'sine'],
+      [106, { neck: [0.05, -0.12, 0.05] }, 'sine'],
+      [118, { neck: [0.05, 0.12, 0.05] }, 'sine'],
+      [132, { neck: [0.05, -0.1, 0.05], handL: [0.3, -0.62, 0.15], handR: [0.3, -0.62, 0.15], fistL: 0.2, fistR: 0.2, twistL: 0, twistR: 0, clavL: [0, 0], clavR: [0, 0] }, 'sine'],
+      [156, { clavL: [0.15, 0.1], clavR: [0, 0], neck: [-0.05, 0, 0] }, 'sine'],
+      [172, { clavL: [0, 0], clavR: [0.15, 0.1] }, 'sine'],
+      [190, { clavR: [0, 0] }, 'sine'],
     ],
   },
   zapponi: {
@@ -289,7 +334,7 @@ export const STYLES = {
       [98, null, 'inout'],
     ],
     title: 'El Toro', desc: 'Luchador de fuerza bruta. Lariats y suplex.',
-    quotes: ['¡Nadie para al Toro!', 'Te he doblado como una toalla.', '¡Al suelo, que es donde se está bien!'],
+    say: '¡Espectacular, vale!', sayAt: 78, sayLen: 107, // (the line spoken on winning: tools/quotes_tts.py)
     stats: { health: 196, walk: 1.15, weight: 1.35, power: 1.14, speed: 1.04 },
     aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', 'f+2'],
     stance: { rootPos: [0, -0.1, -0.02], rootRot: [0.12, -0.3, 0], spine: [0.18, 0.1, 0], hgPosL: [0.15, -0.26, 0.4], hgPosR: [0.13, -0.26, 0.3], fistL: 0.92, fistR: 0.92,
@@ -333,12 +378,21 @@ export const STYLES = {
         advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 42, throwType: 'suplex',
       },
     }),
+    // "¡espectacular, vale!": a wide stance, chest out, both thumbs up at the loser and pumped on each word, a big nod
+    // on "vale"
     win: [
       [0, {}],
-      [25, { rootPos: [0, -0.04, 0], rootRot: [0.05, 0, 0], spine: [0.1, 0, 0], handL: [0.75, 0.2, 0.05], handR: [0.75, 0.2, 0.05], aimL: 1, aimR: 1, twistL: 1.3, twistR: 1.3, fistL: 1, fistR: 1,
-        footL: [0.22, 0.071, 0.05], footR: [0.22, 0.071, -0.05], footRotL: [0, 0.3, 0], footRotR: [0, 0.3, 0], clavL: [0.25, 0], clavR: [0.25, 0], neck: [-0.2, 0, 0], jaw: 0.4 }, 'back'],
-      [60, { handL: [0.7, 0.3, 0.1], handR: [0.7, 0.3, 0.1], jaw: 0.5 }, 'sine'],
-      [95, { handL: [0.75, 0.2, 0.05], handR: [0.75, 0.2, 0.05], jaw: 0.3 }, 'sine'],
+      [22, { rootPos: [0, -0.03, 0], rootRot: [0.02, 0, 0], spine: [-0.06, 0, 0], neck: [-0.05, 0, 0],
+        handL: [0.35, -0.35, 0.4], handR: [0.35, -0.35, 0.4], aimL: 1, aimR: 1, fistL: 1, fistR: 1, twistL: 0, twistR: 0,
+        footL: [0.22, 0.071, 0.05], footR: [0.22, 0.071, -0.05], footRotL: [0, 0.3, 0], footRotR: [0, 0.3, 0], kneeL: [0.2, 0, 1], kneeR: [0.2, 0, 1] }, 'out'],
+      [40, { handL: [0.3, -0.12, 0.62], handR: [0.3, -0.12, 0.62], thL: 1, thR: 1, clavL: [0.1, 0], clavR: [0.1, 0] }, 'back'],
+      [60, { neck: [0.12, 0, 0] }, 'sine'],
+      [74, { neck: [-0.08, 0, 0] }, 'sine'],
+      [88, { handL: [0.3, -0.05, 0.64], handR: [0.3, -0.05, 0.64] }, 'sine'],
+      [100, { handL: [0.3, -0.14, 0.62], handR: [0.3, -0.14, 0.62] }, 'sine'],
+      [114, { handL: [0.3, -0.04, 0.64], handR: [0.3, -0.04, 0.64], neck: [0.2, 0, 0] }, 'sine'],
+      [130, { handL: [0.3, -0.12, 0.62], handR: [0.3, -0.12, 0.62], neck: [-0.06, 0, 0] }, 'sine'],
+      [196, { neck: [-0.08, 0.06, 0] }, 'sine'],
     ],
   },
   dani: {
@@ -360,7 +414,7 @@ export const STYLES = {
       [96, null, 'inout'],
     ],
     title: 'El Zorro Plateado', desc: 'Veterano fibroso de la vieja escuela. Esquivas, gancho al hígado y guantazos.',
-    quotes: ['Más sabe el zorro por viejo que por zorro.', 'Sesenta años y aquí sigo, dando guerra.', '¡Corre feliz, chaval!'],
+    say: 'Más sabe el zorro por viejo que por zorro.', sayAt: 78, sayLen: 171, // (the line spoken on winning: tools/quotes_tts.py)
     stats: { health: 176, walk: 1.3, weight: 0.92, power: 1.0, speed: 1.1 },
     aiMoves: ['1', '1', '2', 'b+1', '1+2', 'd+2', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '1+2', 'b+1'],
     // old-school boxer: more upright and bladed, chin tucked, both fists high by the face
@@ -426,21 +480,131 @@ export const STYLES = {
         advance: [[0, 0], [12, 0.14], [34, 0.12]], sfx: 'slap',
       },
     }),
+    // "más sabe el zorro por viejo que por zorro": a finger tapping his temple, then both arms up in a V as if
+    // crossing a finish line
     win: [
       [0, {}],
-      // arms up in a V as if crossing a finish line, chin up with a big shout; then he waves to the crowd. The fists
-      // first open out forwards and sideways: from the high guard, straight up passes through the face
-      [8, { handL: [0.32, 0.22, 0.5], handR: [0.36, 0.18, 0.45], aimL: 1, aimR: 1, fistL: 0.9, fistR: 0.9 }, 'out'],
-      [24, { rootPos: [0, 0.01, 0], rootRot: [0, 0.15, 0], spine: [-0.12, 0, 0], neck: [-0.25, -0.1, 0], jaw: 0.4,
-        handL: [0.45, 0.85, 0.12], handR: [0.45, 0.85, 0.12], aimL: 1, aimR: 1, fistL: 0.9, fistR: 0.9, poleL: [1, 0, -0.3], poleR: [1, 0, -0.3],
-        footL: [0.15, 0.071, 0.05], footR: [0.15, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.2, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'back'],
-      [50, { handL: [0.42, 0.9, 0.15], handR: [0.48, 0.82, 0.1], jaw: 0.25 }, 'sine'],
-      [72, { handL: [0.3, -0.75, 0.12], fistL: 0.3, poleL: [0.2, -1, -0.5], handR: [0.5, 0.42, 0.22], fistR: 0.05, twistR: 1.2, poleR: [1, -0.6, 0.1],
-        jaw: 0.15, neck: [0.02, -0.1, 0.08], spine: [-0.03, 0, 0] }, 'inout'],
-      [82, { handR: [0.36, 0.46, 0.24] }, 'sine'],
-      [92, { handR: [0.52, 0.42, 0.22] }, 'sine'],
-      [102, { handR: [0.36, 0.46, 0.24] }, 'sine'],
-      [112, { handR: [0.52, 0.42, 0.22] }, 'sine'],
+      [22, { rootPos: [0, 0, 0], rootRot: [0, 0.12, 0], spine: [-0.06, 0, 0], neck: [0, 0, 0],
+        handL: [0.3, -0.62, 0.12], aimL: 1, fistL: 0.35, handR: [0.3, -0.45, 0.3], aimR: 1, fistR: 0.6,
+        footL: [0.15, 0.071, 0.05], footR: [0.15, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.2, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'inout'],
+      // (out to the side first: the finger comes to the temple from beside the head)
+      [48, { hgR: 1, hgPosR: [0.24, -0.02, 0.12], poleR: [0.6, -1, 0.1], fistR: 1, ptR: 1, neck: [0, -0.08, 0.06] }, 'inout'],
+      [62, { hgPosR: [0.13, -0.03, 0.08] }, 'inout'],
+      [80, { hgPosR: [0.14, -0.02, 0.09] }, 'sine'],
+      [92, { hgPosR: [0.13, -0.03, 0.08] }, 'sine'],
+      [104, { hgPosR: [0.14, -0.02, 0.09] }, 'sine'],
+      [116, { hgPosR: [0.13, -0.03, 0.08] }, 'sine'],
+      [152, { hgPosR: [0.14, -0.03, 0.09], neck: [-0.04, -0.04, 0.04] }, 'sine'],
+      [180, { handL: [0.45, 0.85, 0.12], handR: [0.45, 0.85, 0.12], aimL: 1, aimR: 1, fistL: 0.9, fistR: 0.9, ptR: 0, poleL: [1, 0, -0.3], poleR: [1, 0, -0.3],
+        spine: [-0.12, 0, 0], neck: [-0.25, -0.1, 0] }, 'back'],
+      [208, { handL: [0.42, 0.9, 0.15], handR: [0.48, 0.82, 0.1] }, 'sine'],
+      [234, { handL: [0.45, 0.85, 0.12], handR: [0.45, 0.85, 0.12] }, 'sine'],
+    ],
+  },
+  noemi: {
+    // takes the call on her headset ("¿dígame?"), nods, rubs her palms (the defibrillator charging) and takes guard
+    intro: [
+      [0, { rootPos: [0, 0, 0], rootRot: [0, 0.1, 0], spine: [0, 0, 0], neck: [0.1, 0, 0], handL: [0.2, -0.88, 0.1], handR: [0.2, -0.88, 0.1], aimL: 1, aimR: 1, fistL: 0.2, fistR: 0.2, footL: [0.14, 0.071, 0.04], footR: [0.14, 0.071, -0.02], footRotL: [0, 0.15, 0], footRotR: [0, 0.2, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }],
+      // the right hand out to the side and up to the earpiece (out first: straight up passes through the face)
+      [12, { handR: [0.42, -0.3, 0.2], aimR: 1, fistR: 0.3 }, 'out'],
+      [20, { hgR: 1, hgPosR: [0.36, 0.04, 0.02], fistR: 0.32, handL: [0.22, -0.84, 0.12] }, 'inout'],
+      [28, { hgR: 1, hgPosR: [0.17, 0.03, -0.06], fistR: 0.35, neck: [0.14, 0.18, -0.14], handL: [0.24, -0.82, 0.14] }, 'inout'],
+      [40, { neck: [0.24, 0.12, -0.12] }, 'sine'],
+      [50, { neck: [0.12, 0.16, -0.1] }, 'sine'],
+      [57, { hgPosR: [0.32, -0.16, 0.22], neck: [0.14, 0.08, -0.04] }, 'inout'],
+      // palms together in front of the chest, a quick rub
+      [66, { hgL: 1, hgPosL: [0.088, -0.31, 0.27], hgR: 1, hgPosR: [0.088, -0.31, 0.27], fistL: 0, fistR: 0, neck: [0.16, 0, 0] }, 'inout'],
+      [72, { hgPosL: [0.088, -0.31, 0.3], hgPosR: [0.088, -0.31, 0.24] }, 'sine'],
+      [78, { hgPosL: [0.088, -0.31, 0.24], hgPosR: [0.088, -0.31, 0.3] }, 'sine'],
+      [84, { hgPosL: [0.088, -0.31, 0.29], hgPosR: [0.088, -0.31, 0.25] }, 'sine'],
+      [96, null, 'inout'],
+    ],
+    title: 'La Coordinadora', desc: 'Al mando de la sala de emergencias. Palmas certeras, empujones y un desfibrilador en las manos.',
+    say: 'Te falta tomar áloe vera.', sayAt: 78, sayLen: 108, // (the line spoken on winning: tools/quotes_tts.py)
+    stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
+    aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '2', 'b+1'],
+    // a calm, upright guard with open hands, a little lower and wider than a boxer's
+    stance: { rootPos: [0, -0.065, -0.02], rootRot: [0.05, -0.42, 0], spine: [0.1, 0.1, 0], neck: [0.14, 0.18, 0], fistL: 0.25, fistR: 0.25,
+      hgPosL: [0.09, -0.15, 0.32], hgPosR: [0.11, -0.14, 0.14] },
+    bob: 0.02,
+    rageFinisher: 'defib',
+    commands: [['b+1', 'triage'], ['f+4', 'pushKick'], ['1+2', 'defib']],
+    moves: (C) => ({
+      // TRIAJE: the lead palm drives straight into the sternum with the hips behind it and shoves the opponent away
+      triage: {
+        name: 'Triaje', total: 32, clip: C([
+          [0, {}],
+          [4, { rootPos: [0, -0.09, -0.03], rootRot: [0.08, -0.55, 0], handL: [0.04, -0.06, 0.52], aimL: 1, twistL: -0.4, fistL: 0.1 }, 'out'],
+          [10, { rootPos: [0, -0.1, 0.08], rootRot: [0.12, -0.72, 0], spine: [0.14, -0.05, 0], neck: [0.14, 0.3, 0], handL: [0.0, -0.14, 0.98], aimL: 1, twistL: 0.1, fistL: 0.02,
+            clavL: [0.05, 0.45], footL: [0.06, 0.071, 0.34] }, 'snap'],
+          [13, {}, 'lin'],
+          [20, { rootPos: [0, -0.085, 0.02], rootRot: [0.08, -0.5, 0], spine: [0.11, 0.08, 0], handL: [0.02, 0.06, 0.66], twistL: -0.7, fistL: 0.2, clavL: [0.0, 0.18] }, 'ret'],
+          [32, null, 'inout'],
+        ]),
+        hit: { f: [9, 12], limb: 'handL', r: 0.12, dmg: 12, lvl: 'mid', react: 'hitMid', blk: -1, hitAdv: 10, push: 0.6 },
+        advance: [[0, 0], [10, 0.16], [32, 0.14]], sfx: 'slap',
+      },
+      // EMPUJÓN: a push kick with the lead leg, the sole driven into the stomach to make room
+      pushKick: {
+        name: 'Empujón', total: 38, clip: C([
+          [0, {}],
+          [6, { footL: [0.06, 0.34, 0.24], kneeL: [0.1, 0.5, 1], rootPos: [0, -0.06, -0.06], rootRot: [-0.08, -0.4, 0], spine: [0.06, 0.1, 0], handL: [0.08, 0.08, 0.55], handR: [0.0, 0.14, 0.38] }, 'inout'],
+          [14, { footL: [0.04, 0.6, 0.8], kneeL: [0.1, 0.45, 1], footRotL: [-0.7, -0.2, 0], toeL: -0.4, rootRot: [-0.3, -0.38, 0], spine: [0.18, 0.1, 0], rootPos: [0, -0.04, 0.05],
+            handL: [0.12, -0.06, 0.45], handR: [0.18, -0.06, 0.25] }, 'drive'],
+          [17, {}, 'lin'],
+          [26, { footL: [0.05, 0.34, 0.34], footRotL: [0, -0.35, 0], toeL: 0, rootRot: [0.0, -0.45, 0], rootPos: [0, -0.06, 0.03] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [13, 16], limb: 'footL', r: 0.13, dmg: 14, lvl: 'mid', react: 'hitMid', blk: -7, hitAdv: 2, push: 0.85 },
+        advance: [[0, 0], [14, 0.16], [38, 0.16]], sfx: 'kick',
+      },
+      // DESFIBRILADOR: palms rubbed together in front of the chest to charge them, the hands drawn back as the weight
+      // sinks, then both palms driven into the opponent's chest with a crackle of electricity that throws him up
+      defib: {
+        name: 'Desfibrilador', total: 56, clip: C([
+          [0, {}],
+          [8, { rootPos: [0, -0.1, -0.04], rootRot: [0.1, -0.32, 0], spine: [0.12, 0.08, 0], neck: [0.14, 0.12, 0],
+            hgL: 1, hgPosL: [0.08, -0.3, 0.28], hgR: 1, hgPosR: [0.08, -0.3, 0.28], fistL: 0, fistR: 0 }, 'inout'],
+          [12, { hgPosL: [0.08, -0.3, 0.31], hgPosR: [0.08, -0.3, 0.25] }, 'sine'],
+          [16, { hgPosL: [0.08, -0.3, 0.25], hgPosR: [0.08, -0.3, 0.31] }, 'sine'],
+          [20, { hgPosL: [0.08, -0.3, 0.3], hgPosR: [0.08, -0.3, 0.26] }, 'sine'],
+          // charged: palms apart and drawn back to the chest, weight on the rear leg
+          [25, { rootPos: [0, -0.15, -0.08], rootRot: [0.14, -0.36, 0], spine: [0.1, 0.04, 0], hgPosL: [0.12, -0.3, 0.2], hgPosR: [0.12, -0.3, 0.16] }, 'inout'],
+          // both palms into the chest, the body lunging in behind them
+          [31, { rootPos: [0, -0.11, 0.14], rootRot: [0.16, -0.14, 0], spine: [0.2, 0.04, 0], neck: [0.05, 0.05, 0],
+            hgPosL: [0.06, -0.3, 0.6], hgPosR: [0.06, -0.3, 0.58], clavL: [0.05, 0.4], clavR: [0.05, 0.42],
+            footL: [0.06, 0.071, 0.42], footR: [0.22, 0.071, -0.12], footRotR: [0.4, 0.4, 0], toeR: 0.5 }, 'snap'],
+          [35, {}, 'lin'],
+          [45, { rootPos: [0, -0.09, 0.06], rootRot: [0.08, -0.36, 0], hgPosL: [0.09, -0.2, 0.38], hgPosR: [0.11, -0.18, 0.2], fistL: 0.25, fistR: 0.25, clavL: [0, 0.15], clavR: [0, 0.15], toeR: 0 }, 'ret'],
+          [56, null, 'inout'],
+        ]),
+        hit: { f: [30, 34], limb: 'handL', r: 0.15, dmg: 21, lvl: 'mid', react: 'air', blk: -16, launch: 5.6, push: 0.15, fx: 'electric' },
+        advance: [[0, 0], [25, -0.04], [31, 0.24], [56, 0.24]], sfx: 'heavy',
+      },
+    }),
+    // "te falta tomar áloe vera": a hand on her hip and the index finger wagging at the loser, then the case is closed:
+    // the hand to her earpiece, a satisfied nod
+    win: [
+      [0, {}],
+      [12, { handR: [0.4, -0.3, 0.3], aimR: 1, fistR: 0.6, handL: [0.35, -0.4, 0.25], aimL: 1, fistL: 0.4 }, 'out'],
+      [26, { rootPos: [0, 0, 0], rootRot: [0, 0.2, -0.03], spine: [-0.05, 0.04, 0], neck: [0.04, 0.08, -0.06],
+        handL: [0.38, -0.52, -0.08], aimL: 1, poleL: [0.6, 0.2, -0.8], fistL: 0.6,
+        handR: [0.26, 0.02, 0.52], aimR: 1, fistR: 1, ptR: 1, twistR: 0.2, footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.22, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'back'],
+      [40, { handR: [0.2, 0.04, 0.52], wristR: [0, 0.35] }, 'sine'],
+      [50, { handR: [0.32, 0.04, 0.52], wristR: [0, -0.35] }, 'sine'],
+      [60, { handR: [0.2, 0.04, 0.52], wristR: [0, 0.35] }, 'sine'],
+      [70, { handR: [0.32, 0.04, 0.52], wristR: [0, -0.35] }, 'sine'],
+      [80, { handR: [0.2, 0.04, 0.52], wristR: [0, 0.35], neck: [0.06, 0.04, -0.1] }, 'sine'],
+      [90, { handR: [0.32, 0.04, 0.52], wristR: [0, -0.35] }, 'sine'],
+      [100, { handR: [0.22, 0.04, 0.52], wristR: [0, 0.3] }, 'sine'],
+      [110, { handR: [0.3, 0.04, 0.52], wristR: [0, -0.3] }, 'sine'],
+      [124, { handR: [0.26, 0.03, 0.52], wristR: [0, 0] }, 'sine'],
+      // (out to the side first: the hand reaches the earpiece from beside the head)
+      [140, { hgR: 1, hgPosR: [0.3, -0.04, 0.1], poleR: [0.3, -1, 0.4], fistR: 0.32, ptR: 0, twistR: 0 }, 'inout'],
+      [154, { hgPosR: [0.17, 0.0, -0.05], fistR: 0.35, neck: [0.0, 0.15, -0.12] }, 'inout'],
+      [172, { neck: [0.16, 0.12, -0.1] }, 'sine'],
+      [186, { neck: [0.0, 0.15, -0.12] }, 'sine'],
+      [232, { neck: [-0.04, 0.2, -0.1], spine: [-0.08, 0.05, 0] }, 'sine'],
     ],
   },
 };

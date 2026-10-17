@@ -202,6 +202,13 @@ def snap_boundary(ctx, V, bverts, snap):
             cur = ctx.arm[v] if t <= 1 else ctx.arm[v] - 1
             tt = t if t <= 1 else t - 1
             cands.append(((b - a) * (tt - cur), 0.7))
+        if snap.get('v') is not None and p[2] > 0.05 and ctx.armness[v] < 0.4:
+            # straight edges of a V opening at the front: |x| = half width at the neckline, narrowing to the point
+            vb, hw, top = snap['v']
+            if vb - 0.2 < p[1] < top + 0.15:
+                f = np.clip((p[1] - vb) / (top - vb), 0.0, 1.25)
+                tx = (1.0 if p[0] >= 0 else -1.0) * hw * f
+                cands.append((np.array([tx - p[0], 0.0, 0.0]), 0.32))
         for key in ('y_low', 'y_high'):
             if snap.get(key) is not None and ctx.neckness[v] < 0.2:
                 cands.append((np.array([0.0, snap[key] - p[1], 0.0]), 0.35))
@@ -230,7 +237,7 @@ def taubin(P, faces, pin, iters=10, lam=0.5, mu=-0.53):
     return Q
 
 
-def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2, snap=None, relax=0):
+def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2, snap=None, relax=0, drape=None):
     """covered: bool per body vertex; offset: scalar or per-vertex array (dm).
     Returns dict with verts (dm), normals, uv idx, tris, and the body vertex each shell vertex came from."""
     tris, tuv = ctx.tris, ctx.tuv
@@ -251,6 +258,11 @@ def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2
         bv = np.unique(be0)
         bv = bv[bv < ctx.n]
         neck = bv[(ctx.V[bv, 1] > ctx.y_neck - 0.9) & (ctx.armness[bv] < 0.65)]  # include the shoulder tops (no notches)
+        if snap and snap.get('v') is not None:
+            # the edges of a V opening are straight lines (snapped above), not part of the round neckline
+            vb, hw, top = snap['v']
+            f = np.clip((ctx.V[neck, 1] - vb) / (top - vb), 0.0, 1.25)
+            neck = neck[~((ctx.V[neck, 2] > 0.05) & (np.abs(ctx.V[neck, 0]) < hw * f + 0.25))]
         neck_loop_set = neck
         if len(neck) > 8:
             if not snap or Vsrc is ctx.V:
@@ -278,6 +290,30 @@ def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2
         lo = off * 0.9
         Q = Q + Nn * np.maximum(0.0, lo - d)[:, None]
         P = Q
+    if drape:
+        # a coat hangs off the bust instead of wrapping it: over the front of the torso the cloth's depth is lifted to
+        # the upper envelope of cones dropping from every point above and beside it (slope = drop per unit distance)
+        from scipy.spatial import cKDTree
+        used = np.unique(ft)
+        sel = used[(used < ctx.n) & (P[used, 2] > drape.get('z_min', 0.15)) & (ctx.armness[used] < 0.3) & (ctx.legness[used] < 0.5)
+                   & (P[used, 1] < drape['y_top']) & (P[used, 1] > drape['y_bottom'])]
+        if len(sel) > 8:
+            xy = P[sel][:, :2]
+            tree = cKDTree(xy)
+            z = P[sel, 2].copy()
+            s_ = drape.get('slope', 0.3)
+            R_ = drape.get('radius', 1.0)
+            nb = tree.query_ball_point(xy, R_)
+            znew = z.copy()
+            for i, js in enumerate(nb):
+                js = np.asarray(js)
+                d_ = np.linalg.norm(xy[js] - xy[i], axis=1)
+                # cones fall more steeply sideways than downwards (cloth hangs, it does not stretch across)
+                dx_ = np.abs(xy[js, 0] - xy[i, 0]); dy_ = xy[js, 1] - xy[i, 1]
+                above = dy_ > -0.05
+                cone = z[js] - s_ * (dy_.clip(0) + dx_ * drape.get('side', 1.6)) - (~above) * 9.0
+                znew[i] = max(z[i], cone.max())
+            P[sel, 2] = znew
     # ordered neckline loop (for collars)
     neck_loop = []
     if len(be0):

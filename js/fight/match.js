@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Fighter, FPS } from './fighter.js';
 import { B1, B2 } from './input.js';
 import { THROWS } from './throws.js';
+import { newStats, newPlay, newBest, playScore, PF } from './stats.js';
 
 const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
@@ -55,6 +56,8 @@ export class Match {
     this.crand = Math.random;
     this.later = (ms, fn) => setTimeout(fn, ms);
     this.fighters = [new Fighter(this, 0, chars[0], ids[0]), new Fighter(this, 1, chars[1], ids[1])];
+    // (drawn only: a fighter saying his line opens his mouth with it, see Fighter.syncRender)
+    for (const f of this.fighters) f.talk = () => this.audio?.talkLevel?.(f.id) || 0;
     this.wins = [0, 0];
     this.round = 0;
     this.phase = 'none';
@@ -67,6 +70,37 @@ export class Match {
     this.events = [];
     this.arenaR = game.stage?.arenaRadius || 7;
     this.training = !!opts.training;
+    // the tallies of the match and its best play (js/fight/stats.js)
+    this.stats = [newStats(), newStats()];
+    this.play = [newPlay(), newPlay()];
+    this.best = newBest();
+  }
+
+  // -------------------------------------------------------------- tallies and the play of the match
+  // a blow of a play by att (start: the frame its first move started)
+  notePlay(att, dmg, flags, start) {
+    const P = this.play[att.index];
+    if (!P.on) { P.on = 1; P.f0 = Math.max(0, start); P.hits = 0; P.dmg = 0; P.flags = 0; P.round = this.round; }
+    P.f1 = this.frame; P.hits++; P.dmg += dmg; P.flags |= flags;
+  }
+  // a play is over once its victim is back on his feet (a knockout keeps it open until the round is over); the best
+  // so far is kept (seq tells the recorder there is a new one)
+  closePlays(force = false) {
+    for (const att of this.fighters) {
+      const P = this.play[att.index];
+      if (!P.on) continue;
+      if (!force && (att.opp.comboHits > 0 || (P.flags & PF.KO) || this.frame - P.f1 < 20 || this.throwLock || this.rageLock)) continue;
+      P.on = 0;
+      const sc = playScore(P), B = this.best;
+      if (sc > B.score) { B.score = sc; B.att = att.index; B.f0 = P.f0; B.f1 = P.f1; B.hits = P.hits; B.dmg = P.dmg; B.flags = P.flags; B.round = P.round; B.seq++; }
+    }
+  }
+  tally(att, def, dmg) {
+    const S = this.stats[att.index];
+    S.hits++; S.dmg += dmg;
+    if (def.comboHits > S.combo) S.combo = def.comboHits;
+    if (def.comboDmg > S.comboDmg) S.comboDmg = def.comboDmg;
+    return S;
   }
 
   // -------------------------------------------------------------- helpers used by fighters
@@ -202,6 +236,7 @@ export class Match {
       if (this.training) {
         for (const f of this.fighters) if (f.hp < f.maxHp && f.state === 'idle' && f.sf > 60) f.hp = Math.min(f.maxHp, f.hp + 2);
       }
+      this.closePlays();
       if (this.phase === 'ko') {
         if (this.pt === 3) this.hud.announce('K.O.', 'ko');
         if (this.pt > 200) this.afterRound();
@@ -213,8 +248,13 @@ export class Match {
     }
     if (this.phase === 'matchEnd') {
       for (const f of this.fighters) { f.readInput(); if (f.ragdoll) continue; f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate(); }
+      // the winner says his line on its frame of his win pose (styles.js: say, sayAt), its subtitle with it; a button
+      // ends the win screen once it has been said
+      const W = this.fighters[this.winner]?.style || {}, sayAt = W.sayAt || 80;
+      if (W.say && this.pt === sayAt) { this.audio?.say?.(this.fighters[this.winner]); this.hud.say?.(this.fighters[this.winner]); }
+      const minT = W.say ? sayAt + (W.sayLen || 120) : 60;
       // (once: this runs every frame of the win screen)
-      if (!this.endSent && this.pt > 60 && (a.inp.pressed || b.inp.pressed || this.pt > 420)) { this.endSent = true; this.game.onMatchEnd(this); }
+      if (!this.endSent && this.pt > 60 && ((this.pt > minT && (a.inp.pressed || b.inp.pressed)) || this.pt > Math.max(420, minT + 60))) { this.endSent = true; this.game.onMatchEnd(this); }
     }
   }
 
@@ -352,6 +392,7 @@ export class Match {
     this.camera.shake(0.08);
     this.audio?.hit('block', 1, p);
     this.events.push({ t: 'block', f: def });
+    this.stats[def.index].blocks++;
     const adv = def.stun - remaining;
     this.lastEvent = `${m.name}: bloqueado <b style="color:${adv >= 0 ? '#7dff9a' : '#ff8a7a'}">${adv >= 0 ? '+' : ''}${adv}</b> frames`;
   }
@@ -370,6 +411,7 @@ export class Match {
         this.audio?.hit('block', 1.3, p);
         this.hud.popup(def.index, 'POWER CRUSH', 'info');
         def.hitFlash = 0.6;
+        this.stats[att.index].hits++; this.stats[att.index].dmg += dmg;
         this.events.push({ t: 'hit', att, def, dmg, ch: false, heavy: false });
         this.lastEvent = `${m.name}: absorbido por power crush (${dmg} dmg)`;
         return;
@@ -382,6 +424,8 @@ export class Match {
     dmg = Math.max(1, Math.round(dmg));
     def.hp = Math.max(0, def.hp - dmg);
     def.comboHits++; def.comboDmg += dmg;
+    { const S = this.tally(att, def, dmg); if (ch) S.counters++; if (h.launch && !inAir) S.launches++; }
+    this.notePlay(att, dmg, (ch ? PF.CH : 0) | (h.launch && !inAir ? PF.LAUNCH : 0), this.frame - att.mf);
     def.move = null;
     def.crouching = false;
     const heavy = h.dmg >= 16 || h.launch || h.kd;
@@ -392,6 +436,7 @@ export class Match {
     if (ko) stop = 18;
     this.hitstop = stop;
     this.fx.hitSpark(p, heavy || ch, ch, def, att);
+    if (h.fx === 'electric') { this.fx.electric?.(p, def); this.sfx('zap', def); }
     this.camera.shake(heavy ? 0.42 : 0.2);
     this.camera.punch(att, heavy ? 1 : 0.4);
     this.audio?.hit(m.sfx === 'slap' ? 'slap' : heavy ? (m.sfx === 'kick' ? 'kickHeavy' : 'heavy') : (m.sfx === 'kick' ? 'kick' : 'light'), att.stats.power, p);
@@ -403,6 +448,7 @@ export class Match {
     def.impulse(blowDir, (heavy ? 0.9 : 0.5) * (ch ? 1.3 : 1), h.lvl !== 'low');
     const kd = h.kd || (ch && h.ch && h.ch.kd);
     if (ko) {
+      if (ch) this.stats[att.index].chKOs++;
       def.ko = true;
       def.setState('air'); def.airborne = true; def.play('air', 2);
       def.vel.y = Math.max(def.vel.y, heavy ? 4.8 : 3.8);
@@ -410,13 +456,15 @@ export class Match {
       def.juggles++;
       this.onKO(att, def, p);
     } else if (inAir) {
+      // (knocked up again and a little further: close enough for the next blow of the juggle)
       def.juggles++;
       def.vel.y = Math.max(def.vel.y * 0.3, 3.6 * Math.pow(0.86, def.juggles));
-      def.slide = 1.2 + (h.push || 0.2) * 3;
+      def.slide = 0.6 + (h.push || 0.2) * 2;
       def.setState('air'); def.play('air', 2);
     } else if (h.launch) {
+      // launched straight up, within reach of the juggle (the launcher's recovery can be cancelled: Fighter.juggleCancel)
       def.setState('air'); def.airborne = true; def.play('air', 3);
-      def.vel.y = h.launch; def.slide = 1.0; def.juggles = 1;
+      def.vel.y = h.launch; def.slide = 0.45; def.juggles = 1;
       this.hud.popup(att.index, 'LAUNCH!', 'info');
     } else if (kd && h.lvl === 'low') {
       // swept: the feet go out from under him, a short low fall onto the back close to where he stood
@@ -476,6 +524,7 @@ export class Match {
     { const ax = att.axis(new THREE.Vector3()), d = this.hipDist(att, def);
       if (d < 0.97) def.pos.addScaledVector(ax, 0.97 - d); }
     this.rageLock = { att, def, t: 0, p };
+    this.stats[att.index].rageArts++;
     this.slowmo = 0.5;
     this.camera.setMode('rage', false, att);
     this.hud.announce('RAGE ART', 'fight');
@@ -508,8 +557,11 @@ export class Match {
         const dmg = Math.round(def.maxHp * s.dmg * att.stats.power);
         def.hp = Math.max(0, def.hp - dmg);
         def.comboHits++; def.comboDmg += dmg;
+        this.tally(att, def, dmg);
+        this.notePlay(att, dmg, PF.RAGE, this.frame - L.t);
         const hp = att.limbWorld(mv.hit.limb);
         this.fx.hitSpark(hp, true, true, def, att);
+        if (mv.hit.fx === 'electric') { this.fx.electric?.(hp, def); this.sfx('zap', def); }
         this.camera.shake(0.6); this.hitstop = s.final ? 16 : 10;
         this.audio?.hit('heavy', 1.3, hp);
         this.audio?.voice(def, 'hurtBig');
@@ -524,7 +576,7 @@ export class Match {
           def.setState('air'); def.airborne = true; def.play('air', 2);
           def.vel.y = 4.6; def.slide = 6.5; def.juggles = 4;
           this.camera.setMode('fight');
-          if (def.hp <= 0) { def.ko = true; this.onKO(att, def, hp); }
+          if (def.hp <= 0) { def.ko = true; this.stats[att.index].rageKOs++; this.onKO(att, def, hp); }
           return;
         }
       }
@@ -585,6 +637,7 @@ export class Match {
       def.setState('hit'); def.stun = 16; def.play('hitHigh', 3);
       att.slide = 3; def.slide = 3;
       this.hud.popup(def.index, 'ESCAPE', 'info');
+      this.stats[def.index].escapes++;
       this.sfx('block', def);
       this.camera.setMode('fight');
       return;
@@ -594,6 +647,8 @@ export class Match {
       const dmg = Math.max(1, Math.round(att.throwDmg * e.dmg));
       def.hp = Math.max(0, def.hp - dmg);
       L.dealt += dmg;
+      { const S = this.stats[att.index]; if (L.dealt === dmg) S.hits++; S.dmg += dmg; } // (one blow: the first damage of the throw)
+      { const P = this.play[att.index]; if (P.on && P.flags & PF.THROW) { P.dmg += dmg; P.f1 = this.frame; } else this.notePlay(att, dmg, PF.THROW, this.frame - L.t - 12); }
       if (e.kind === 'slam') {
         this.hitstop = 10;
         this.fx.dust(def.pos, 1.8);
@@ -614,17 +669,22 @@ export class Match {
     if (L.t >= T.end) {
       this.throwLock = null;
       this.endThrowGrips(L);
+      this.stats[att.index].throws++;
       this.camera.setMode('fight');
       def.pos.y = 0;
       // the suplex flip ends a full turn round (same orientation): take the lying pose over without blending
       def.snapPose = true; def.snapSmooth = true;
-      if (def.hp <= 0) { def.ko = true; def.setState('ko'); def.play('lie', 4); this.onKO(att, def, def.pos.clone()); }
+      if (def.hp <= 0) { def.ko = true; def.setState('ko'); def.play('lie', 4); this.stats[att.index].throwKOs++; this.onKO(att, def, def.pos.clone()); }
       else { def.setState('down'); def.play('lie', 6); def.downT = 0; }
     }
   }
 
   // -------------------------------------------------------------- KO / round end
   onKO(att, def, p) {
+    const P = this.play[att.index], S = this.stats[att.index];
+    S.kos++;
+    if (att.hp >= att.maxHp) S.perfects++;
+    if (P.on) P.flags |= PF.KO | (this.wins[att.index] + 1 >= this.opts.rounds ? PF.FINAL : 0) | (att.hp >= att.maxHp ? PF.PERFECT : 0);
     this.phase = 'ko'; this.pt = 0;
     this.slowmo = 1.6;
     this.koWinner = att.index;
@@ -640,12 +700,15 @@ export class Match {
   endRound(winner, reason) {
     this.phase = 'end'; this.pt = 0;
     this.koWinner = winner;
+    if (reason === 'time' && (winner === 0 || winner === 1)) this.stats[winner].timeWins++;
     this.hud.announce(reason === 'time' ? 'TIEMPO' : 'K.O.', reason === 'time' ? 'time' : 'ko');
     this.audio?.announce(reason === 'time' ? 'time' : 'ko');
   }
 
   afterRound() {
+    this.closePlays(true);
     const w = this.koWinner;
+    if ((w === 0 || w === 1) && this.fighters[w].hp <= this.fighters[w].maxHp * 0.1) this.stats[w].comebacks++;
     if (w === 0 || w === 1) this.wins[w]++;
     else { this.wins[0]++; this.wins[1]++; }
     const need = this.opts.rounds;
@@ -661,7 +724,7 @@ export class Match {
       this.hud.winner(wf, this.wins, this.crand());
       this.hud.hideBars?.();
       this.audio?.announce('win_' + wf.id);
-      this.audio?.voice(wf, 'win');
+      if (!wf.style.say) this.audio?.voice(wf, 'win'); // (a fighter with a line says it a moment later instead)
     } else {
       this.startRound();
     }

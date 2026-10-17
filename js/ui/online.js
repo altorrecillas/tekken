@@ -12,7 +12,9 @@ import { lanKey, LanFinder } from '../net/lan.js';
 import { qrCanvas, QRScanner } from '../net/qr.js';
 import { VERSION, VERSION_SHOWN } from '../net/config.js';
 import { RollbackSession, FxGate, MAX_PREDICT, unpackIn, NEUTRAL } from '../net/rollback.js';
-import { RAGDOLL_WANTED } from '../net/simstate.js';
+import { logCtrl, LEAD, TAIL, KO_TAIL } from '../fight/replay.js';
+import { PF, playLabel, playWorthShowing } from '../fight/stats.js';
+import { RAGDOLL_WANTED, Snap } from '../net/simstate.js';
 import { KeyboardController, GamepadController, MergedController, KEYMAPS } from '../fight/input.js';
 import { FPS } from '../fight/fighter.js';
 
@@ -570,10 +572,10 @@ export class Online {
     this.g.backToTitle(() => { if (this.net === net) this.roomScreen(); });
   }
   // host: both have picked
-  bothPicked(p1, p2, stage) {
+  bothPicked(p1, p2, stage, costumes = [0, 0]) {
     if (!this.isHost || this.phase !== 'select') return;
     const delay = this.cfg.delay === 'auto' ? autoDelay(this.net.rttLow) : this.cfg.delay;
-    const spec = { t: 'go', mid: Math.floor(Math.random() * 1e9), p1, p2, stage, rounds: this.cfg.rounds, time: this.cfg.time, delay };
+    const spec = { t: 'go', mid: Math.floor(Math.random() * 1e9), p1, p2, stage, rounds: this.cfg.rounds, time: this.cfg.time, delay, c1: costumes[0] | 0, c2: costumes[1] | 0 };
     this.net.send(spec);
     this.load(spec);
   }
@@ -582,7 +584,7 @@ export class Online {
   load(m) {
     const ids = this.g.roster || [];
     const spec = { t: 'go', mid: m.mid | 0, p1: String(m.p1), p2: String(m.p2), stage: String(m.stage), rounds: [1, 2, 3].includes(m.rounds) ? m.rounds : 2,
-      time: [30, 60, 99].includes(m.time) ? m.time : 60, delay: Math.max(0, Math.min(6, m.delay | 0)) };
+      time: [30, 60, 99].includes(m.time) ? m.time : 60, delay: Math.max(0, Math.min(6, m.delay | 0)), c1: Math.max(0, Math.min(2, m.c1 | 0)), c2: Math.max(0, Math.min(2, m.c2 | 0)) };
     if (!ids.includes(spec.p1) || !ids.includes(spec.p2)) { this.toast('El otro móvil ha elegido un luchador que este no tiene. Recargad la página.'); return; }
     if (this.spec && this.spec.mid === spec.mid && this.phase === 'loading') return; // (sent again after a cut)
     this.spec = spec;
@@ -594,7 +596,7 @@ export class Online {
     this.hide();
     this.net.busy(); // (building the fight freezes the page a moment: the other phone waits for it)
     this.g.startFight(spec.p1, spec.p2, {
-      stage: spec.stage,
+      stage: spec.stage, costumes: [spec.c1, spec.c2],
       online: { spec, make: () => this.makeFacade(), ready: (match) => this.loaded(match), fail: () => this.loadFailed() },
     });
   }
@@ -608,7 +610,7 @@ export class Online {
     return {
       fx: gate.wrap('fx', g.fx),
       hud: gate.wrap('hud', g.hud),
-      audio: gate.wrap('audio', g.audio),
+      audio: gate.wrap('audio', g.audio, { pass: ['talkLevel'] }), // (a plain query: how open a speaker's mouth is)
       camCtl: gate.wrap('cam', g.camCtl, { skip: ['setMode', 'koWinner'], pass: ['right', 'forwardFlat'] }),
       get stage() { return g.stage; },
       ragdolls: {
@@ -660,7 +662,9 @@ export class Online {
       sendRel: (msg) => this.net && this.net.send(msg),
       rtt: () => (this.net ? this.net.rttLow : 0),
       onFrame: (mm) => { if (!mm.hitstop) g.ragdolls.step(1 / FPS); },
+      onFinal: (F, snap) => this.keepSnap(F, snap),
     });
+    this.hlSnaps = [];
     this.session.onLoad = () => this.reconcileRagdolls();
     this.lastMode = null; this.lastRound = m.round;
     g.camCtl.setMode('intro', true);
@@ -837,6 +841,7 @@ export class Online {
     const m = this.match;
     const winner = forced !== null ? forced : m.winner;
     if (winner === 0 || winner === 1) { this.score[winner]++; this.recordH2H(winner === this.local); }
+    if (forced === null && m) this.g.progress?.noteMatch(m, this.local, 'online', this.g.stageKey);
     this.lastWinner = winner; this.lastWhy = why;
     // the whole fight as both players' inputs, for VER REPETICIÓN (not after a fight given up half way)
     const s = this.session;
@@ -870,8 +875,9 @@ export class Online {
       <p class="ol-why">${this.lastWhy ? esc(this.lastWhy) : w === me ? '¡Victoria!' : wf ? 'Derrota' : ''}</p>
       <div class="ol-score">${card(0)}<div class="ol-big"><em>${this.score[0]}</em><span>–</span><em>${this.score[1]}</em><small>VICTORIAS</small></div>${card(1)}</div>
       <p class="ol-h2h">${this.h2hLine()}</p>
+      ${m && m.stats ? `<div class="rs-grid ol-stats">${g.statsTableHTML(m)}</div>${g.playLineHTML(m)}` : ''}
       <p class="ol-state" data-k="state"></p>
-      <div class="actions"><button data-a="rematch" class="primary">REVANCHA</button><button data-a="select">CAMBIAR LUCHADOR</button>${this.replay ? '<button data-a="replay">▶ REPETICIÓN</button>' : ''}<button data-a="quit">SALIR</button></div></div>`;
+      <div class="actions"><button data-a="rematch" class="primary">REVANCHA</button><button data-a="select">CAMBIAR LUCHADOR</button>${this.replay && m && playWorthShowing(m.best) ? '<button data-a="hl">▶ JUGADA</button>' : ''}${this.replay ? '<button data-a="replay">▶ REPETICIÓN</button>' : ''}<button data-a="quit">SALIR</button></div></div>`;
     panel.onclick = null;
     panel.querySelectorAll('[data-a]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); g.audio.play('uiok'); this.choose(b.dataset.a); }));
     this.paintChoices();
@@ -890,6 +896,7 @@ export class Online {
     if (this.phase !== 'results' || this.choice === c || this.watching) return;
     if (c === 'quit') { this.leave(); return; }
     if (c === 'replay') { if (!this.choice) this.watchReplay(); return; }
+    if (c === 'hl') { if (!this.choice) this.watchHighlight(); return; }
     this.choice = c;
     this.net.send({ t: 'end', c, mid: this.spec ? this.spec.mid : 0 });
     this.paintChoices();
@@ -927,7 +934,28 @@ export class Online {
     if (!r || this.watching) return;
     this.watching = true;
     $('#overlay').classList.remove('on');
-    this.g.startFight(r.spec.p1, r.spec.p2, { stage: r.spec.stage, replay: r });
+    this.g.startFight(r.spec.p1, r.spec.p2, { stage: r.spec.stage, replay: r, costumes: [r.spec.c1 | 0, r.spec.c2 | 0] });
+  }
+  // the state of the fight every two seconds, final (see RollbackSession.onFinal): JUGADA DEL COMBATE starts from
+  // the last one before the play instead of replaying the whole fight up to it
+  keepSnap(F, snap) {
+    const L = this.hlSnaps || (this.hlSnaps = []), last = L[L.length - 1];
+    if (last && last.frame === F) last.snap.copyFrom(snap);
+    else if (!last || F > last.frame) L.push({ frame: F, snap: new Snap().copyFrom(snap) });
+  }
+  // JUGADA DEL COMBATE: the best play of the fight again, in slow motion, from the same inputs (from the last final
+  // snapshot before it, fast-forwarded to the moment), then the results come back
+  watchHighlight() {
+    const r = this.replay, m = this.match, B = m && m.best;
+    if (!r || this.watching || !playWorthShowing(B)) return;
+    this.watching = true;
+    $('#overlay').classList.remove('on');
+    const from = Math.max(0, B.f0 - LEAD);
+    let start = null;
+    for (const k of this.hlSnaps || []) if (k.frame <= from && k.frame < r.frames) start = k;
+    this.g.playHighlight({ ids: [r.spec.p1, r.spec.p2], costumes: [r.spec.c1 | 0, r.spec.c2 | 0], spec: r.spec, snap: start ? start.snap : null, match: m, from, to: B.f1 + (B.flags & PF.KO ? KO_TAIL : TAIL),
+      ctrl: (i) => logCtrl(r, i), label: `${m.fighters[B.att].ch.meta.display} · ${playLabel(B)}` },
+    () => { this.watching = false; if (this.phase === 'results') this.showResults(); });
   }
   // the fighters' controls in a replay: the recorded input of the frame being played, then nothing
   replayCtrl(match, r, i) {

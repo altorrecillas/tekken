@@ -12,6 +12,7 @@
 // rewound and replayed must come out identical to the bit.
 import * as THREE from 'three';
 import { THROWS } from '../fight/throws.js';
+import { STAT_KEYS, PLAY_KEYS, BEST_KEYS } from '../fight/stats.js';
 
 export class Snap {
   constructor(n = 4096) { this.f = new Float64Array(n); this.r = []; this.nf = 0; this.nr = 0; this.frame = -1; }
@@ -148,6 +149,10 @@ function ioMatch(m, io) {
   m.wins[0] = io.num(m.wins[0]); m.wins[1] = io.num(m.wins[1]);
   m.endSent = io.bool(m.endSent);
   m.phase = io.ref(m.phase); m.lastEvent = io.ref(m.lastEvent);
+  // the tallies and the play of the match (js/fight/stats.js)
+  for (const S of m.stats) for (const k of STAT_KEYS) S[k] = io.num(S[k]);
+  for (const P of m.play) for (const k of PLAY_KEYS) P[k] = io.num(P[k]);
+  for (const k of BEST_KEYS) m.best[k] = io.num(m.best[k]);
   io.vec(m.viewN);
   const F = m.fighters;
   if (io.bool(!!m.rageLock)) {

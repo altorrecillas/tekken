@@ -5,7 +5,7 @@ const THREE = await import('three');
 const { buildCharacter } = await import(new URL('../js/charloader.js', import.meta.url).href);
 const { Rig, newPose, POSE } = await import(new URL('../js/anim/rig.js', import.meta.url).href);
 const out = [];
-for (const id of ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani']) {
+for (const id of ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi']) {
   const meta = JSON.parse(fs.readFileSync(`${GAME}/assets/chars/${id}/mesh.json`)); const buf = fs.readFileSync(`${GAME}/assets/chars/${id}/mesh.bin`);
   const ch = buildCharacter({ id, base: '', meta, bin: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) }, () => new THREE.MeshBasicMaterial());
   const rig = new Rig(ch), p = newPose();

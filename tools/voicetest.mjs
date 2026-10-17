@@ -1,4 +1,5 @@
-// Voice check in the real game: announcer lines and every fighter's shout sets load and play without errors.
+// Voice check in the real game: announcer lines, every fighter's shout sets and victory line load and play without
+// errors; a line said opens the speaker's mouth (talkLevel) while it lasts.
 import { chromium } from 'playwright';
 import http from 'http'; import fs from 'fs'; import path from 'path';
 const root = process.env.GAME_ROOT || decodeURIComponent(new URL('..', import.meta.url).pathname).replace(/\/$/, '');
@@ -22,15 +23,29 @@ const r = await p.evaluate(async () => {
   for (const [v, set] of Object.entries(A.voiceSets || {})) sets[v] = Object.fromEntries(Object.entries(set).map(([k, l]) => [k, l.length]));
   // play one of each kind for every fighter: no exceptions, a source is started each time
   let played = 0;
-  for (const id of ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani']) for (const k of ['attack', 'hurt', 'hurtBig', 'ko', 'win']) {
+  for (const id of ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi']) for (const k of ['attack', 'hurt', 'hurtBig', 'ko', 'win']) {
     A.voiceSrc = A.voiceSrc || {}; const before = A.voiceSrc[id];
     A.voice({ id, pos: { x: 0 } }, k);
     if (A.voiceSrc[id] && A.voiceSrc[id] !== before) played++;
   }
   for (const k of ['round1', 'fight', 'ko', 'win_rafa', 'win_dani']) A.announce(k);
-  return { sets, played, ann: Object.keys(A.voiceClips || {}).length, ctx: A.ctx?.state };
+  // the victory lines: loaded with their loudness curve, said, the mouth moving while they last
+  const lines = {};
+  for (const id of window.__game.roster) {
+    const q = A.quotes?.[id];
+    lines[id] = { s: q?.buf ? +q.buf.duration.toFixed(2) : 0, env: q?.env?.length || 0, talk: 0 };
+  }
+  for (const id of window.__game.roster) {
+    A.say({ id, pos: { x: 0 } });
+    let peak = 0;
+    for (let i = 0; i < 12; i++) { await new Promise((ok) => setTimeout(ok, 60)); peak = Math.max(peak, A.talkLevel(id)); }
+    lines[id].talk = +peak.toFixed(2);
+  }
+  return { sets, played, ann: Object.keys(A.voiceClips || {}).length, ctx: A.ctx?.state, lines };
 });
 console.log(JSON.stringify(r));
+const bad = Object.entries(r.lines || {}).filter(([, l]) => !(l.s > 0.8 && l.env > 40 && l.talk > 0.2));
+console.log(bad.length ? 'FAIL victory lines: ' + bad.map(([id, l]) => `${id} ${JSON.stringify(l)}`).join(', ') : `victory lines: all ${Object.keys(r.lines).length} load, play and move the mouth`);
 console.log('mp3 served', mp3, 'missing', mp3fail);
 console.log(errs.length ? errs.join('\n') : 'no page errors');
 await b.close(); srv.close();

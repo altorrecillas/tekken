@@ -228,7 +228,7 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
     ratio = np.clip((lowpass(Lb, wmask) + 5) / (lowpass(Lp, wmask) + 5), 0.6, 1.7) ** P.get('delight', 0.65)
     if P.get('beard', 0) > 0:
         # de-lighting must not wash out the beard's darkness (it would read as a pale powdery patch)
-        bm_pre = beard_mask(frame, pos, valid, extent=P.get('beard_extent', 1.0), goatee=P.get('beard_goatee', 0.0), lip_clear=P.get('beard_lip_clear', 0.34), cheek=P.get('beard_cheek', 0.0)) * P['beard']
+        bm_pre = beard_mask(frame, pos, valid, extent=P.get('beard_extent', 1.0), goatee=P.get('beard_goatee', 0.0), lip_clear=P.get('beard_lip_clear', 0.34), cheek=P.get('beard_cheek', 0.0), fade=P.get('beard_fade', 0.08), rise=P.get('beard_rise', 1.0)) * P['beard']
         ratio = np.where(ratio > 1, ratio ** (1 - 0.8 * np.clip(bm_pre, 0, 1)), ratio)
     photo_adj = np.clip(photo_c * ratio[..., None], 0, 255)
     # chroma: take low frequencies from the (colour matched) base -> removes lens tints / colour casts
@@ -272,27 +272,29 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
     bd = P.get('beard', 0.0)
     beard_out = None
     if bd > 0:
-        bmask = beard_mask(frame, pos, valid, extent=P.get('beard_extent', 1.0), goatee=P.get('beard_goatee', 0.0), lip_clear=P.get('beard_lip_clear', 0.34), cheek=P.get('beard_cheek', 0.0))
+        bmask = beard_mask(frame, pos, valid, extent=P.get('beard_extent', 1.0), goatee=P.get('beard_goatee', 0.0), lip_clear=P.get('beard_lip_clear', 0.34), cheek=P.get('beard_cheek', 0.0), fade=P.get('beard_fade', 0.08), rise=P.get('beard_rise', 1.0))
         dens = bmask * bd * (1 - bm * 0.85 * (1 - P.get('beard_over_photo', 0.0)))
         shells = P.get('beard_shells', bd >= 0.3)
         # with 3D shells on top the painted layer only carries the roots / skin shadow
         cov = stubble((HTH, HTW), dens * (0.22 if shells else 0.55), seed=3, length=(2.5, 5), count_scale=1.0)
         cov = np.clip(cov * (0.45 if shells else 0.9) + cv2.GaussianBlur(dens, (0, 0), 2) * 0.35 * P.get('beard_shadow', 1.0), 0, 1)
         head = head * (1 - cov[..., None]) + beard_col * cov[..., None]
+        # the share of grey hairs over the face: one value, or whiter on the chin (the goatee patch below the lower
+        # lip) and salt-and-pepper on the moustache and cheeks
+        gmap = None
+        g = P.get('beard_grey', 0.5)
+        gchin = P.get('beard_grey_chin')
+        if gchin is not None:
+            lm = frame.lm
+            ym = (lm[13][1] + lm[14][1]) / 2
+            below = np.clip((ym - pos[..., 1]) / max(ym - lm[152][1], 1e-3), 0, 1)
+            cx, half = (lm[61][0] + lm[291][0]) / 2, abs(lm[291][0] - lm[61][0]) / 2
+            mid = np.exp(-((pos[..., 0] - cx) / (half * 1.6)) ** 2)
+            g = gmap = (g + (gchin - g) * np.clip(below * 1.6, 0, 1) * mid).astype(np.float32)
         salt = P.get('beard_salt', 0.0)
         if salt > 0:
             # salt-and-pepper stubble of several days: longer white and dark hairs painted over the shadow (the fur
             # shells alone read as an even grey veil at game distance)
-            g = P.get('beard_grey', 0.5)
-            gchin = P.get('beard_grey_chin')
-            if gchin is not None:
-                # whiter on the chin (the goatee patch below the lower lip), salt-and-pepper on the moustache and cheeks
-                lm = frame.lm
-                ym = (lm[13][1] + lm[14][1]) / 2
-                below = np.clip((ym - pos[..., 1]) / max(ym - lm[152][1], 1e-3), 0, 1)
-                cx, half = (lm[61][0] + lm[291][0]) / 2, abs(lm[291][0] - lm[61][0]) / 2
-                mid = np.exp(-((pos[..., 0] - cx) / (half * 1.6)) ** 2)
-                g = (g + (gchin - g) * np.clip(below * 1.6, 0, 1) * mid).astype(np.float32)
             dcol = np.array(P.get('beard_strand_color', (52, 46, 42)), np.float32)[::-1]
             wcol = np.array(P.get('beard_grey_color', (210, 206, 200)), np.float32)[::-1]
             sl = P.get('beard_stroke', (4, 8))
@@ -304,12 +306,17 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
         if shells:
             # density map for the fur-shell beard + texel size in metres (strand tiling)
             dmap = dilate_fill(cv2.GaussianBlur(np.clip(bmask * bd, 0, 1).astype(np.float32), (0, 0), 1.5), valid, 16)
-            cv2.imwrite(os.path.join(outdir, 'beard_d.png'), np.clip(dmap * 255, 0, 255).astype(np.uint8))
+            d8 = np.clip(dmap * 255, 0, 255).astype(np.uint8)
+            if gmap is not None:
+                # the shells' share of grey strands per texel in the green channel (the density stays in red)
+                g8 = np.clip(dilate_fill(cv2.GaussianBlur(gmap, (0, 0), 3), valid, 16) * 255, 0, 255).astype(np.uint8)
+                d8 = np.stack([d8, g8, d8], -1)
+            cv2.imwrite(os.path.join(outdir, 'beard_d.png'), d8)
             vb = valid & (bmask > 0.2)
             du = np.linalg.norm(pos[:, 1:] - pos[:, :-1], axis=2); dv = np.linalg.norm(pos[1:] - pos[:-1], axis=2)
             tu = float(np.median(du[vb[:, 1:] & vb[:, :-1]])) * UNIT
             tv = float(np.median(dv[vb[1:] & vb[:-1]])) * UNIT
-            beard_out = dict(dens=dmap, texel=(tu, tv))
+            beard_out = dict(dens=dmap, texel=(tu, tv), grey_map=gmap is not None)
             print('  beard shells: texel %.2f x %.2f mm' % (tu * 1000, tv * 1000))
     sd = P.get('scalp_density', 0.0)
     if sd > 0:
@@ -535,7 +542,7 @@ def build(pid, quick=False):
     top_layer = None  # (per body vertex weights, coverage) of the top: the lower garment follows it underneath
     for g in outfit:
         sh = make_shell(ctx, g.covered, g.offset, hem_depth=g.hem_depth, name=g.name, snap=g.snap,
-                        relax=getattr(g, 'relax', 20 if g.name in ('shirt', 'jacket') else 4))
+                        relax=getattr(g, 'relax', 20 if g.name in ('shirt', 'jacket') else 4), drape=getattr(g, 'drape', None))
         hidden[sh['hide']] = True
         col, nmap, rmap = fabric_maps(ctx, g.covered, g.color, seed=hash(g.name) % 97, knit=g.knit, fold=g.fold,
                                       rough=g.rough, decals=g.decals, extra=g.extra, shell=sh, pique=g.pique, rib_cuffs=g.rib_cuffs)
@@ -640,6 +647,8 @@ def build(pid, quick=False):
         if 'beard_grey_color' in P:
             # colour of the grey strands (salt-and-pepper stubble: white hairs among dark ones)
             bdef['greyColor'] = (np.array(P['beard_grey_color'], np.float32) / 255).tolist()
+        if bo.get('grey_map'):
+            bdef['greyMap'] = True  # (the share of grey strands is beard_d.png's green channel)
         ex.add_part('beard', pos[bv], nrm_all[vi][bv], uv_out[bv], sidx[bv], swt[bv], binv.reshape(-1, 3).ravel(), bdef)
         print('  beard shell tris', len(bsel))
 
@@ -721,6 +730,10 @@ def build(pid, quick=False):
         se, be_ = hp.get('side', 14), hp.get('back', -42)
         fp = [fe, fe + (te - fe) * 0.6, te, (te + se) / 2, se, se - 2, -10, be_ + 6, be_]
         hline = np.interp(np.abs(az), xp, fp)
+        if hp.get('tilt'):
+            # a hairline higher on one side of the forehead (+: her left) and lower on the other, back to even by the
+            # temples (hair swept off a side parting leaves the forehead bare on the parting's side)
+            hline = hline + hp['tilt'] * np.clip(az / 40.0, -1, 1) * np.clip((70 - np.abs(az)) / 30, 0, 1)
         cover = np.clip((el - hline) / 6 + 0.5, 0, 1)
         cover[np.setdiff1d(np.arange(len(Vg)), head_vidx)] = 0
         htris = tris[head_tris]
@@ -737,6 +750,15 @@ def build(pid, quick=False):
             top = np.maximum(top, np.clip((el - hc.get('crown_el', 48)) / 6, 0, 1))
             cover = cover * top
             hp_, huv, hao, htan, hidx, band = grow_topknot(Vg, nrm_v, htris, cover, frame, hc, seed=7)
+        elif hc['comb'] == 'bob':
+            from hairgen import grow_bob
+            # the strands may not enter the head, the face, the neck or the shoulders
+            coll = np.where(Vg[:13380, 1] > ctx.y_neck - 0.8)[0]
+            if os.environ.get('HAIRDUMP'):
+                # (the inputs of the hair generator in a file, to iterate on a hairstyle without rebuilding the fighter)
+                import pickle
+                pickle.dump(dict(V=Vg, N=nrm_v, tris=htris, cover=cover, C=frame.C, lm=frame.lm, coll=coll, hc=hc), open(os.environ['HAIRDUMP'], 'wb'))
+            hp_, huv, hao, htan, hidx = grow_bob(Vg, nrm_v, htris, cover, frame, hc, coll_idx=coll, seed=7)
         else:
             hp_, huv, hao, htan, hidx = grow_hair(Vg, nrm_v, htris, cover, frame, hc, seed=7)
         # normals: roughly the scalp normal (outward from the head centre), made perpendicular to the strand so
@@ -883,6 +905,9 @@ def shared_assets():
     from hairgen import strand_atlas
     cv2.imwrite(os.path.join(d, 'hair_cards.png'), strand_atlas(1, False))
     cv2.imwrite(os.path.join(d, 'hair_cards_curly.png'), strand_atlas(2, True))
+    # the same strands with the dense roots at the card's root (see strand_atlas)
+    cv2.imwrite(os.path.join(d, 'hair_cards_r.png'), strand_atlas(1, False, roots_v0=True))
+    cv2.imwrite(os.path.join(d, 'hair_cards_curly_r.png'), strand_atlas(2, True, roots_v0=True))
     import shutil
     eye = cv2.imread(os.path.join(M.MHA, 'eyes/materials/brownlight_eye.png'), cv2.IMREAD_UNCHANGED)
     hsv = cv2.cvtColor(eye[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)

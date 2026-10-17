@@ -1,7 +1,7 @@
 # Puños de Barrio — Torneo de los amigos
 
 Juego de lucha 3D al estilo Tekken 3 que se ejecuta en el navegador (WebGL2 + Three.js r186).
-Los seis luchadores se han generado a partir de las fotos de esta carpeta: Alejandro, Arnau, Camilo, Rafa, Zapponi y Dani.
+Los siete luchadores se han generado a partir de las fotos de esta carpeta: Alejandro, Arnau, Camilo, Rafa, Zapponi, Dani y Noemí.
 
 ## Cómo jugarlo
 
@@ -37,16 +37,30 @@ Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, C
 
 | Modo | Descripción |
 |---|---|
-| Arcade | Te enfrentas a los otros cinco, uno tras otro (la pantalla de carga indica «COMBATE X DE 5»). Al vencerlos a todos eres **Campeón del barrio**. La CPU se endurece en cada combate y los escenarios se alternan. |
+| Arcade | Te enfrentas a los otros seis, uno tras otro (la pantalla de carga indica «COMBATE X DE 6»). Al vencerlos a todos eres **Campeón del barrio** y ves el **final** de tu luchador. La CPU se endurece en cada combate y los escenarios se alternan. |
 | Versus → 2 jugadores | Dos jugadores en la misma pantalla, con teclado o mandos (en un móvil o tablet sin mando aparece atenuado: hace falta un mando). En la selección se elige escenario con **W/S** o con las flechas ◀ ▶. |
 | Versus → Online | Dos jugadores, **cada uno en su móvil**, por WiFi (o por QR sin internet). Ver [Versus online](#versus-online-dos-móviles). |
 
 Los dos versus están en el submenú **VERSUS** del menú principal.
 
-**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.68»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
-| Entrenamiento | Rival pasivo. En pantalla se ve el estado del rival y la ventaja en frames de cada golpe. |
+**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.69»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
+| Entrenamiento | Sparring configurable, grabación del rival, historial de entradas y pruebas de combo. Ver [Entrenamiento](#entrenamiento). |
 
-**Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU en cada uno de los cinco combates del arcade.
+**Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU en cada uno de los seis combates del arcade.
+
+**Resultados y JUGADA DEL COMBATE:** al acabar cada combate (arcade, versus y online) sale una pantalla con los datos de los dos: golpes, daño, mejor combo, contraataques, lanzamientos, agarres, bloqueos y Rage Arts, y la jugada del combate (por ejemplo «COMBO DE 5 GOLPES · 78 DE DAÑO · K.O.»).
+- **▶ VER JUGADA** la repite a cámara lenta, con letterbox, sus efectos y sus sonidos. Es exactamente lo que pasó: el combate es determinista, así que se vuelve a simular desde una instantánea guardada justo antes, con las mismas pulsaciones.
+- La jugada se elige por puntuación: el daño, la longitud del combo, y si tuvo lanzamiento, contraataque, Rage Art, agarre o K.O. (más si fue el K.O. final o una ronda perfecta).
+- En el arcade, entre combate y combate, el botón principal es **SIGUIENTE COMBATE**.
+
+**Trajes:** en la selección de luchador cada uno tiene un **segundo traje** de otros colores (Q / E con el teclado del jugador 1, − / = el jugador 2, L1 / R1 con mando, o las flechas ◀ ▶ del panel). Si los dos eligen al mismo luchador con el mismo traje, el segundo jugador sale con el otro, para distinguirlos. El **traje de campeón** (dorado y negro) se desbloquea al ganar el arcade con ese luchador. Online, cada móvil ve el traje que ha elegido el otro.
+
+**EXTRAS** (menú principal):
+- **LOGROS:** 21 logros, por ejemplo primera victoria, campeón del barrio, ronda perfecta, combo de 5 y de 7 golpes, remates con Rage Art, contraataque o agarre, remontada, 500 golpes, todos los escenarios, ganar online o completar las pruebas de combo. Al desbloquear uno aparece un aviso arriba a la derecha.
+- **FINALES:** los finales del arcade desbloqueados, para volver a verlos.
+- **CABEZONES:** cabezas grandes (solo de aspecto; los golpes miden la cabeza real). Se desbloquea al ganar el arcade.
+- **CONTROLES:** la ayuda de controles.
+- Todo se guarda en el dispositivo.
 
 **Continuar (arcade):** el arcade se guarda solo en el dispositivo. Guarda la escalera de rivales, la dificultad y, a mitad de un combate, el combate exacto: ronda, vida, posiciones y reloj.
 - **Cuándo se guarda:** cada 3 segundos de combate y siempre que el juego deja la pantalla (cambias de app, bloqueas el móvil o cierras la pestaña).
@@ -56,6 +70,18 @@ Los dos versus están en el submenú **VERSUS** del menú principal.
 - **Cuándo se borra:** al ser campeón o al empezar un arcade nuevo.
 - El Versus, el Entrenamiento y el modo online no se guardan.
 - Si el juego se actualiza entre medias, el combate guardado empieza de nuevo, pero se conserva el progreso de la escalera.
+
+## Entrenamiento
+
+- **AJUSTES DE ENTRENAMIENTO** (en la pausa):
+  - **Rival:** de pie (no bloquea), agachado, salta, CPU (nivel 1 a 5) o repite tu grabación.
+  - **Bloqueo:** no, todo (los bajos agachado) o aleatorio.
+  - **Castiga tras bloquear:** responde con su golpe más rápido.
+  - **Se recupera rodando:** al caer.
+  - **Historial de entradas:** en pantalla, con dirección, botones y frames que se mantuvo cada entrada.
+- **Grabar al rival:** pulsa **R** (o el botón en los ajustes). Tras una cuenta atrás manejas tú al rival hasta 10 segundos. Pulsa **R** para terminar y el rival repite lo grabado en bucle. **P** para la reproducción o la reanuda.
+- **Pruebas de combo:** cinco por luchador, de la más fácil a la más difícil (uno-dos, cadenas, lanzamiento y combo aéreo, su golpe estrella). Arriba a la derecha se ve la secuencia y se marca cada golpe que entra. **T** pasa a la siguiente. El progreso se guarda y cuenta para los logros. `tools/trainingtest.mjs` comprueba que todas se pueden hacer.
+- En la pantalla se siguen viendo el estado del rival y la ventaja en frames de cada golpe.
 
 ## Versus online (dos móviles)
 
@@ -104,9 +130,12 @@ Es el sistema de los juegos de lucha grandes (GGPO: Street Fighter 6, Tekken 8�
 
 ## Escenarios
 
+El escenario principal es **El Porche**: en él están el título y la pantalla de selección, es el que viene elegido por defecto y el del primer combate del arcade (que recorre los demás en este orden).
+
+- **El Porche**: una calle real del barrio, sacada de una foto: la planta baja es la foto limpia (sin interfaz de mapas, personas ni número de portal), con las persianas llenas de grafitis, las columnas de piedra y un aparcamiento cubierto con profundidad real, fluorescentes (uno parpadea) y la barrera amarilla y negra. Encima, ventanales industriales y una marquesina de hormigón. Día nublado, plátanos de sombra, farolas y contenedores. Los edificios vecinos y los de enfrente reutilizan trozos de la foto en sus plantas bajas.
 - **Azotea al atardecer**: terraza con piscina, palmeras y el pueblo iluminándose frente al mar.
 - **La Meta 10K**: la meta de una carrera popular en una avenida, con arco hinchable, reloj de carrera, público animando y una plaza.
-- **El Porche**: una calle real del barrio, sacada de una foto: la planta baja es la foto limpia (sin interfaz de mapas, personas ni número de portal), con las persianas llenas de grafitis, las columnas de piedra y un aparcamiento cubierto con profundidad real, fluorescentes (uno parpadea) y la barrera amarilla y negra. Encima, ventanales industriales y una marquesina de hormigón. Día nublado, plátanos de sombra, farolas y contenedores. Los edificios vecinos y los de enfrente reutilizan trozos de la foto en sus plantas bajas.
+- **El Festival**: el escenario al aire libre de las fiestas del barrio, al atardecer, a partir de una foto. La concha del escenario con su pantalla LED, las torres con lonas, el cartel de la cabina del DJ, la tarima de madera, el cañizo, los pinos y el hormigón de la plaza salen de la foto, limpia: sin la chica de blanco, sin la gente del escenario ni el vigilante, sin la fecha, y con la marca de ron de las lonas cambiada por «PUÑOS DE BARRIO» (`tools/festival_prep.py`). Alrededor, en 3D: la tarima con barandillas de andamio, la cabina con los platos, torres de luces, la carpa del técnico de sonido, una barra, un food truck, guirnaldas de bombillas, focos móviles que barren a ritmo de música y público bailando. Música: «Pamgaea».
 
 ## Controles
 
@@ -137,7 +166,7 @@ En móvil y tablet aparecen controles en pantalla durante el combate, con la dis
 - **Bloqueo:** mantén *atrás* para bloquear golpes altos y medios; *abajo-atrás* bloquea los bajos.
 - **Esquiva lateral:** toca *arriba* o *abajo*. **Dash:** pulsa *adelante* dos veces.
 - **Agarre:** 1+3 (o 2+4, que es distinto según el luchador). Para zafarte, pulsa 1 o 2 en el momento del agarre.
-- **Lanzador:** abajo-adelante + 2. Después puedes hacer un combo aéreo, con daño escalado.
+- **Lanzador:** abajo-adelante + 2. Si conecta, su recuperación se puede cancelar con el siguiente golpe: espera a que el rival caiga un poco y remata en el aire (por ejemplo 1, 2 y un barrido). El daño de los golpes en el aire se escala.
 - **Recuperación (tech):** pulsa cualquier botón justo al tocar el suelo. Te levantas al instante rodando hacia atrás, invulnerable, y evitas los golpes al suelo.
 - **Counter hit:** golpea al rival mientras está atacando.
 - **Rage:** con poca vida entras en Rage (más daño). Con 1+2+3+4 lanzas el **Rage Art**, una secuencia cinemática.
@@ -152,8 +181,25 @@ En móvil y tablet aparecen controles en pantalla durante el combate, con la dis
 | Rafa | El Veterano | Peso pesado, golpes lentos y devastadores | 1+2 panzazo · f+2 mazazo |
 | Zapponi | El Toro | Fuerza bruta; su lariat y su hachazo tienen *power crush* (aguantan golpes altos y medios mientras cargan) | 1+2 lariat · f+2 / f+1+2 hachazo · 2+4 suplex |
 | Dani | El Zorro Plateado | Boxeador veterano de la vieja escuela, rápido de manos; el puñetazo gacela sale agachado y esquiva los golpes altos | b+1 gancho al hígado · d+2 puñetazo gacela (lanza) · 1+2 guantazo |
+| Noemí | La Coordinadora | Al mando de la sala de emergencias, con bata blanca y casco con micrófono: palmas abiertas, empujones y un desfibrilador | b+1 triaje (palmada al pecho que lo aparta) · f+4 empujón · 1+2 **desfibrilador** (se frota las palmas y descarga las dos en el pecho, con chispazo eléctrico: lanza; también remata su Rage Art) |
 
 La lista completa de movimientos está en el menú de pausa. Al ganar, cada luchador suelta una de sus frases («Más sabe el zorro por viejo que por zorro», «¡Nadie para al Toro!»…).
+
+### Frases de victoria
+
+Al ganar un combate, cada luchador dice su frase con su propia voz (con subtítulo) mientras hace su gesto; la boca se mueve con lo que dice, y un botón no salta la pantalla de victoria hasta que ha terminado de hablar.
+
+| Luchador | Frase | Gesto |
+|---|---|---|
+| Alejandro | «¿Eso era todo? Ni me he despeinado.» | Se alisa el pelo hacia el moño, se encoge de hombros con las palmas arriba y señala al perdedor |
+| Arnau | «¡En mi consola esto era más difícil!» | Machaca los botones de un mando invisible y levanta el puño como quien vence al jefe final |
+| Camilo | «No molestes, estoy trabajando.» | Saca el móvil, aparta al perdedor con el dorso de la mano sin levantar la vista y sigue tecleando |
+| Rafa | «¿Ya? Iba a empezar a calentar.» | Se encoge de hombros, niega con la cabeza y estira los hombros como si no hubiera calentado |
+| Zapponi | «¡Espectacular, vale!» | Los dos pulgares arriba hacia el perdedor, marcando cada palabra |
+| Dani | «Más sabe el zorro por viejo que por zorro.» | Se toca la sien con el dedo y acaba con los brazos en V, como al cruzar una meta |
+| Noemí | «Te falta tomar áloe vera.» | Mano en la cadera, le riñe con el dedo y se lleva la mano al auricular: caso cerrado |
+
+Las frases se cambian en `tools/quotes_tts.py` (texto, voz y tono) y en `say` de `js/fight/styles.js` (el subtítulo).
 
 ## Tecnología
 
@@ -183,15 +229,17 @@ La lista completa de movimientos está en el menú de pausa. Al ganar, cada luch
   - Ragdoll Verlet en los KO.
 - **Público de La Meta 10K:** los propios luchadores, re-vestidos y posados, pre-renderizados en un atlas de 64 sprites (`crowdlab.html`) y dibujados con una sola llamada instanciada.
 - **Audio:** golpes sintetizados con WebAudio; música, público y voces grabados.
-  - **Música** en `assets/music/` (unos 10 MB, se reproduce en streaming, una pista a la vez): «Latin Industries» en los menús, «Exit the Premises» en la azotea, «Club Diver» en la calle y «MTA» en El Porche, de [Kevin MacLeod](https://incompetech.com) con licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Graves por debajo de 32 Hz recortados y volumen normalizado a −16 LUFS para que suene limpia también en el altavoz del móvil.
+  - **Música** en `assets/music/` (unos 10 MB, se reproduce en streaming, una pista a la vez): «Latin Industries» en los menús, «Exit the Premises» en la azotea, «Club Diver» en la calle, «MTA» en El Porche y «Pamgaea» en El Festival, de [Kevin MacLeod](https://incompetech.com) con licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Graves por debajo de 32 Hz recortados y volumen normalizado a −16 LUFS para que suene limpia también en el altavoz del móvil.
   - **Público de la calle** en `assets/sfx/`: un bucle de ambiente sin cortes y una ovación en cada K.O., de las [grabaciones de Gregor Quendel](https://opengameart.org/content/free-crowd-cheering-sounds) (CC BY 4.0). La azotea y El Porche solo llevan música.
   - Los créditos también aparecen en el menú de opciones.
   - **Locutor en español** con voz natural: frases pregrabadas en `assets/voice/` («Ronda uno», «¡A luchar!», «¡K.O.!», «¡Gana Rafa!»…), unos 230 KB en total.
   - Generadas con el sintetizador neuronal [Piper](https://github.com/rhasspy/piper) (voz `es_ES-davefx-medium`), con un ligero eco de pabellón.
   - La voz de davefx se entrenó con datos de dominio público (CC0), pero parte del modelo base *lessac*, con licencia de investigación: úsalas solo en un proyecto no comercial.
   - Si falta un clip, se usa la voz del propio dispositivo.
+  - **Frases de victoria** en `assets/voice/quote_*.mp3`, también con Piper (`tools/quotes_tts.py`): voces `es_ES-davefx-medium` y `es_ES-sharvard-medium` (corpus [Sharvard](https://datashare.ed.ac.uk/handle/10283/574), CC BY 3.0, voces masculina y femenina), con un tono distinto para cada luchador. Igual que la del locutor, parten del modelo base *lessac*: solo para un proyecto no comercial.
   - **Gritos de los luchadores** grabados por actores, en `assets/voice/fx/` (unos 820 KB). Cada luchador tiene su propia combinación de voz y tono, con variantes de ataque, dolor, golpe fuerte y K.O. que no se repiten dos veces seguidas.
     - Voces de [HaelDB](https://opengameart.org/content/male-gruntyelling-sounds) (CC0) y de VoiceBosch ([esfuerzos](https://opengameart.org/content/effort-sounds-male-audio-pack) y [daño](https://opengameart.org/content/damage-sounds-male-audio-pack), CC-BY-SA 4.0).
+    - La voz de Noemí: [Female Gruntwork 1](https://opengameart.org/content/female-gruntwork-1) de PlumpDev (CC-BY-SA 4.0) y [Female Warrior Grunts](https://opengameart.org/content/female-warrior-grunts) de SkyRae (CC-BY 3.0), separados en gritos sueltos.
     - Créditos y licencias en `assets/voice/fx/CREDITS.txt`.
 - **Online** (`js/net/`, `js/ui/online.js`): netcode rollback propio (`rollback.js`), con estado del combate guardado y restaurado en un búfer plano (`simstate.js`). La conexión WebRTC, el servidor de códigos, la búsqueda en la misma WiFi y los QR vienen de la plantilla de PlantillaWeb (`netplay.js`, `link.js`, `signal.js`, `lan.js`, `sdp.js`, `qr.js`).
   - QR: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT) para dibujarlos y [jsQR](https://github.com/cozmo/jsQR) (Apache 2.0, licencia en `vendor/qr/LICENSE-jsQR`) para leerlos donde el navegador no tiene `BarcodeDetector`.
@@ -209,12 +257,17 @@ La lista completa de movimientos está en el menú de pausa. Al ganar, cada luch
 
 Son los scripts usados para generar los personajes y probar el juego. Se incluyen como referencia: para regenerar los personajes hacen falta los assets de MakeHuman y los modelos de MediaPipe, que no están en el repositorio.
 
-- `tools/pipeline/`: pipeline de construcción de personajes en Python. El punto de entrada es `buildchar.py`; los parámetros de cada luchador están en `people.py` y la ropa en `outfits.py`.
+- `tools/pipeline/`: pipeline de construcción de personajes en Python. El punto de entrada es `buildchar.py`; los parámetros de cada luchador están en `people.py` y la ropa en `outfits.py`. `hairgen.py` genera el pelo con tarjetas (la melena rizada de Noemí es `grow_bob`) y `garments.py` la ropa (bata con escote en V recto y caída desde el pecho). `noemi_photo.py` prepara su foto: borra el micrófono del casco que le cruza la mandíbula. Las texturas de mechones `hair_cards_r.png` y `hair_cards_curly_r.png` tienen la raíz densa en la raíz de cada tarjeta (las primeras, `hair_cards.png` y `hair_cards_curly.png`, la tienen invertida y dejan transparente el primer cuarto de cada mechón: en los peinados cortos eso difumina el nacimiento del pelo y se queda así, pero a la melena de Noemí le dejaba la coronilla calva, así que ella usa la rizada nueva). `keeppart.py <carpeta vieja> <carpeta nueva> hair` devuelve a una reconstrucción el pelo de la versión aprobada: al volver a generar un luchador la cabeza se mueve fracciones de milímetro y los mechones aleatorios salen distintos, aunque el peinado sea el mismo. La barba de Dani lleva en el canal verde de `beard_d.png` la proporción de canas de cada zona (más blanca en la barbilla).
+- `tools/festival_prep.py`: limpia la foto del escenario del festival y saca sus texturas (`assets/stage/fest_*`).
 - `tools/*.mjs`: capturas headless con Playwright (`shot.mjs`), pruebas de flujo de menús (`flow.mjs`, `flow2.mjs`), simulación de combates sin gráficos para equilibrar (`simtest.mjs` y `rr.sh`) y horneado del público (`crowdbake.mjs`). Las herramientas localizan el juego a partir de su propia carpeta; la variable `GAME_ROOT` permite apuntar a otra copia.
 - Móvil:
   - `tools/mshot.mjs`: capturas con perfiles de móvil y tablet (844×390 @3x, 667×375 @2x, vertical, 1180×820 @2x).
   - `tools/mtouch.mjs`: prueba los controles táctiles con toques multitáctiles reales (menús, joystick, botones, pulsaciones dobles, deslizamientos, pausa, opciones); son 20 comprobaciones.
-  - `tools/arcadetest.mjs`: juega el modo arcade completo (los cinco rivales, pantalla de carga «COMBATE X DE 5», banner de campeón y vuelta al menú) y comprueba que cada combate carga exactamente dos luchadores.
+  - `tools/arcadetest.mjs`: juega el modo arcade completo (los seis rivales, pantalla de carga «COMBATE X DE 6», resultados de cada combate, banner de campeón y vuelta al menú) y comprueba que cada combate carga exactamente dos luchadores.
+  - `tools/resultstest.mjs`: un combate de arcade jugado entero por dos CPU. Comprueba la pantalla de resultados, la jugada del combate, que su repetición a cámara lenta es el combate fotograma a fotograma (vida y posición de los dos) y el paso al siguiente rival.
+  - `tools/extrastest.mjs`: EXTRAS y desbloqueos. Arcade ganado, final del campeón (texto que se escribe solo, un toque lo muestra entero), logros con sus avisos, galería de finales, cabezones, el traje de campeón en la selección y los trajes distintos en un combate espejo.
+  - `tools/wintest.mjs [salida] [--fighters a,b] [--shots]`: gana un combate con cada luchador y comprueba su frase de victoria: empieza en su fotograma, sale el subtítulo, la boca se abre con ella, un botón no la corta y el móvil de Camilo solo aparece en su gesto. `--shots` guarda una captura de cada uno a media frase.
+  - `tools/trainingtest.mjs [salida] [--fighters a,b]`: juega todas las pruebas de combo de todos los luchadores con un jugador guionizado que prueba distintos tiempos, y falla si alguna no se puede hacer. Además, el bloqueo del sparring, el historial de entradas y la grabación y su repetición.
   - `tools/continuetest.mjs [salida]`: el «continuar» del arcade. Simula que el juego pasa a segundo plano a mitad de combate y se cierra. Comprueba que al volver aparece CONTINUAR, que el combate sigue exactamente igual (fotograma, vida, posiciones, reloj y rival), la cuenta atrás, el guardado solo cada pocos segundos, GUARDAR Y SALIR, el paso al siguiente rival y el borrado al ser campeón.
   - `tools/voicetest.mjs` y `tools/musictest.mjs`: cargan y reproducen todas las voces y gritos, y la música del menú y de los escenarios (cambios de pista, pausa al ocultar la página, público de la calle).
   - `tools/netaudit.mjs`: mide los bytes descargados hasta que el título responde y en una sesión completa, y lista los ficheros que nunca se piden.

@@ -2,10 +2,11 @@
 import * as THREE from 'three';
 import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
 import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, LOD } from './charloader.js';
-import { makeFighterMaterial, makeFighterKey } from './materials.js';
+import { makeFighterMaterial, makeFighterKey, applyCostume } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
 import { StreetStage } from './stage/street.js';
 import { PorcheStage } from './stage/porche.js';
+import { FestivalStage } from './stage/festival.js';
 import { PostFX } from './engine/post.js';
 import { FX, setFxViewHeight } from './fx/fx.js';
 import { HUD } from './ui/hud.js';
@@ -24,29 +25,43 @@ import { Online } from './ui/online.js';
 import { Snap, saveMatch, loadMatch, packSnap, unpackSnap, RAGDOLL_WANTED } from './net/simstate.js';
 import { VERSION } from './net/config.js';
 import { GAME_VERSION } from './version.js';
+import { FightRecorder, logCtrl, quietFacade } from './fight/replay.js';
+import { STAT_ROWS, playLabel, playWorthShowing } from './fight/stats.js';
+import { costumesOf, costumeChoices, mirrorCostume } from './fight/costumes.js';
+import { Progress } from './ui/progress.js';
+import { ENDINGS } from './ui/endings.js';
+import { Training } from './ui/training.js';
 const _fkv = new THREE.Vector3();
 
-const ROSTER = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani'];
+const ROSTER = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi'];
+// (the first one is the main stage: the title and the select screen are set in it, it is the stage picked by
+// default and the arcade's first fight; the arcade goes through them in this order)
 const STAGES = {
+  // a real street of the neighbourhood (the user's photo): graffiti shutters and a covered car park, overcast day
+  porche: { cls: PorcheStage, name: 'EL PORCHE', sub: 'GRAFITIS DEL BARRIO', dust: [0.5, 0.5, 0.52], dustLight: 0.55, amb: 'porche', music: 'porche',
+    grade: { sat: 1.04, slope: [1.0, 1.0, 1.02] } },
   terrace: { cls: TerraceStage, name: 'AZOTEA AL ATARDECER', sub: 'VERANO EN EL BARRIO', dust: [0.78, 0.55, 0.42], dustLight: 0.85, amb: 'terrace', music: 'terrace',
     grade: { sat: 1.1, slope: [1.02, 1.0, 0.96] } },
   street: { cls: StreetStage, name: 'LA META 10K', sub: 'CARRERA POPULAR DEL BARRIO', dust: [0.55, 0.55, 0.56], dustLight: 0.6, amb: 'street', music: 'street',
     grade: { sat: 1.12, slope: [1.0, 1.0, 1.02] } },
-  // a real street of the neighbourhood (the user's photo): graffiti shutters and a covered car park, overcast day
-  porche: { cls: PorcheStage, name: 'EL PORCHE', sub: 'GRAFITIS DEL BARRIO', dust: [0.5, 0.5, 0.52], dustLight: 0.55, amb: 'porche', music: 'porche',
-    grade: { sat: 1.04, slope: [1.0, 1.0, 1.02] } },
+  // the open-air stage of the neighbourhood's festival at golden hour (the user's photo)
+  festival: { cls: FestivalStage, name: 'EL FESTIVAL', sub: 'FIESTAS DEL BARRIO', dust: [0.66, 0.6, 0.52], dustLight: 0.8, amb: 'festival', music: 'festival',
+    grade: { sat: 1.08, slope: [1.02, 1.0, 0.97] } },
 };
 const STAGE_KEYS = Object.keys(STAGES);
+const MAIN_STAGE = STAGE_KEYS[0];
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 // arcade difficulty: the CPU level (1..5, see fight/ai.js) of each fight in the ladder (one per rival)
 const DIFFICULTY = {
-  easy: { name: 'FÁCIL', ai: [1, 2, 2, 3, 3] },
-  normal: { name: 'NORMAL', ai: [2, 3, 3, 4, 4] },
-  hard: { name: 'DIFÍCIL', ai: [3, 4, 5, 5, 5] },
+  easy: { name: 'FÁCIL', ai: [1, 2, 2, 3, 3, 3] },
+  normal: { name: 'NORMAL', ai: [2, 3, 3, 4, 4, 4] },
+  hard: { name: 'DIFÍCIL', ai: [3, 4, 5, 5, 5, 5] },
 };
 const DIFF_KEYS = Object.keys(DIFFICULTY);
 // the arcade run kept on the device for CONTINUAR (see saveArcade)
-const SAVE_KEY = 'pdb_save', SAVE_FORMAT = 1;
+const SAVE_KEY = 'pdb_save', SAVE_FORMAT = 2;
+// JUGADA DEL COMBATE: the best play of a fight shown again at this speed (on top of the fight's own slow motion)
+const HL_SPEED = 0.42;
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
 const $ = (s) => document.querySelector(s);
 const q = new URLSearchParams(location.search);
@@ -75,6 +90,7 @@ class Game {
     this.fx = new FX(this.scene, this.camera);
     this.audio = new Audio();
     this.hud = new HUD({});
+    this.training = new Training(this); // (ENTRENAMIENTO: the partner's settings, recording, input history, combo trials)
     this.chars = {}; this.charLoads = {}; this.meta = {};
     this.state = 'loading';
     this.acc = 0; this.last = performance.now();
@@ -100,6 +116,8 @@ class Game {
       if (e.pointerType === 'touch' && this.touch.opt.show !== 'never') { this.padActive = false; this.touch.enable(); document.body.classList.add('touchui'); }
       const ph = this.match?.phase;
       if (this.state === 'fight' && this.replaying) { this.online.replayEnded(); return; }
+      if (this.state === 'highlight' && this.hl?.phase === 'play') { this.endHighlight(); return; }
+      if (this.state === 'ending') { this.endingTap(); return; }
       if (this.state === 'fight' && (ph === 'intro' || ph === 'matchEnd')) this.touch.tap();
     }, { capture: true });
     addEventListener('keydown', () => this.audio.init());
@@ -125,7 +143,7 @@ class Game {
   // on-screen controls: only while fighting (dimmed after a KO), hidden in cinematics (a tap anywhere skips the
   // intro or leaves the victory screen) and while a gamepad is in use
   syncTouchUI() {
-    const verOff = this.state === 'fight' || this.state === 'netwait';
+    const verOff = this.state === 'fight' || this.state === 'netwait' || this.state === 'highlight' || this.state === 'ending';
     if (this.verEl && verOff !== this._verOff) { this._verOff = verOff; this.verEl.classList.toggle('off', verOff); }
     this.camCtl.touchFrame = this.touch.enabled && document.body.classList.contains('touchui') && !this.padActive;
     if (!this.touch.enabled) return;
@@ -159,6 +177,8 @@ class Game {
     this.titleMenu = which;
     $('#title .menu.main').hidden = which !== 'main';
     $('#title .menu.vs').hidden = which !== 'vs';
+    $('#title .menu.extras').hidden = which !== 'extras';
+    if (which === 'extras') this.refreshExtras();
     this.setupMenu(`#title .menu.${which}`, (act) => this.titleAction(act));
   }
 
@@ -169,7 +189,7 @@ class Game {
     tip.textContent = tips[Math.floor(Math.random() * tips.length)];
     const prog = (p) => (bar.style.width = `${Math.round(p * 100)}%`);
     prog(0.05);
-    this.stagePick = STAGES[q.get('stage')] ? q.get('stage') : 'terrace';
+    this.stagePick = STAGES[q.get('stage')] ? q.get('stage') : MAIN_STAGE;
     await this.setStage(this.stagePick, false);
     prog(0.35);
     // portraits (pre-rendered)
@@ -184,6 +204,8 @@ class Game {
       if (metas[i]) this.meta[ROSTER[i]] = metas[i];
       else { console.warn('fighter not available:', ROSTER[i]); ROSTER.splice(i, 1); }
     }
+    // achievements, endings and unlocks kept on this device (js/ui/progress.js)
+    this.progress = new Progress({ roster: ROSTER, stageKeys: STAGE_KEYS });
     this.showcaseIds = this.pickShowcase();
     let n = 0;
     await Promise.all(this.showcaseIds.map(id => this.ensureChar(id).then(() => prog(0.35 + 0.45 * ++n / 2))));
@@ -249,7 +271,7 @@ class Game {
 
   // ------------------------------------------------------------------ stages
   async setStage(key, bake = true) {
-    if (!STAGES[key]) key = 'terrace';
+    if (!STAGES[key]) key = MAIN_STAGE;
     if (this.stage && this.stageKey === key) return;
     this.disposeStage();
     const def = STAGES[key];
@@ -300,7 +322,7 @@ class Game {
   stageFor(opts) {
     if (opts.stage) return opts.stage;
     if (this.mode === 'arcade' && this.arcade) return STAGE_KEYS[this.arcade.stage % STAGE_KEYS.length];
-    return this.stagePick || 'terrace';
+    return this.stagePick || MAIN_STAGE;
   }
 
   // mesh data for a fighter, fetched once (a failed fetch is retried the next time it is needed)
@@ -316,14 +338,22 @@ class Game {
     if (ids[0] === ids[1]) ids[1] = ROSTER[(ROSTER.indexOf(ids[0]) + 2) % ROSTER.length];
     return ids;
   }
-  makeFighterModel(id) {
+  // costume: index into js/fight/costumes.js (0: the clothes of the photo)
+  makeFighterModel(id, costume = 0) {
     const key = makeFighterKey();
     const ch = buildCharacter(this.chars[id], (def, base, lt, name) => makeFighterMaterial(def, base, lt, name, key));
     ch.fighterKey = key;
     this.accessories.attach(ch, STYLES[id], this.chars[id].meta);
     ch.group.userData.fighter = true;
+    ch.costumeIdx = costume | 0;
+    if (ch.costumeIdx) applyCostume(ch, costumesOf(id)[ch.costumeIdx]);
+    // CABEZONES (EXTRAS, unlocked with the arcade): the head drawn bigger (only drawn: the fight measures the real one)
+    if (this.progress?.d.bigHead) ch.bones.head?.scale.setScalar(1.6);
     return ch;
   }
+  // the champion's costume of a fighter: unlocked by winning the arcade with him (js/ui/progress.js)
+  champUnlocked(id) { return !!this.progress?.champ?.[id]; }
+  costumeList(id) { return costumeChoices(id, (x) => this.champUnlocked(x)); }
 
   // ------------------------------------------------------------------ showcase / title
   async setupShowcase() {
@@ -343,6 +373,7 @@ class Game {
   clearFighters() {
     if (this.match) for (const f of this.match.fighters) { this.scene.remove(f.ch.group); f.ch.group.traverse(o => o.geometry?.dispose?.()); }
     this.match = null;
+    this.camCtl.normalFrom = null; // (a det match's side view: the next one sets its own)
     this.contact?.clear();
     this.ragdolls?.clear();
   }
@@ -355,6 +386,7 @@ class Game {
   // screen to show over it instead of the title menu, as the online menu)
   backToTitle(then = null) {
     this.arcadeLive = false; // (an arcade run left here keeps the moment it was saved at)
+    this.training.stop();
     this.fightSeq = (this.fightSeq || 0) + 1; // cancels a fight that may still be loading
     $('#fade').classList.remove('busy'); this.fade(false);
     $('#pause').classList.remove('on'); $('#overlay').classList.remove('on');
@@ -377,11 +409,11 @@ class Game {
     this.hud.show(false);
     this.menuIndex = 0;
     this.titleMenu = 'main';
-    $('#title .menu.main').hidden = false; $('#title .menu.vs').hidden = true;
+    $('#title .menu.main').hidden = false; $('#title .menu.vs').hidden = true; $('#title .menu.extras').hidden = true;
     this.refreshModeButtons(); // (sets the menu up with the buttons that show: CONTINUAR)
     $('#title .presskey').textContent = document.body.classList.contains('touchui') ? 'TOCA UNA OPCIÓN' : 'PULSA ENTER O ⓧ';
     this.audio.music('menu');
-    this.audio.ambience(STAGES[this.stageKey]?.amb || 'terrace');
+    this.audio.ambience(STAGES[this.stageKey]?.amb || STAGES[MAIN_STAGE].amb);
     this.effects.letterbox = 0;
   }
   showScreen(id) {
@@ -399,7 +431,9 @@ class Game {
   refreshMenu() { this.menu.btns.forEach((b, i) => b.classList.toggle('sel', i === this.menu.idx)); }
   menuInput(keys, pad) {
     if (!this.menu) return;
-    const up = keys.has('ArrowUp') || keys.has('KeyW') || pad.up, down = keys.has('ArrowDown') || keys.has('KeyS') || pad.down;
+    const row = this.state === 'results';
+    const up = keys.has('ArrowUp') || keys.has('KeyW') || pad.up || (row && (keys.has('ArrowLeft') || keys.has('KeyA') || pad.left));
+    const down = keys.has('ArrowDown') || keys.has('KeyS') || pad.down || (row && (keys.has('ArrowRight') || keys.has('KeyD') || pad.right));
     if (up) { this.menu.idx = (this.menu.idx + this.menu.btns.length - 1) % this.menu.btns.length; this.refreshMenu(); this.audio.play('ui'); }
     if (down) { this.menu.idx = (this.menu.idx + 1) % this.menu.btns.length; this.refreshMenu(); this.audio.play('ui'); }
     if (keys.has('Enter') || keys.has('KeyU') || keys.has('Space') || pad.ok) { this.audio.play('uiok'); this.menu.cb(this.menu.btns[this.menu.idx].dataset.act); }
@@ -411,7 +445,11 @@ class Game {
     if (act === 'versus' && this.needsPad()) { this.online.toast('Para jugar dos en el mismo aparato hace falta un mando (o un teclado). En dos móviles: ONLINE.', 3200); return; }
     if (act === 'arcade' || act === 'versus' || act === 'training') { this.mode = act; this.toSelect(); }
     else if (act === 'vsmenu') this.showTitleMenu('vs');
+    else if (act === 'extras') this.showTitleMenu('extras');
     else if (act === 'back') this.showTitleMenu('main');
+    else if (act === 'achievements') this.showAchievements();
+    else if (act === 'endings') this.showEndings();
+    else if (act === 'bighead') { if (this.progress.d.bigHeadUnlocked) { this.progress.setBigHead(!this.progress.d.bigHead); this.refreshExtras(); this.setupShowcase(); } else this.online.toast('Se desbloquea al ganar el modo arcade.', 2600); }
     else if (act === 'online') this.online.open();
     else if (act === 'continue') this.continueArcade();
     else if (act === 'difficulty') { this.difficulty = DIFF_KEYS[(DIFF_KEYS.indexOf(this.difficulty) + 1) % DIFF_KEYS.length]; lsSet('pdb_diff', this.difficulty); this.refreshDifficulty(); }
@@ -435,6 +473,7 @@ class Game {
     const online = this.mode === 'online';
     const grid = $('#select .grid');
     grid.innerHTML = '';
+    grid.style.setProperty('--n', ROSTER.length); // (the cards shrink to fit the row: index.html)
     ROSTER.forEach((id) => {
       const c = document.createElement('div');
       c.className = 'card'; c.dataset.id = id;
@@ -451,7 +490,7 @@ class Game {
       c.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; const k = this.selTurn(); if (k >= 0) { this.sel.i[k] = ROSTER.indexOf(id); this.refreshSel(); this.selMoved(k); } };
       grid.appendChild(c);
     });
-    this.sel = { i: [0, 1], done: [false, !this.isVs()] };
+    this.sel = { i: [0, 1], done: [false, !this.isVs()], c: [0, 0] };
     $('#selBack').onclick = () => {
       this.audio.play('ui');
       if (online) { const L = this.online.local; if (this.sel.done[L]) { this.sel.done[L] = false; this.refreshSel(); this.selMoved(L); } else this.online.backFromSelect(); return; }
@@ -480,10 +519,31 @@ class Game {
     this.refreshStageBar();
     if (this.mode === 'online') this.online.net?.send({ t: 'stage', key: this.stagePick });
   }
-  // online: this phone's cursor to the other phone (by fighter id: the rosters could differ)
+  // online: this phone's cursor to the other phone (by fighter id: the rosters could differ) and its costume
   selMoved(k) {
     if (this.mode !== 'online' || k !== this.online.local || !this.online.net) return;
-    this.online.net.send({ t: 'sel', id: ROSTER[this.sel.i[k]], done: !!this.sel.done[k] });
+    this.online.net.send({ t: 'sel', id: ROSTER[this.sel.i[k]], done: !!this.sel.done[k], c: this.sel.c[k] | 0 });
+  }
+  // the costume player k picked, kept valid for the fighter under the cursor
+  selCos(k) {
+    const id = ROSTER[this.sel.i[k]], list = this.costumeList(id);
+    return list.includes(this.sel.c[k]) ? this.sel.c[k] : 0;
+  }
+  // the costume each player will wear: the second player of a mirror match in another one than the first
+  selCostumes() {
+    const c0 = this.selCos(0);
+    if (!this.isVs()) return [c0, 0];
+    const id0 = ROSTER[this.sel.i[0]], id1 = ROSTER[this.sel.i[1]];
+    return [c0, mirrorCostume(id0, c0, id1, this.selCos(1), this.mode === 'online' ? null : this.costumeList(id1))];
+  }
+  cycleCostume(k, d) {
+    const s = this.sel;
+    if (!s || s.done[k] || (this.mode === 'online' && k !== this.online.local)) return;
+    const list = this.costumeList(ROSTER[s.i[k]]);
+    if (list.length < 2) return;
+    const at = Math.max(0, list.indexOf(this.selCos(k)));
+    s.c[k] = list[(at + d + list.length) % list.length];
+    this.audio.play('ui'); this.refreshSel(); this.selMoved(k);
   }
   onlineResend() {
     if (this.mode !== 'online' || this.state !== 'select') return;
@@ -497,6 +557,7 @@ class Game {
     if (idx < 0) return;
     const was = this.sel.done[R];
     this.sel.i[R] = idx; this.sel.done[R] = !!m.done;
+    this.sel.c[R] = Math.max(0, Math.min(costumesOf(ROSTER[idx]).length - 1, m.c | 0));
     if (m.done && !was) { this.audio.preloadVoices([ROSTER[idx]]); this.audio.voice({ id: ROSTER[idx] }, 'attack'); } else this.audio.play('ui');
     this.refreshSel();
     this.onlineBoth();
@@ -513,7 +574,7 @@ class Game {
     clearTimeout(this._goT);
     this._goT = setTimeout(() => {
       if (this.state !== 'select' || this.mode !== 'online' || !this.sel.done[0] || !this.sel.done[1]) return;
-      this.online.bothPicked(ROSTER[this.sel.i[0]], ROSTER[this.sel.i[1]], this.stagePick);
+      this.online.bothPicked(ROSTER[this.sel.i[0]], ROSTER[this.sel.i[1]], this.stagePick, this.selCostumes());
     }, 700);
   }
   refreshSel() {
@@ -532,12 +593,19 @@ class Game {
       const n = this.online.names(), me = i === this.online.local;
       return `<div class="who ${me ? 'me' : ''}">${me ? '<i>TÚ</i>' : ''}${n[i].replace(/[&<>"']/g, '')}</div>`;
     };
+    const cosNow = this.selCostumes();
     const info = (el, id, ready, i) => {
       const s = STYLES[id], st = s.stats;
       const bar = (v, mx) => `<span class="trk"><i style="width:${Math.round(v / mx * 110)}px"></i></span>`;
+      // the costume: arrows to change it (Q / E, - / =, L1 / R1, or a tap), a lock where the champion's one is still locked
+      const list = this.costumeList(id), all = costumesOf(id), mine = this.mode !== 'online' || i === this.online.local;
+      const ci = cosNow[i], arrows = list.length > 1 && !ready && mine;
+      const locked = all.some((c) => c.champ) && !this.champUnlocked(id);
+      const cos = all.length > 1 ? `<div class="cos" data-k="${i}">${arrows ? '<b data-d="-1">◀</b>' : ''}<span>TRAJE <em>${all[ci].name}</em>${list.length > 1 ? ` <small>${list.indexOf(ci) + 1}/${list.length}</small>` : ''}</span>${arrows ? '<b data-d="1">▶</b>' : ''}${locked && !ready ? '<i title="Gana el arcade con este luchador">🔒 CAMPEÓN</i>' : ''}</div>` : '';
       el.innerHTML = `${who(i)}<div class="ttl">${s.title.toUpperCase()}</div><div class="big">${this.meta[id].display}</div><div class="dsc">${s.desc}</div>
         <div class="stats"><div class="stat"><b>FUERZA</b>${bar(st.power, 1.25)}</div><div class="stat"><b>VELOCIDAD</b>${bar(st.speed, 1.15)}</div><div class="stat"><b>AGUANTE</b>${bar(st.health, 200)}</div></div>
-        ${ready ? '<div class="ready">¡LISTO!</div>' : ''}`;
+        ${cos}${ready ? '<div class="ready">¡LISTO!</div>' : ''}`;
+      el.querySelectorAll('.cos b').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); this.cycleCostume(i, +b.dataset.d); }));
     };
     info($('#select .left'), ROSTER[this.sel.i[0]], this.sel.done[0], 0);
     if (vs) info($('#select .right'), ROSTER[this.sel.i[1]], this.sel.done[1], 1);
@@ -548,7 +616,11 @@ class Game {
     const vs = this.isVs();
     // show the hovered fighters in 3D behind the UI
     const ids = [ROSTER[this.sel.i[0]], vs ? ROSTER[this.sel.i[1]] : (this.previewIds?.[1] || ROSTER[(this.sel.i[0] + 1) % ROSTER.length])];
-    if (this.previewIds && this.previewIds[0] === ids[0] && this.previewIds[1] === ids[1] && this.match) return;
+    const cos = this.selCostumes();
+    if (this.previewIds && this.previewIds[0] === ids[0] && this.previewIds[1] === ids[1] && this.match) {
+      this.match.fighters.forEach((f, k) => { if ((f.ch.costumeIdx | 0) !== cos[k]) { f.ch.costumeIdx = cos[k]; applyCostume(f.ch, cos[k] ? costumesOf(ids[k])[cos[k]] : null); } });
+      return;
+    }
     // not downloaded yet: keep the current preview and come back when the mesh arrives
     if (!this.chars[ids[0]] || !this.chars[ids[1]]) {
       Promise.all(ids.map(id => this.ensureChar(id))).then(() => { if (this.state === 'select') this.updatePreview(); }).catch(() => {});
@@ -556,7 +628,7 @@ class Game {
     }
     this.previewIds = ids;
     this.clearFighters();
-    const chars = ids.map(id => this.makeFighterModel(id));
+    const chars = ids.map((id, k) => this.makeFighterModel(id, cos[k]));
     chars.forEach(c => this.scene.add(c.group));
     this.match = new Match(this, chars, ids, {});
     this.match.phase = 'showcase';
@@ -579,6 +651,8 @@ class Game {
         if (keys.has('KeyW') || keys.has('ArrowUp') || pads[0].up) this.cycleStage(-1);
         if (keys.has('KeyS') || keys.has('ArrowDown') || pads[0].down) this.cycleStage(1);
       }
+      if (keys.has('KeyQ') || pads[0].lb) this.cycleCostume(L, -1);
+      if (keys.has('KeyE') || pads[0].rb) this.cycleCostume(L, 1);
       if (s.done[L]) { if (back) { s.done[L] = false; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); } return; }
       if (l) { s.i[L] = (s.i[L] + ROSTER.length - 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); }
       if (r) { s.i[L] = (s.i[L] + 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); }
@@ -596,6 +670,12 @@ class Game {
     if (this.mode !== 'arcade') {
       if (keys.has('KeyW') || keys.has('ArrowUp') || pads[0].up) this.cycleStage(-1);
       if (keys.has('KeyS') || keys.has('ArrowDown') || pads[0].down) this.cycleStage(1);
+    }
+    if (keys.has('KeyQ') || pads[0].lb) this.cycleCostume(0, -1);
+    if (keys.has('KeyE') || pads[0].rb) this.cycleCostume(0, 1);
+    if (this.mode === 'versus') {
+      if (keys.has('Minus') || pads[1].lb) this.cycleCostume(1, -1);
+      if (keys.has('Equal') || pads[1].rb) this.cycleCostume(1, 1);
     }
     for (let i = 0; i < 2; i++) {
       if (i === 1 && this.mode !== 'versus') break;
@@ -616,16 +696,16 @@ class Game {
   }
 
   startMode() {
-    const p1 = ROSTER[this.sel.i[0]];
+    const p1 = ROSTER[this.sel.i[0]], cos = this.selCostumes();
     if (this.mode === 'arcade') {
-      // one fight against each of the other four, in random order; the title is won after the last one
+      // one fight against each of the others, in random order; the title is won after the last one
       const others = ROSTER.filter(x => x !== p1).sort(() => Math.random() - 0.5);
-      this.arcade = { p1, ladder: others, stage: 0, diff: this.difficulty };
-      this.startFight(p1, this.arcade.ladder[0], { ai: this.arcadeAI(0) });
+      this.arcade = { p1, ladder: others, stage: 0, diff: this.difficulty, costume: cos[0] };
+      this.startFight(p1, this.arcade.ladder[0], { ai: this.arcadeAI(0), costumes: [cos[0], 0] });
     } else if (this.mode === 'versus') {
-      this.startFight(p1, ROSTER[this.sel.i[1]], { human2: true });
+      this.startFight(p1, ROSTER[this.sel.i[1]], { human2: true, costumes: cos });
     } else {
-      this.startFight(p1, ROSTER[(this.sel.i[0] + 1) % ROSTER.length], { training: true });
+      this.startFight(p1, ROSTER[(this.sel.i[0] + 1) % ROSTER.length], { training: true, costumes: [cos[0], 0] });
     }
   }
 
@@ -659,22 +739,30 @@ class Game {
     const stageKey = this.stageFor(opts);
     if (stageKey !== this.stageKey) { await this.setStage(stageKey); this.audio.ambience(STAGES[stageKey].amb); }
     if (stale()) return;
-    const chars = [this.makeFighterModel(id1), this.makeFighterModel(id2)];
+    const chars = [this.makeFighterModel(id1, opts.costumes?.[0]), this.makeFighterModel(id2, opts.costumes?.[1])];
     chars.forEach(c => this.scene.add(c.group));
     await texturesReady();
     if (stale()) { chars.forEach(c => { this.scene.remove(c.group); c.group.traverse(o => o.geometry?.dispose?.()); }); return; }
     done();
     if (opts.online) { this.onlineFight(chars, id1, id2, opts); return; }
     if (opts.replay) { this.replayFight(chars, id1, id2, opts); return; }
-    this.match = new Match(this, chars, [id1, id2], { training: !!opts.training });
+    // arcade and versus fights are deterministic (det: nothing but the inputs counts, as online) and recorded, so
+    // that their best play can be shown again (JUGADA DEL COMBATE); the camera follows the match's own side view
+    const det = !opts.training && !opts.demo && (this.mode === 'arcade' || this.mode === 'versus');
+    this.match = new Match(this, chars, [id1, id2], { training: !!opts.training, det });
     this.hud.setRounds(this.match.opts.rounds);
-    this.camCtl.normalFrom = null; this.ragdolls.drivePos = true; // (as they are outside an online fight)
+    // (a det fight's knocked-out fighter keeps the position the simulation gives him, the ragdoll is only drawn: driven
+    // by the body, the position would follow the screen's frame rate and the play shown again would drift after a KO)
+    this.camCtl.normalFrom = det ? this.match.viewN : null; this.ragdolls.drivePos = !det;
+    this.rec = det ? new FightRecorder(this.match) : null;
     const [a, b] = this.match.fighters;
     a.ctrl = this.p1ctrl;
     if (opts.human2) b.ctrl = this.p2keys;
     else if (opts.training) { b.ctrl = { poll: () => ({ dx: 0, dy: 0, held: 0, pressed: 0 }) }; }
     else { const ai = new AIController(opts.ai || 3); ai.attach(b, this.match); b.ctrl = ai; }
     if (opts.demo && !opts.training) { const ai1 = new AIController(opts.ai || 3); ai1.attach(a, this.match); a.ctrl = ai1; }
+    if (this.rec) { a.ctrl = this.rec.wrap(a.ctrl, 0); b.ctrl = this.rec.wrap(b.ctrl, 1); }
+    if (opts.training && !opts.demo) this.training.start(this.match); else this.training.stop();
     // (without the saved moment: REINICIAR and the rematch start the fight from the beginning)
     this.fightOpts = { id1, id2, ...opts, resume: null };
     this.showScreen('none');
@@ -714,7 +802,7 @@ class Game {
       try { fight = packSnap(m, saveMatch(m, this._saveSnap || (this._saveSnap = new Snap()))); } catch (e) { fight = null; }
     }
     const a = this.arcade;
-    const data = { f: SAVE_FORMAT, v: VERSION, t: Date.now(), arcade: { p1: a.p1, ladder: a.ladder, stage: a.stage, diff: a.diff }, fight };
+    const data = { f: SAVE_FORMAT, v: VERSION, t: Date.now(), arcade: { p1: a.p1, ladder: a.ladder, stage: a.stage, diff: a.diff, costume: a.costume | 0 }, fight };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) { /* storage full or private mode */ }
   }
   // the saved run, if this roster can play it
@@ -738,10 +826,11 @@ class Game {
     const s = this.readSave();
     if (!s) { this.refreshContinue(); return; }
     this.mode = 'arcade';
-    this.arcade = { p1: s.arcade.p1, ladder: s.arcade.ladder.slice(), stage: s.arcade.stage | 0, diff: s.arcade.diff };
+    const cos = Math.max(0, Math.min(costumesOf(s.arcade.p1).length - 1, s.arcade.costume | 0));
+    this.arcade = { p1: s.arcade.p1, ladder: s.arcade.ladder.slice(), stage: s.arcade.stage | 0, diff: s.arcade.diff, costume: cos };
     // the fight to the frame only from this very version of the game (another one starts that fight again)
     const resume = s.fight && s.v === VERSION && s.f === SAVE_FORMAT ? s.fight : null;
-    this.startFight(this.arcade.p1, this.arcade.ladder[this.arcade.stage], { ai: this.arcadeAI(this.arcade.stage), resume });
+    this.startFight(this.arcade.p1, this.arcade.ladder[this.arcade.stage], { ai: this.arcadeAI(this.arcade.stage), resume, costumes: [cos, 0] });
   }
   // a saved fight back where it was: the match to the frame, a knocked-out body, the bars and the camera's shot
   resumeFight(packed) {
@@ -843,25 +932,246 @@ class Game {
     // (online and replays: the online module has its own results screen)
     if (this.fightOpts && (this.fightOpts.replay || this.fightOpts.online)) { if (this.replaying) this.online.replayEnded(); return; }
     const won = match.winner === 0;
+    const W = match.fighters[match.winner], name = (f) => f.ch.meta.display;
+    if (this.mode === 'arcade' || this.mode === 'versus') this.progress.noteMatch(match, 0, this.mode, this.stageKey);
+    const again = () => this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts);
     if (this.mode === 'arcade') {
+      const a = this.arcade, n = a.ladder.length;
       if (won) {
-        this.arcade.stage++;
-        if (this.arcade.stage >= this.arcade.ladder.length) {
+        a.stage++;
+        if (a.stage >= n) {
           this.clearSave(); // (the run is won: nothing left to continue)
-          const names = this.arcade.ladder.map(id => this.meta[id].display).join(', ');
-          this.showOverlay(`<h3>¡CAMPEÓN DEL BARRIO!</h3><p style="font-size:20px">${this.meta[this.arcade.p1].display} ha vencido a todos sus amigos: ${names}.</p><p style="font-size:15px;opacity:.75">Dificultad ${DIFFICULTY[this.arcade.diff].name}</p>`, () => this.backToTitle(), null, { ok: 'MENÚ PRINCIPAL' });
+          const un = this.progress.noteArcade(a.p1, a.diff);
+          const champ = () => this.playEnding(a.p1, a.costume | 0, () => {
+            const names = a.ladder.map(id => this.meta[id].display).join(', ');
+            const notes = [`Final de ${this.meta[a.p1].display} añadido a EXTRAS ▸ FINALES`];
+            if (un.costume) notes.push(`Traje de CAMPEÓN de ${this.meta[a.p1].display} desbloqueado (elígelo en la selección)`);
+            if (un.heads) notes.push('Modo CABEZONES desbloqueado en EXTRAS');
+            this.showOverlay(`<h3>¡CAMPEÓN DEL BARRIO!</h3><p style="font-size:20px">${this.meta[a.p1].display} ha vencido a todos sus amigos: ${names}.</p><p style="font-size:15px;opacity:.75">Dificultad ${DIFFICULTY[a.diff].name}</p><ul class="unlocks">${notes.map(n => `<li>🔓 ${n}</li>`).join('')}</ul>`, () => this.backToTitle(), null, { ok: 'MENÚ PRINCIPAL' });
+          });
+          this.showResults(match, '¡CAMPEÓN DEL BARRIO!', `${name(W)} gana la final · ${n} de ${n} combates`, [['CONTINUAR', 'champ', true], ['▶ VER JUGADA', 'hl'], ['MENÚ', 'menu']],
+            (act) => { if (act === 'champ') champ(); else this.backToTitle(); });
           return;
         }
-        const next = this.arcade.ladder[this.arcade.stage];
-        this.saveArcade(); // (the next rival, from the start, if the game is closed while it loads)
-        this.startFight(this.arcade.p1, next, { ai: this.arcadeAI(this.arcade.stage) });
+        const next = a.ladder[a.stage];
+        this.saveArcade(); // (the next rival, from the start, if the game is closed now)
+        this.showResults(match, `${name(W)} GANA`, `COMBATE ${a.stage} DE ${n} SUPERADO · SIGUIENTE: ${this.meta[next].display}`, [['SIGUIENTE COMBATE', 'next', true], ['▶ VER JUGADA', 'hl'], ['GUARDAR Y SALIR', 'menu']],
+          (act) => { if (act === 'next') this.startFight(a.p1, next, { ai: this.arcadeAI(a.stage), costumes: [a.costume | 0, 0] }); else this.backToTitle(); });
       } else {
         this.saveArcade(); // (lost: CONTINUAR fights that rival again)
-        this.showOverlay('<h3>HAS PERDIDO</h3><p style="font-size:20px">¿Quieres la revancha?</p>', () => this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts), () => this.backToTitle(), { ok: 'CONTINUAR', back: 'MENÚ' });
+        this.showResults(match, 'HAS PERDIDO', `${name(W)} gana · ¿quieres la revancha?`, [['REVANCHA', 'again', true], ['▶ VER JUGADA', 'hl'], ['MENÚ', 'menu']],
+          (act) => { if (act === 'again') again(); else this.backToTitle(); });
       }
     } else {
-      this.showOverlay(`<h3>${match.fighters[match.winner].ch.meta.display} GANA</h3>`, () => this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts), () => this.backToTitle(), { ok: 'REVANCHA', back: 'MENÚ' });
+      this.showResults(match, `${name(W)} GANA`, `${match.wins[0]} – ${match.wins[1]} en rondas`, [['REVANCHA', 'again', true], ['▶ VER JUGADA', 'hl'], ['MENÚ', 'menu']],
+        (act) => { if (act === 'again') again(); else this.backToTitle(); });
     }
+  }
+
+  // ------------------------------------------------------------------ results
+  // the end of a fight: who won, both fighters' tallies, the play of the match (VER JUGADA shows it again in slow
+  // motion, then comes back here) and what next. buttons: [label, action, primary]; 'hl' is handled here (left out
+  // when there is nothing worth replaying), any other action goes to cb.
+  // both fighters' tallies, row by row (the better of each in gold)
+  statsTableHTML(match) {
+    const rows = STAT_ROWS.map(([lbl, fn]) => {
+      const a = fn(match.stats[0]), b = fn(match.stats[1]), na = parseFloat(a) || 0, nb = parseFloat(b) || 0;
+      return `<tr><td class="${na > nb ? 'hi' : ''}">${a}</td><th>${lbl}</th><td class="${nb > na ? 'hi' : ''}">${b}</td></tr>`;
+    }).join('');
+    return `<table class="rs-stats">${rows}</table>`;
+  }
+  playLineHTML(match) {
+    const best = match.best;
+    return playWorthShowing(best) ? `<div class="rs-play"><span>JUGADA DEL COMBATE</span><b>${match.fighters[best.att].ch.meta.display} · ${playLabel(best)}</b></div>` : '';
+  }
+  resultsHTML(match, title, sub) {
+    const F = match.fighters, w = match.winner;
+    const card = (i) => `<div class="rs-f ${i ? 'p2' : 'p1'} ${w === i ? 'win' : ''}"><img src="${this.portraits[F[i].id]}" alt=""><b>${F[i].ch.meta.display}</b><span>${match.wins[i]} ${match.wins[i] === 1 ? 'RONDA' : 'RONDAS'}</span></div>`;
+    return `<h3>${title}</h3>${sub ? `<div class="rs-sub">${sub}</div>` : ''}<div class="rs-grid">${card(0)}${this.statsTableHTML(match)}${card(1)}</div>${this.playLineHTML(match)}`;
+  }
+  showResults(match, title, sub, buttons, cb) {
+    const src = this.highlightFrom(match);
+    const btns = buttons.filter(([, act]) => act !== 'hl' || src);
+    $('#overlay .panel').innerHTML = `<div class="results">${this.resultsHTML(match, title, sub)}</div><div class="actions">${btns.map(([l, act, pri]) => `<button data-act="${act}" class="${pri ? 'primary' : ''}">${l}</button>`).join('')}</div>`;
+    $('#overlay').classList.add('on');
+    $('#overlay').onclick = null;
+    this.state = 'results';
+    this.hud.show(false);
+    this.setupMenu('#overlay .panel .actions', (act) => {
+      if (act === 'hl') { this.playHighlight(src, () => this.showResults(match, title, sub, buttons, cb)); return; }
+      $('#overlay').classList.remove('on');
+      this.menu = null;
+      cb(act);
+    });
+  }
+  // how to replay the best play of a local fight (null: nothing worth showing, or not recorded)
+  highlightFrom(match) {
+    if (!playWorthShowing(match.best) || !this.rec || this.rec.m !== match) return null;
+    const r = this.rec.bestReplay();
+    if (!r) return null;
+    return { ids: match.fighters.map(f => f.id), costumes: match.fighters.map(f => f.ch.costumeIdx | 0), spec: { rounds: match.opts.rounds, time: match.opts.time }, snap: r.snap, match, from: r.from, to: r.to,
+      ctrl: (i) => logCtrl(this.rec, i), label: `${match.fighters[match.best.att].ch.meta.display} · ${playLabel(match.best)}` };
+  }
+
+  // ------------------------------------------------------------------ EXTRAS: achievements, endings, big heads
+  refreshExtras() {
+    const p = this.progress.d, b = $('#title .menu.extras button[data-act="bighead"]');
+    if (b) b.innerHTML = p.bigHeadUnlocked ? `CABEZONES: <span class="diffv">${p.bigHead ? 'SÍ' : 'NO'}</span>` : 'CABEZONES <span class="cont">🔒 GANA EL ARCADE</span>';
+    const e = $('#title .menu.extras button[data-act="endings"] .cont');
+    if (e) e.textContent = `${ROSTER.filter(id => p.endings[id]).length} / ${ROSTER.length}`;
+    const a = $('#title .menu.extras button[data-act="achievements"] .cont');
+    if (a) a.textContent = `${Object.keys(p.ach).length}`;
+  }
+  showAchievements() {
+    this.showOverlay(`<div class="achwrap">${this.progress.listHTML()}</div>`, () => this.backToExtras(), null, { ok: 'VOLVER' });
+  }
+  backToExtras() { this.state = 'title'; this.showTitleMenu('extras'); }
+  showEndings() {
+    const p = this.progress.d;
+    const cards = ROSTER.map((id) => p.endings[id]
+      ? `<button class="endc on" data-id="${id}"><img src="${this.portraits[id]}" alt=""><b>${this.meta[id].display}</b><span>${ENDINGS[id]?.title || ''}</span></button>`
+      : `<div class="endc"><img src="${this.portraits[id]}" alt=""><b>${this.meta[id].display}</b><span>🔒 Gana el arcade con este luchador</span></div>`).join('');
+    this.showOverlay(`<h3>FINALES</h3><div class="ends">${cards}</div>`, () => this.backToExtras(), null, { ok: 'VOLVER' });
+    document.querySelectorAll('#overlay .endc.on').forEach((b) => (b.onclick = (e) => {
+      e.stopPropagation(); this.audio.play('uiok'); $('#overlay').classList.remove('on');
+      this.playEnding(b.dataset.id, 0, () => this.backToTitle(() => { this.toTitle(); this.showTitleMenu('extras'); }));
+    }));
+  }
+
+  // ------------------------------------------------------------------ the arcade ending
+  // the champion alone on the stage (an invisible stand-in as the second fighter: the engine is made for two), the
+  // camera swinging slowly round him as he celebrates, his story typed out over the left of the screen; a tap shows
+  // the whole text, another one goes on (onEnd)
+  async playEnding(id, costume, onEnd) {
+    const E = ENDINGS[id];
+    if (!E) { onEnd(); return; }
+    const seq = this.fightSeq = (this.fightSeq || 0) + 1;
+    this.state = 'loading';
+    $('#overlay').classList.remove('on');
+    const other = ROSTER.find((x) => x !== id) || id;
+    try { await Promise.all([this.ensureChar(id), this.ensureChar(other)]); } catch (e) { onEnd(); return; }
+    if (seq !== this.fightSeq) return;
+    this.clearFighters();
+    const chars = [this.makeFighterModel(id, costume), this.makeFighterModel(other)];
+    chars.forEach((c) => this.scene.add(c.group));
+    const m = this.match = new Match(this, chars, [id, other], {});
+    m.phase = 'showcase';
+    const [a, b] = m.fighters;
+    a.pos.set(0, 0, 0); a.yaw = 0; b.pos.set(40, 0, 40); b.ch.group.visible = false; // (facing the lens: the stage behind him)
+    for (const f of m.fighters) { f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.snapPose = true; f.setState('idle'); f.play('win', 1); }
+    a.setState('win');
+    this.hud.show(false);
+    this.camCtl.setMode('ending', true, a);
+    this.state = 'ending';
+    this.audio.music('menu');
+    const el = $('#ending');
+    el.querySelector('.ttl').textContent = E.title;
+    el.querySelector('.who').textContent = `FINAL DE ${this.meta[id].display}`;
+    const box = el.querySelector('.txt');
+    box.innerHTML = E.text.map(() => '<p></p>').join('') + '<div class="fin">FIN</div><small class="tap">toca la pantalla o pulsa una tecla para continuar</small>';
+    el.classList.add('on');
+    this.end = { id, onEnd, t: 0, full: false, lines: E.text, chars: 0, total: E.text.join('').length };
+    this.endingType();
+  }
+  endingType() {
+    const E = this.end;
+    if (!E || this.state !== 'ending') return;
+    E.chars = E.full ? E.total : Math.min(E.total, E.chars + 2);
+    let left = E.chars;
+    const ps = document.querySelectorAll('#ending .txt p');
+    E.lines.forEach((l, i) => { const n = Math.max(0, Math.min(l.length, left)); ps[i].textContent = l.slice(0, n); left -= l.length; });
+    const done = E.chars >= E.total;
+    $('#ending').classList.toggle('done', done);
+    if (done) { E.full = true; return; }
+    clearTimeout(this._endT); this._endT = setTimeout(() => this.endingType(), 34);
+  }
+  endingTap() {
+    const E = this.end;
+    if (!E) return;
+    if (!E.full) { E.full = true; this.audio.play('ui'); this.endingType(); return; }
+    this.end = null;
+    clearTimeout(this._endT);
+    $('#ending').classList.remove('on', 'done');
+    this.audio.play('uiok');
+    E.onEnd();
+  }
+
+  // ------------------------------------------------------------------ JUGADA DEL COMBATE
+  // the play again: a new match on the same fighters, loaded from the snapshot the recorder kept from just before it
+  // (online: from the first frame), fast-forwarded quietly to the moment and shown in slow motion with the fight's
+  // own camera, effects and sounds; a tap or a key ends it early. src: { ids, spec, snap | packed | null, match, from,
+  // to, ctrl(i), label }
+  playHighlight(src, onEnd) {
+    if (!src) { onEnd(); return; }
+    $('#overlay').classList.remove('on');
+    this.menu = null;
+    this.fightSeq = (this.fightSeq || 0) + 1;
+    this.clearFighters();
+    const chars = src.ids.map((id, i) => this.makeFighterModel(id, src.costumes?.[i]));
+    chars.forEach(c => this.scene.add(c.group));
+    const fac = quietFacade(this);
+    const m = new Match(fac, chars, src.ids, { det: true, rounds: src.spec.rounds, time: src.spec.time });
+    m.later = (ms, fn) => setTimeout(() => { if (this.match === m && this.state === 'highlight') fn(); }, ms);
+    try {
+      if (src.snap) {
+        // (the snapshot points at the recorded match's moves and clips: through their names to this match's own)
+        const s = unpackSnap(m, src.packed || packSnap(src.match, src.snap));
+        if (!s) throw new Error('snapshot');
+        loadMatch(m, s);
+        for (const f of m.fighters) f.ragdoll = null;
+      } else m.startIntro();
+    } catch (e) { console.warn('highlight not loaded:', e.message); this.clearFighters(); onEnd(); return; }
+    m.fighters.forEach((f, i) => { f.ctrl = src.ctrl(i).bind(m); });
+    this.match = m;
+    this.ragdolls.drivePos = false; // (as in the fight it shows: see startFight)
+    this.hl = { m, fac, src, onEnd, phase: 'ff' };
+    this.state = 'highlight';
+    this.acc = 0;
+    this.hud.show(false);
+    this.camCtl.normalFrom = m.viewN;
+    $('#fade .txt').textContent = 'PREPARANDO LA JUGADA…';
+    const vs = $('#fadeVs'), stp = $('#fadeStep'); if (vs) vs.textContent = ''; if (stp) stp.textContent = 'JUGADA DEL COMBATE';
+    this.fade(true);
+  }
+  highlightTick(dt) {
+    const h = this.hl, m = h.m;
+    if (h.phase === 'ff') {
+      // up to the moment, without showing anything (a few hundred frames per screen frame)
+      for (let n = 0; n < 400 && m.frame < h.src.from; n++) { m.step(); m.events.length = 0; if (!m.hitstop) this.ragdolls.step(1 / FPS); }
+      if (m.frame < h.src.from) return 1;
+      h.phase = 'play';
+      h.fac.st.quiet = false;
+      this.hud.setFighters(m.fighters); this.hud.setRounds(m.opts.rounds);
+      this.hud.roundStart(m.round, m.wins, m.fighters); this.hud.update(m);
+      $('#announce').className = '';
+      const [mode, focus] = this.cameraFor(m);
+      this.camCtl.setMode(mode, true, focus);
+      for (const f of m.fighters) { f.prevPos.copy(f.pos); f.prevYaw = f.yaw; }
+      $('#hlTag b').textContent = h.src.label || '';
+      $('#hlTag').classList.add('on');
+      this.progress?.noteHighlight();
+      this.audio.music(STAGES[this.stageKey].music);
+      this.fade(false);
+      return 1;
+    }
+    this.acc += dt * HL_SPEED * (m.slowmo > 0 ? SLOWMO : 1);
+    for (let n = 0; n < 4 && this.acc >= 1 / FPS; n++) {
+      m.step();
+      if (!m.hitstop) this.ragdolls.step(1 / FPS);
+      this.acc -= 1 / FPS;
+    }
+    if (m.frame >= h.src.to || (m.phase === 'matchEnd' && m.pt > 100)) { this.endHighlight(); return 1; }
+    return this.acc * FPS;
+  }
+  endHighlight() {
+    const h = this.hl;
+    if (!h) return;
+    this.hl = null;
+    this.hlDone = h.m;
+    $('#hlTag').classList.remove('on');
+    this.fade(false);
+    this.hud.show(false);
+    h.onEnd();
   }
 
   showOverlay(html, onOk, onBack, labels = {}) {
@@ -884,8 +1194,10 @@ class Game {
       $('#pause').classList.add('on');
       // (the arcade run is kept: CONTINUAR goes on from this very moment)
       $('#pause .menu.local [data-act="quit"]').textContent = this.mode === 'arcade' ? 'GUARDAR Y SALIR' : 'SALIR AL MENÚ';
+      $('#pause .menu.local [data-act="tset"]').hidden = !(this.fightOpts?.training && this.training.m === this.match);
       this.setupMenu('#pause .menu.local', (act) => {
         if (act === 'resume') this.pause(false);
+        else if (act === 'tset') this.showTrainingSettings();
         else if (act === 'restart') { $('#pause').classList.remove('on'); this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts); }
         else if (act === 'quit') { $('#pause').classList.remove('on'); this.saveArcade(); this.backToTitle(); }
         else if (act === 'movelist') this.showMoveList();
@@ -897,6 +1209,18 @@ class Game {
       this.menu = null;
     }
     this.syncTouchUI();
+  }
+  // ENTRENAMIENTO's settings over the pause (GRABAR and PRUEBAS DE COMBO close it and go back to the fight)
+  showTrainingSettings() {
+    const T = this.training;
+    this.showOverlay(T.settingsHTML(), () => this.pause(true), null, { ok: 'VOLVER' });
+    this.state = 'overlay-pause';
+    T.bindSettings($('#overlay .panel'), (act) => {
+      $('#overlay').classList.remove('on');
+      this.pause(false);
+      if (act === 'rec') T.startRecording();
+      else if (act === 'trials') T.toggleTrials();
+    });
   }
   showMoveList() {
     const f = this.match.fighters[this.online.inFight ? this.online.local : 0];
@@ -936,7 +1260,7 @@ class Game {
       <div class="row"><span>Vibración</span>${sel('optTh', [[1, 'Sí'], [0, 'No']], t.haptics ? 1 : 0)}</div>
       </div></div>
       <p class="note">Un cambio de calidad gráfica recarga el juego.</p>
-      <p class="note">Música: Kevin MacLeod (incompetech.com) · Público: Gregor Quendel · licencia CC BY 4.0</p>`, () => {
+      <p class="note">Música: Kevin MacLeod (incompetech.com) · Público: Gregor Quendel · licencia CC BY 4.0 · Gritos: HaelDB, VoiceBosch, PlumpDev y SkyRae (OpenGameArt) · Voces: Piper (davefx; Sharvard, CC BY 3.0)</p>`, () => {
       const T = this.touch;
       T.opt = { ...T.opt, show: $('#optTs').value, size: +$('#optTz').value, opacity: +$('#optTo').value, stick: $('#optTk').value, haptics: $('#optTh').value === '1' };
       saveTouchPrefs(T.opt);
@@ -958,12 +1282,13 @@ class Game {
     for (let i = 0; i < 2; i++) {
       const g = navigator.getGamepads?.()[i];
       const prev = (this._pad || [])[i] || {};
-      const cur = { left: false, right: false, up: false, down: false, ok: false, back: false, start: false };
+      const cur = { left: false, right: false, up: false, down: false, ok: false, back: false, start: false, lb: false, rb: false };
       if (g) {
         const ax = g.axes[0] || 0, ay = g.axes[1] || 0;
         cur.left = g.buttons[14]?.pressed || ax < -0.5; cur.right = g.buttons[15]?.pressed || ax > 0.5;
         cur.up = g.buttons[12]?.pressed || ay < -0.5; cur.down = g.buttons[13]?.pressed || ay > 0.5;
         cur.ok = g.buttons[0]?.pressed || g.buttons[2]?.pressed; cur.back = g.buttons[1]?.pressed; cur.start = g.buttons[9]?.pressed;
+        cur.lb = g.buttons[4]?.pressed; cur.rb = g.buttons[5]?.pressed;
       }
       const edge = {};
       for (const k in cur) edge[k] = cur[k] && !prev[k];
@@ -986,9 +1311,12 @@ class Game {
     if (this.state === 'fight') this.dynRes(dt);
     const keys = menuKeysPressed();
     const pads = this.padMenuState();
-    if (this.state === 'title') { if (this.titleMenu === 'vs' && (keys.has('Escape') || keys.has('Backspace') || pads[0].back)) { this.audio.play('ui'); this.showTitleMenu('main'); } else this.menuInput(keys, pads[0]); }
+    if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (keys.has('Escape') || keys.has('Backspace') || pads[0].back)) { this.audio.play('ui'); this.showTitleMenu('main'); } else this.menuInput(keys, pads[0]); }
+    else if (this.state === 'ending') { if (keys.size || pads[0].ok || pads[0].back || pads[0].start) this.endingTap(); }
     else if (this.state === 'select') this.selectInput(keys, pads);
     else if (this.state === 'pause') { this.menuInput(keys, pads[0]); if (keys.has('Escape') || pads[0].start) this.pause(false); }
+    else if (this.state === 'results') this.menuInput(keys, pads[0]);
+    else if (this.state === 'highlight') { if (this.hl?.phase === 'play' && (keys.size || pads[0].ok || pads[0].back || pads[0].start)) this.endHighlight(); }
     else if (this.state === 'overlay' || this.state === 'overlay-pause') {
       if (keys.has('Enter') || keys.has('KeyU') || keys.has('Space') || pads[0].ok) this.overlayCb.ok();
       else if (keys.has('Escape') || keys.has('KeyK') || pads[0].back) this.overlayCb.back();
@@ -996,6 +1324,7 @@ class Game {
       if (keys.size || pads[0].ok || pads[0].start || pads[0].back) this.online.replayEnded();
     } else if (this.state === 'fight') {
       if (keys.has('Escape') || pads[0].start || pads[1].start || (keys.has('Enter') && this.match?.phase === 'fight')) this.pause(true);
+      else if (this.fightOpts?.training && this.training.m === this.match) this.training.tick(dt, keys);
     } else if (this.state === 'online') {
       if (keys.has('Escape')) this.online.escape();
     } else if (this.state === 'netresults') {
@@ -1018,8 +1347,10 @@ class Game {
     let alpha = 1;
     this.syncTouchUI();
     if (m) {
-      const running = !netRun && !counting && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'online' || this.state === 'netresults');
+      // (a play shown again stays where it ended, behind the results)
+      const running = !netRun && !counting && m !== this.hlDone && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'online' || this.state === 'netresults' || this.state === 'ending');
       if (netRun) alpha = this.online.session.alpha;
+      else if (this.state === 'highlight' && this.hl && this.hl.m === m) alpha = this.highlightTick(dt);
       else if (running) {
         let scale = 1;
         if (m.slowmo > 0) { if (!m.det) m.slowmo -= dt; scale = SLOWMO; }
@@ -1045,7 +1376,7 @@ class Game {
         if (this.capFrozen) { this.acc = 0; maxSteps = 0; }
         while (this.acc >= 1 / FPS && steps < maxSteps) {
           if (m.phase === 'showcase') this.showcaseStep(m);
-          else m.step();
+          else { m.step(); if (this.rec && this.rec.m === m) this.rec.afterStep(); }
           if (fastForward && stopAt()) { this.acc = 0; break; }
           if (!m.hitstop) this.ragdolls.step(1 / FPS);
           this.acc -= 1 / FPS; steps++;
@@ -1092,7 +1423,7 @@ class Game {
     e.radial = Math.max(0, e.radial - dt * 1.4);
     const targetDesat = m && m.slowmo > 0 ? 0.45 : 0;
     e.desat += (targetDesat - e.desat) * (1 - Math.exp(-dt * 6));
-    const lb = m && (m.phase === 'intro' || m.phase === 'matchEnd') ? 1 : 0;
+    const lb = m && (m.phase === 'intro' || m.phase === 'matchEnd' || this.state === 'highlight') ? 1 : 0;
     e.letterbox += (lb - e.letterbox) * (1 - Math.exp(-dt * 4));
     // phones: the player's own fighter taking a blow is felt in the hand too (the vibration option rules)
     const mine = this.online.inFight ? this.online.local : 0, feel = document.body.classList.contains('touchui') && this.state === 'fight' && !this.replaying;

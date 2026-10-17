@@ -12,6 +12,8 @@ const DT = 1 / FPS;
 const GRAV = 17;
 
 // numpad notation relative to facing: 6 = forward
+// frames after a connected launcher's active window from which its recovery can be cancelled into the juggle
+const JUGGLE_CANCEL = 8;
 function toNumpad(fwd, up) {
   return 5 + fwd + up * 3;
 }
@@ -224,7 +226,13 @@ export class Fighter {
   canAct() {
     return ['idle', 'walkF', 'walkB', 'crouch', 'rise', 'dashF', 'dashB', 'side'].includes(this.state) ||
       (this.state === 'move' && this.mf >= this.move.total - 4) ||
-      (this.state === 'dashF' && this.sf > 4);
+      (this.state === 'dashF' && this.sf > 4) || this.juggleCancel();
+  }
+  // a launcher that connected: once its strike is over, the rest of its recovery can be cut short by the next
+  // attack, so a juggle can follow while the body is still in the air (on block or whiff the recovery stays whole)
+  juggleCancel() {
+    const m = this.move;
+    return this.state === 'move' && !!m && !!m.hit && !!m.hit.launch && this.moveConnected && this.opp.state === 'air' && this.mf >= m.hit.f[1] + JUGGLE_CANCEL;
   }
 
   startMove(name, from = null) {
@@ -271,8 +279,8 @@ export class Fighter {
           this.startMove(cmd.move);
           return;
         }
-      } else if (!(s === 'move' && this.mf > this.move.total - 10)) {
-        this.pending = 0; // drop presses that cannot be buffered
+      } else if (!(s === 'move' && (this.mf > this.move.total - 10 || (this.move.hit?.launch && this.moveConnected && this.mf >= this.move.hit.f[1])))) {
+        this.pending = 0; // drop presses that cannot be buffered (a launcher that connected keeps them for its cancel)
       }
     }
 
@@ -391,6 +399,8 @@ export class Fighter {
     if (['idle', 'walkB', 'rise', 'dashB', 'block'].includes(s) && inp.fwd <= 0 && inp.up >= 0) this.guard = 'high';
     if ((s === 'crouch' || (s === 'block' && this.crouching)) && (inp.d === 1 || inp.d === 2)) this.guard = 'low';
     if (s === 'side' && this.sf > 12) this.guard = 'high';
+    // the training partner set not to block takes every blow (standing still would block highs and mids)
+    if (this.noGuard) this.guard = 'none';
   }
 
   // ------------------------------------------------------------------ physics
@@ -690,6 +700,12 @@ export class Fighter {
   // ------------------------------------------------------------------ render sync
   syncRender(alpha) {
     lerpPose(this.renderPose, this.prevPose, this.pose, alpha);
+    // a fighter saying his line: the jaw follows its loudness (drawn only, the simulation never sees it)
+    const tk = this.talk ? this.talk() : 0;
+    if (tk > 0.03) { const j = POSE.jaw[0]; this.renderPose[j] = Math.max(this.renderPose[j], 0.32 * Math.pow(tk, 0.8)); }
+    // a prop held in the win pose (Camilo's phone: js/fx/accessories.js), out of sight until the hand has reached it
+    const prop = this.ch.winProp;
+    if (prop) prop.visible = this.state === 'win' && this.clipName === 'win' && this.cf >= (prop.userData.from || 0);
     // eyes squeeze while taking a hit, shut when knocked out
     this.rig.lidClose = this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : 0;
     this.rig.apply(this.renderPose);

@@ -132,19 +132,20 @@ class StreakPool {
     for (let i = 0; i < S.length; i++) {
       const q = S[i]; q.age += dt;
       if (q.age >= q.life) continue;
-      q.vel.y -= 6 * dt; q.vel.multiplyScalar(Math.exp(-3.5 * dt));
-      q.p.addScaledVector(q.vel, dt);
+      // (seg: a still segment between two points, an arc of an electric discharge)
+      if (!q.seg) { q.vel.y -= 6 * dt; q.vel.multiplyScalar(Math.exp(-3.5 * dt)); q.p.addScaledVector(q.vel, dt); }
       const t = 1 - q.age / q.life;
-      const head = this._a.copy(q.p), tail = this._b.copy(q.p).addScaledVector(q.vel, -q.len);
+      const head = q.seg ? this._a.copy(q.seg[0]) : this._a.copy(q.p), tail = q.seg ? this._b.copy(q.seg[1]) : this._b.copy(q.p).addScaledVector(q.vel, -q.len);
       const dir = this._d.subVectors(head, tail);
       const view = this._v.subVectors(cam, head);
       const side = this._s.crossVectors(dir, view);
       const ls = side.length();
       if (ls < 1e-9) side.set(0, 0.001, 0); else side.multiplyScalar((q.w || 0.006) * (0.4 + 0.6 * t) / ls);
-      // needle: full width at the hot head, tapering to a point at the tail
+      // needle: full width at the hot head, tapering to a point at the tail (an arc segment keeps its width)
+      const tw = q.seg ? 1 : 0;
       this.pos.set([head.x + side.x, head.y + side.y, head.z + side.z, head.x - side.x, head.y - side.y, head.z - side.z,
-        tail.x, tail.y, tail.z, tail.x, tail.y, tail.z], n * 12);
-      const c = q.c, h = t * 3, tl = t * 0.15;
+        tail.x + side.x * tw, tail.y + side.y * tw, tail.z + side.z * tw, tail.x - side.x * tw, tail.y - side.y * tw, tail.z - side.z * tw], n * 12);
+      const c = q.c, h = t * 3, tl = q.seg ? h : t * 0.15;
       const hr = (c.r * 0.6 + 0.4) * h, hg = (c.g * 0.6 + 0.4) * h, hb = (c.b * 0.6 + 0.4) * h;
       this.col.set([hr, hg, hb, hr, hg, hb, c.r * tl, c.g * tl, c.b * tl, c.r * tl, c.g * tl, c.b * tl], n * 12);
       S[n++] = q;
@@ -295,6 +296,34 @@ export class FX {
     this.flashLight.position.copy(p).addScaledVector(_tv1.subVectors(this.camera.position, p).normalize(), 0.45);
     this.flashLight.intensity = heavy ? 6 : 3;
     this.flashLight.color.copy(col);
+  }
+
+  // the defibrillator's discharge: jagged blue-white arcs crackling out of the impact three times in a tenth of a
+  // second, arcs crawling over the victim's chest and neck, a cold flash
+  electric(p, victim) {
+    const col = new THREE.Color(0.5, 0.78, 1.6);
+    const arcs = (at, n, reach, w) => {
+      for (let b = 0; b < n; b++) {
+        let q = at.clone();
+        const dir = new THREE.Vector3().randomDirection();
+        const steps = 3 + Math.floor(Math.random() * 4);
+        for (let k = 0; k < steps; k++) {
+          const nx = q.clone().addScaledVector(dir, reach * (0.5 + Math.random() * 0.6)).add(new THREE.Vector3().randomDirection().multiplyScalar(reach * 0.6));
+          this.streaks.add({ p: q.clone(), vel: new THREE.Vector3(), seg: [nx, q.clone()], age: 0, life: 0.06 + Math.random() * 0.08, c: col, len: 0, w });
+          q = nx;
+        }
+      }
+    };
+    const burst = (scale) => {
+      arcs(p, 9, 0.06 * scale, 0.0045);
+      this.glow.add({ p: p.clone(), vel: new THREE.Vector3(), age: 0, life: 0.1, s0: 0.45 * scale, s1: 1.0 * scale, a0: 1, c: new THREE.Color(0.9, 1.3, 2.1), fadePow: 1.5 });
+      if (victim) for (const bn of ['spine03', 'spine01', 'neck01']) arcs(victim.boneWorld(bn), 2, 0.05, 0.003);
+      this.flashLight.position.copy(p).addScaledVector(_tv1.subVectors(this.camera.position, p).normalize(), 0.4);
+      this.flashLight.intensity = 9 * scale; this.flashLight.color.setRGB(0.55, 0.78, 1.0);
+    };
+    burst(1); setTimeout(() => burst(1.25), 45); setTimeout(() => burst(0.8), 105);
+    this.ring(p, 1.1, col);
+    for (let i = 0; i < 12; i++) this.glow.add({ p: p.clone(), vel: new THREE.Vector3().randomDirection().multiplyScalar(1.5 + Math.random() * 2), age: 0, life: 0.3 + Math.random() * 0.2, s0: 0.1, s1: 0.02, a0: 1, c: col, drag: 4 });
   }
 
   blockSpark(p) {

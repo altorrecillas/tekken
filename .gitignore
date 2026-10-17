@@ -3,14 +3,13 @@
 # ficheros apartados que el juego no usa (se pueden borrar)
 _sin_usar/
 
-# fotos originales de los luchadores: solo las usa tools/pipeline para generar los personajes y el juego no las
-# necesita. Si quieres guardarlas también en GitHub (mejor en un repositorio privado), borra estas cuatro líneas.
-/*_foto*.jpg
-/alejandro.jpg
-/camilo.jpg
-/dani[0-9]*.jpg
-# captura original del escenario El Porche (lleva la dirección y la interfaz del mapa; el juego usa assets/stage/porche_*.jpg)
-/escenario.jpg
+# fotos originales que dejas en la carpeta del juego (luchadores y escenarios): solo las usan tools/pipeline y
+# tools/*_prep.py para generar los personajes y los escenarios, el juego no las necesita (usa assets/). Cualquier
+# imagen suelta en la raíz se queda fuera, se llame como se llame. Si quieres guardarlas también en GitHub (mejor en
+# un repositorio privado), borra estas tres líneas.
+/*.jpg
+/*.jpeg
+/*.png
 
 # dependencias, cachés y temporales
 node_modules/

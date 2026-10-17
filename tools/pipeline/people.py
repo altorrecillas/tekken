@@ -87,10 +87,14 @@ PEOPLE = {
         outfit='dani', depth_scale=0.45, neutral_mouth=True, mouth_from_base=True, shoes=('shoes05', 'grey_blue'),
         body_hair=dict(legs=0.6, arms=0.45), body_hair_color=(42, 36, 32),
         scalp_density=1.0, scalp_color=(36, 30, 26), scalp_shadow=0.8,
-        # several days of salt-and-pepper stubble: mostly white hairs among dark ones, over a grey shadow
-        # (fuller at the user's request: higher up the cheeks, further down the neck, denser and longer)
-        beard=1.0, beard_extent=1.3, beard_cheek=0.2, beard_color=(88, 82, 78), beard_shadow=1.0, beard_over_photo=0.75, beard_salt=0.13, beard_stroke=(5, 10),
-        beard_strand_color=(46, 40, 36), beard_grey_color=(222, 218, 212), beard_grey=0.5, beard_grey_chin=0.85, beard_len=0.005, beard_layers=6,
+        # a short full salt-and-pepper beard: dark (almost black) hairs with silver ones on the moustache and cheeks, a
+        # whiter chin (the share of grey strands is a map, not one value), over a dark shadow
+        # (fuller and darker at the user's request, twice: denser, longer, further down the neck; then "too high, it
+        # almost reaches his eyes": the edge on the cheeks stays below the cheekbones and climbs gently to the sideburns)
+        # (the shadow under the strands is the beard's own dark mass: with the skin showing through, white strands over
+        # it read as frost)
+        beard=1.0, beard_extent=1.45, beard_cheek=-0.08, beard_fade=0.1, beard_rise=0.6, beard_color=(60, 55, 52), beard_shadow=1.9, beard_over_photo=0.9, beard_salt=0.2, beard_stroke=(5, 10),
+        beard_strand_color=(30, 26, 24), beard_grey_color=(176, 172, 166), beard_grey=0.18, beard_grey_chin=0.6, beard_len=0.009, beard_layers=9,
         lip_lum=-14, lip_chroma=1.7,
     ),
     'zapponi': dict(
@@ -106,5 +110,28 @@ PEOPLE = {
         body_hair=dict(legs=0.8, arms=0.8), body_hair_color=(35, 30, 28),
         beard=1.0, beard_color=(30, 24, 22), scalp_density=0.25, scalp_color=(60, 52, 48), scalp_shadow=0.15, scalp_rough=0.3,
         beard_strand_color=(34, 28, 26), beard_grey=0.08, beard_len=0.003, beard_layers=7,
+    ),
+    'noemi': dict(
+        display='NOEMÍ', photo='noemi.jpg', brow_boost=0.3, brow_color=(0.07, 0.04, 0.022),
+        # 49 years old, 1.68 m (height tuned by measuring the build), soft and curvy
+        body=dict(gender=0, age=0.685, muscle=0.4, weight=0.85, height=0.5601, proportions=0.5, caucasian=1, african=0, asian=0),
+        mods={'measure/measure-upperarm-length': 0.6, 'stomach/stomach-pregnant': 0.25, 'hip/hip-scale-horiz': 0.15,
+              'buttocks/buttocks-volume': 0.15, 'neck/neck-double': 0.35},
+        skin='middleage_lightskinned_female_diffuse', eyes='brownlight', hair=None, scalp=None,
+        # warm mid brown with golden ends (a share of the strands carries the lighter colour)
+        # (measured against noemi.jpg: her hair reads ~30% lighter and more golden than the first build)
+        hair_color=(0.24, 0.135, 0.058), hair_grey=0.36, hair_grey_color=[0.5, 0.33, 0.17], hair_color_auto=False,
+        # curly bob: parted on her left, swept over the top to her right, down past the ears to about the chin
+        hair_cards=dict(comb='bob', part_az=32, sweep=80, spread=1.06, back_spread=0.92, end_dy=0.02, back_dy=0.28, face_clear=56,
+                        curl=0.095, pitch=0.46, width=0.16, seg=0.14, atlas='hair_cards_curly_r.png', baby=0,
+                        layers=[(1500, 0.86, 0.025, 0.42, 0.12, 0.6), (1700, 1.0, 0.05, 0.62, 0.24, 1.0), (1100, 1.05, 0.075, 0.82, 0.33, 1.3)],
+                        crown_layers=[(900, 0.9, 0.04, 0.62, 0.14, 1.1)], top_lift=0.05, front_rise=10, edge_curls=120, edge_fall=0.35, edge_drop=6,
+                        # (her forehead is high: the hair's edge sits ~3 cm above the forehead landmark, lower at her
+                        # right temple where the swept hair comes down; a card hangs half its width below its root)
+                        hairline=dict(front=28, temple=22, tilt=-4, side=16, back=-40)),
+        hairline=dict(front=20, temple=15, side=14, back=-40),
+        glasses=None,
+        outfit='noemi', depth_scale=0.45, neutral_mouth=True, mouth_from_base=False, desmile=0.3, shoes=('shoes05', 'grey_white'),
+        scalp_density=1.0, scalp_color=(100, 74, 50), scalp_shadow=0.85,
     ),
 }

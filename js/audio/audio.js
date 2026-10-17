@@ -5,15 +5,15 @@ const ANN_TEXT = {
   round1: 'Ronda uno', round2: 'Ronda dos', round3: 'Ronda tres', round4: 'Ronda cuatro', round5: 'Ronda cinco',
   final: '¡Ronda final!', fight: '¡A luchar!', ko: 'K.O.', time: '¡Tiempo!', perfect: '¡Perfecto!', draw: '¡Empate!',
   win_alejandro: '¡Gana Alejandro!', win_arnau: '¡Gana Arnau!', win_camilo: '¡Gana Camilo!', win_rafa: '¡Gana Rafa!', win_zapponi: '¡Gana Zaponi!',
-  win_dani: '¡Gana Dani!',
+  win_dani: '¡Gana Dani!', win_noemi: '¡Gana Noemí!',
 };
 
 // background music: Kevin MacLeod (incompetech.com), CC BY 4.0 (see README)
-const MUSIC = { menu: 'assets/music/menu.mp3', terrace: 'assets/music/terrace.mp3', street: 'assets/music/street.mp3', porche: 'assets/music/porche.mp3' };
+const MUSIC = { menu: 'assets/music/menu.mp3', terrace: 'assets/music/terrace.mp3', street: 'assets/music/street.mp3', porche: 'assets/music/porche.mp3', festival: 'assets/music/festival.mp3' };
 
 // fighters' shouts: recorded voices (assets/voice/fx, see voices.json) and a pitch per fighter
 const FIGHTER_VOICE = { alejandro: ['vb', 1.0], arnau: ['h1', 1.05], camilo: ['h0', 1.0], rafa: ['h2', 0.93], zapponi: ['h3', 0.87],
-  dani: ['vb', 0.9] };
+  dani: ['vb', 0.9], noemi: ['f1', 0.97] };
 
 export class Audio {
   constructor() {
@@ -49,6 +49,8 @@ export class Audio {
     this.loadVoice();
     for (const v of this.pendingSets || []) this.loadVoiceSet(v);
     this.pendingSets = null;
+    for (const id of this.pendingQuotes || []) this.loadQuote(id);
+    this.pendingQuotes = null;
     // music and ambience asked for before the first touch start now (inside the touch, as iOS requires)
     if (this.wantMusic) this.music(this.wantMusic);
     if (this.wantAmb) this.ambience(this.wantAmb);
@@ -73,8 +75,58 @@ export class Audio {
       }
     });
   }
-  // fetch the voices of the fighters about to fight
-  preloadVoices(ids) { for (const id of ids) this.loadVoiceSet((FIGHTER_VOICE[id] || FIGHTER_VOICE.alejandro)[0]); }
+  // fetch the voices of the fighters about to fight (their shouts and their victory lines)
+  preloadVoices(ids) { for (const id of ids) { this.loadVoiceSet((FIGHTER_VOICE[id] || FIGHTER_VOICE.alejandro)[0]); this.loadQuote(id); } }
+  // a fighter's victory line (assets/voice/quote_<id>.mp3, made by tools/quotes_tts.py) and its loudness frame by
+  // frame, 60 a second: the jaw follows it while he says it (talkLevel)
+  loadQuote(id) {
+    if (!this.ctx) { (this.pendingQuotes ||= new Set()).add(id); return; }
+    this.quotes ||= {};
+    if (this.quotes[id]) return;
+    const q = this.quotes[id] = { buf: null, env: null };
+    fetch(`assets/voice/quote_${id}.mp3`)
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then(b => new Promise((ok, no) => this.ctx.decodeAudioData(b, ok, no)))
+      .then(buf => {
+        const d = buf.getChannelData(0), w = Math.max(1, Math.floor(buf.sampleRate / 60)), n = Math.ceil(d.length / w), env = new Float32Array(n);
+        let peak = 1e-6;
+        for (let i = 0; i < n; i++) {
+          let e = 0; const a = i * w, b = Math.min(d.length, a + w);
+          for (let j = a; j < b; j++) e += d[j] * d[j];
+          env[i] = Math.sqrt(e / Math.max(1, b - a)); peak = Math.max(peak, env[i]);
+        }
+        for (let i = 0; i < n; i++) env[i] /= peak;
+        q.buf = buf; q.env = env;
+      })
+      .catch(() => { /* no line: the win screen stays silent */ });
+  }
+  // the winner says his line, placed like his shouts, with a little of the arena's reverb
+  say(f) {
+    if (!this.enabled || !this.ctx) return;
+    const q = this.quotes?.[f.id];
+    if (!q?.buf) return;
+    const c = this.ctx, t = c.currentTime + 0.02;
+    const src = c.createBufferSource(); src.buffer = q.buf;
+    const g = c.createGain(); g.gain.value = 1.1;
+    src.connect(g).connect(this.pan(f.pos?.x)).connect(this.voiceBus);
+    const r = c.createGain(); r.gain.value = 0.1; g.connect(r).connect(this.revSend);
+    this.voiceSrc ||= {};
+    try { this.voiceSrc[f.id]?.stop(); } catch (e) { /* already ended */ }
+    this.voiceSrc[f.id] = src;
+    src.start(t);
+    // (the mouth runs on the page's clock: the audio clock can stall or race where there is no output device; what is
+    // heard comes out a little later than it is scheduled)
+    const lat = 0.02 + Math.min(0.25, c.outputLatency || c.baseLatency || 0);
+    (this.talk ||= {})[f.id] = { t0: performance.now() + lat * 1000, env: q.env, src };
+  }
+  // how loud a speaking fighter's line is right now (0..1): how far his mouth opens
+  talkLevel(id) {
+    const T = this.talk?.[id];
+    if (!T) return 0;
+    const i = Math.floor((performance.now() - T.t0) * 0.06);
+    if (i >= T.env.length) { delete this.talk[id]; return 0; }
+    return i >= 0 ? T.env[i] : 0;
+  }
   // announcer: recorded lines in Spanish (a neural voice, assets/voice/*.mp3), fetched once the audio context exists.
   // The browser's own speech synthesis is only the fallback when a clip is missing.
   loadVoice() {
@@ -199,6 +251,11 @@ export class Audio {
     else if (name === 'land') { this.tone(t, 0.12, { f0: 90, f1: 40, gain: 0.5, out }); this.noise(t, 0.1, { type: 'lowpass', f0: 800, gain: 0.3, out }); }
     else if (name === 'bodyfall') { this.tone(t, 0.3, { f0: 80, f1: 30, gain: 0.9, out, dist: true, rev: 0.3 }); this.noise(t, 0.35, { type: 'lowpass', f0: 1200, f1: 200, gain: 0.5, out, rev: 0.3 }); }
     else if (name === 'grab') this.noise(t, 0.2, { f0: 2000, q: 0.6, gain: 0.25, attack: 0.02, out });
+    else if (name === 'zap') {
+      // the defibrillator: a hum that drops away under a burst of crackles
+      this.tone(t, 0.32, { type: 'sawtooth', f0: 140, f1: 55, gain: 0.32, out, dist: true, rev: 0.25 });
+      for (let k = 0; k < 7; k++) this.noise(t + k * 0.028 + Math.random() * 0.012, 0.035, { type: 'bandpass', f0: 2500 + Math.random() * 3500, q: 1.6, gain: 0.42, out, rev: 0.15 });
+    }
     else if (name === 'block') this.hit('block', 1, pos);
     else if (name === 'ui') this.tone(t, 0.06, { type: 'triangle', f0: 880, f1: 660, gain: 0.15, out, rev: 0 });
     else if (name === 'uiok') { this.tone(t, 0.09, { type: 'triangle', f0: 660, f1: 990, gain: 0.2, out, rev: 0.1 }); this.tone(t + 0.07, 0.12, { type: 'triangle', f0: 990, f1: 1320, gain: 0.18, out }); }
@@ -279,10 +336,11 @@ export class Audio {
     if (!this.ctx) return;
     if (this.amb?.kind === kind) return;
     this.stopAmbience();
-    if (kind !== 'street') return;
+    // (the festival: the same crowd, further off, under the music)
+    if (kind !== 'street' && kind !== 'festival') return;
     const c = this.ctx;
     const out = c.createGain(); out.gain.value = 0; out.connect(this.master);
-    out.gain.linearRampToValueAtTime(0.35, c.currentTime + 2);
+    out.gain.linearRampToValueAtTime(kind === 'festival' ? 0.2 : 0.35, c.currentTime + 2);
     const swell = c.createGain(); swell.gain.value = 1; swell.connect(out);
     const amb = this.amb = { kind, out, swell, nodes: [] };
     this.loadBuffer('assets/sfx/crowd_loop.mp3').then(buf => {

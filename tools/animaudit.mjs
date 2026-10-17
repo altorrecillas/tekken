@@ -19,7 +19,7 @@ const { B1 } = await import(GAME + '/js/fight/input.js');
 // ------------------------------------------------------------------ args
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const ALL = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani'];
+const ALL = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi'];
 const FIGHTERS = (opt('fighters') || ALL.join(',')).split(',');
 const OPPS = (opt('opps') || 'camilo,zapponi').split(',');
 const ONLY_MOVES = opt('moves') ? opt('moves').split(',') : null;

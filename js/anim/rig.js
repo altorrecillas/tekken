@@ -12,6 +12,9 @@ const FIELDS = [
   ['footR', 3], ['kneeR', 3], ['footRotR', 3], ['toeR', 1],
   ['jaw', 1], ['look', 1], ['aimL', 1], ['aimR', 1],
   ['hgL', 1], ['hgPosL', 3], ['hgR', 1], ['hgPosR', 3],
+  // hand shapes on top of the fist: ptL/R straightens the index finger (pointing, wagging it), thL/R takes the thumb
+  // out of the fist (a thumbs up, a thumb on a phone's screen)
+  ['ptL', 1], ['thL', 1], ['ptR', 1], ['thR', 1],
 ];
 export const POSE = {};
 let off = 0;
@@ -155,7 +158,7 @@ export class Rig {
           addAxis = new THREE.Vector3().crossVectors(d, hd);
           if (addAxis.lengthSq() < 1e-8 || addAng < 0.02) addAxis = null; else addAxis.normalize();
         }
-        this.fingers[s].push({ n, axis, thumb: f === 1, j, opp, addAxis, addAng });
+        this.fingers[s].push({ n, axis, thumb: f === 1, index: f === 2, j, opp, addAxis, addAng });
       }
     }
     this.chestRest = R('spine01');
@@ -455,15 +458,19 @@ export class Rig {
     this._setLocalRaw(`wrist.${s}`, _q3.multiply(_q2));
     // fingers
     const fist = p[POSE['fist' + s][0]];
+    const pt = Math.min(1, Math.max(0, p[POSE['pt' + s][0]])), th = Math.min(1, Math.max(0, p[POSE['th' + s][0]]));
     for (const f of this.fingers[s]) {
       const bone = this.b[f.n];
       if (f.opp) {
-        _q2.setFromAxisAngle(f.opp, fist * Rig.THUMB_OPP);
-        _q3.setFromAxisAngle(f.axis, fist * Rig.THUMB_BASE);
+        // (a thumb out of the fist loses its opposition roll and points along the hand's side)
+        const k = fist * (1 - th);
+        _q2.setFromAxisAngle(f.opp, k * Rig.THUMB_OPP);
+        _q3.setFromAxisAngle(f.axis, k * Rig.THUMB_BASE - th * 0.35);
         bone.quaternion.copy(_q2).multiply(_q3);
         continue;
       }
-      const ang = f.thumb ? fist * (f.j === 2 ? 0.55 : 0.8) * Rig.THUMB_SIGN : fist * (f.j === 1 ? 1.35 : f.j === 2 ? 1.5 : 1.0) + 0.08;
+      const c = f.thumb ? fist * (1 - th) : f.index ? fist * (1 - pt) : fist;
+      const ang = f.thumb ? c * (f.j === 2 ? 0.55 : 0.8) * Rig.THUMB_SIGN : c * (f.j === 1 ? 1.35 : f.j === 2 ? 1.5 : 1.0) + 0.08 * (f.index ? 1 - pt : 1);
       bone.quaternion.setFromAxisAngle(f.axis, ang);
       if (f.addAxis) bone.quaternion.premultiply(_q3.setFromAxisAngle(f.addAxis, f.addAng * (0.45 + 0.4 * fist)));
     }

@@ -89,11 +89,17 @@ export class HUD {
     this.comboT[side] = 100;
   }
   // pick (0..1): which of his lines the winner says (online both phones pass the same, so both show the same)
-  winner(f, wins, pick = Math.random()) {
-    const quotes = f.style.quotes || ['¡Otra vez será!'];
-    this.winnerEl.innerHTML = `<div class="sub">GANADOR</div><div class="nm">${f.ch.meta.display}</div><div class="quote">“${quotes[Math.min(quotes.length - 1, Math.floor(pick * quotes.length))]}”</div>`;
+  winner(f, wins) {
+    this.winnerEl.innerHTML = `<div class="sub">GANADOR</div><div class="nm">${f.ch.meta.display}</div><div class="quote"></div>`;
     this.winnerEl.classList.add('show');
     this.wins.forEach((arr, i) => arr.forEach((el, k) => el.classList.toggle('on', k < wins[i])));
+  }
+  // the winner's line, when he says it (Match: on its frame of the win pose)
+  say(f) {
+    const q = this.winnerEl.querySelector('.quote');
+    if (!q || !f.style.say) return;
+    q.textContent = `“${f.style.say}”`;
+    q.classList.add('on');
   }
   update(match) {
     match.fighters.forEach((f, i) => {

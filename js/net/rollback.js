@@ -34,6 +34,7 @@ const PKT_INPUT = 0x31, HEAD = 20;
 export function packIn(i) { return ((i.dx + 1) & 3) | (((i.dy + 1) & 3) << 2) | ((i.held & 15) << 4) | ((i.pressed & 15) << 8); }
 export function unpackIn(v, out = {}) { out.dx = (v & 3) - 1; out.dy = ((v >> 2) & 3) - 1; out.held = (v >> 4) & 15; out.pressed = (v >> 8) & 15; return out; }
 export const NEUTRAL = packIn({ dx: 0, dy: 0, held: 0, pressed: 0 });
+const FINAL_EVERY = 120;
 // the guess for a frame not heard yet: the newest input known, held on, with no new press
 const predict = (v) => v & 0xff;
 
@@ -47,6 +48,9 @@ export class RollbackSession {
     this.poll = o.poll; this.send = o.send; this.sendRel = o.sendRel || (() => {});
     this.rtt = o.rtt || (() => 0);
     this.gate = o.gate || null; this.onFrame = o.onFrame || null;
+    // onFinal(frame, snap): every FINAL_EVERY frames, the snapshot of a frame's start once nothing can change it any
+    // more (every input before it confirmed): what a replay of a moment of the fight can start from
+    this.onFinal = o.onFinal || null;
     this.lin = new Uint16Array(HIST).fill(NEUTRAL); // this phone's inputs, by frame
     this.rin = new Uint16Array(HIST).fill(NEUTRAL); // the other phone's (confirmed)
     this.used = new Uint16Array(HIST);              // the other phone's input each frame was played with
@@ -88,6 +92,7 @@ export class RollbackSession {
     const F = this.frame, m = this.m, s = this.snaps[F % RING];
     saveMatch(m, s);
     if (F % CHECK_EVERY === 0 && F > 0) this._checkpoint(F, s);
+    if (this.onFinal && F % FINAL_EVERY === 0 && F - 1 <= this.rinMax) this.onFinal(F, s);
     this.simFrame = F;
     if (F > this.rinMax && !replay) this.stats.predicted++;
     if (this.gate) { this.gate.replay = replay; this.gate.frame = F; }

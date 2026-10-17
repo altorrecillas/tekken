@@ -148,5 +148,43 @@
    "h3/ko1.mp3",
    "h3/ko2.mp3"
   ]
+ },
+ "f1": {
+  "attack": [
+   "f1/attack0.mp3",
+   "f1/attack1.mp3",
+   "f1/attack2.mp3",
+   "f1/attack3.mp3",
+   "f1/attack4.mp3",
+   "f1/attack5.mp3",
+   "f1/attack6.mp3",
+   "f1/attack7.mp3",
+   "f1/attack8.mp3",
+   "f1/attack9.mp3",
+   "f1/attack10.mp3",
+   "f1/attack11.mp3"
+  ],
+  "hurt": [
+   "f1/hurt0.mp3",
+   "f1/hurt1.mp3",
+   "f1/hurt2.mp3",
+   "f1/hurt3.mp3",
+   "f1/hurt4.mp3",
+   "f1/hurt5.mp3",
+   "f1/hurt6.mp3",
+   "f1/hurt7.mp3",
+   "f1/hurt8.mp3"
+  ],
+  "hurtBig": [
+   "f1/hurtBig0.mp3",
+   "f1/hurtBig1.mp3",
+   "f1/hurtBig2.mp3",
+   "f1/hurtBig3.mp3",
+   "f1/hurtBig4.mp3"
+  ],
+  "ko": [
+   "f1/ko0.mp3",
+   "f1/ko1.mp3"
+  ]
  }
 }

@@ -14,4 +14,14 @@ h0/ h1/ h2/ h3/  (Camilo, Arnau, Rafa, Zapponi)
   Licencia: CC0 (también publicada como OGA-BY 3.0)
   Cambios: recortados, mezclados a mono y con el volumen igualado.
 
+f1/  (Noemí)
+  "Female Gruntwork - 1", por PlumpDev
+  https://opengameart.org/content/female-gruntwork-1
+  Licencia: CC-BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+  "Female Warrior Grunts", por SkyRae
+  https://opengameart.org/content/female-warrior-grunts
+  Licencia: CC-BY 3.0 (http://creativecommons.org/licenses/by/3.0/)
+  Cambios: separados en gritos sueltos, recortados, mezclados a mono y con el volumen igualado. Estos archivos
+  modificados se distribuyen bajo la licencia CC-BY-SA 4.0 (los de SkyRae, bajo CC-BY 3.0).
+
 voices.json indica qué clip es de ataque, de dolor, de golpe fuerte o de K.O. en cada voz.

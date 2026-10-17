@@ -2,7 +2,7 @@ import sys, numpy as np, cv2
 import mhlib as M
 from facefit import *
 from people import PEOPLE
-for pid in ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani']:
+for pid in ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi']:
     P = PEOPLE[pid]
     B = M.base()
     V = M.apply_targets(B['v'], M.macro_weights(P['body']))

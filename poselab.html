@@ -16,6 +16,8 @@ import { makeFighterMaterial } from './js/materials.js';
 import { Rig } from './js/anim/rig.js';
 if (new URLSearchParams(location.search).get('fs')) Rig.FINGER_SIGN = +new URLSearchParams(location.search).get('fs');
 import { LIB, makePose } from './js/anim/poses.js';
+import { Accessories } from './js/fx/accessories.js';
+import { STYLES } from './js/fight/styles.js';
 
 const q = new URLSearchParams(location.search);
 const ids = (q.get('ids') || 'alejandro').split(',');
@@ -43,8 +45,11 @@ for (let i = 0; i < n; i++) {
   const data = await loadCharacterData(ids[i % ids.length]);
   const ch = buildCharacter(data, makeFighterMaterial);
   const rig = new Rig(ch);
+  // (acc: the fighter's accessories too, a win-pose prop shown)
+  if (q.get('acc')) { new Accessories().attach(ch, STYLES[ids[i % ids.length]], data.meta); if (ch.winProp) ch.winProp.visible = true; }
   rig.lookTarget = new THREE.Vector3(0, 1.5, 3);
-  rig.apply(makePose(LIB[poses[i % poses.length]] || {}));
+  // (extra: pose fields on top of the named pose, as JSON: &extra={"fistR":1,"ptR":1})
+  rig.apply(makePose({ ...(LIB[poses[i % poses.length]] || {}), ...JSON.parse(q.get('extra') || '{}') }));
   const fmt = v => v.toArray().map(x => x.toFixed(3)).join(',');
   console.log('DBGPOS', ids[i % ids.length], 'head', fmt(rig.world.head.p), 'wristL', fmt(rig.world['wrist.L'].p), 'wristR', fmt(rig.world['wrist.R'].p), 'shL', fmt(rig.world['upperarm01.L'].p), 'shR', fmt(rig.world['upperarm01.R'].p));
   ch.group.position.x = (i - (n - 1) / 2) * 1.1;

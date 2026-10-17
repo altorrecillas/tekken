@@ -37,7 +37,7 @@ let ends = 0;
 await g(() => { window.__cards = []; const f = document.querySelector('#fade'); new MutationObserver(() => { if (f.classList.contains('busy')) window.__cards.push(document.querySelector('#fadeStep').textContent + ' | ' + document.querySelector('#fadeVs').textContent); }).observe(f, { attributes: true, attributeFilter: ['class'] }); });
 await g(() => { window.__ends = 0; const G = window.__game; const orig = G.onMatchEnd.bind(G); G.onMatchEnd = (m) => { window.__ends++; return orig(m); }; });
 const seen = [];
-const RIVALS = 5; // six fighters: everybody but the player's pick
+const RIVALS = await g(() => window.__game.roster.length - 1); // everybody but the player's pick
 for (let k = 0; k < RIVALS; k++) {
   // the loading card shows the matchup while the fight loads
   let card = '';
@@ -67,13 +67,22 @@ for (let k = 0; k < RIVALS; k++) {
   ok(after - before === 1, `fight ${k + 1}: match end handled ${after - before} time(s)`);
   const st = await g(() => ({ stage: window.__game.arcade?.stage, state: window.__game.state }));
   ok(st.stage === k + 1, `fight ${k + 1}: arcade moved exactly one step (now ${st.stage}, ${st.state})`);
+  // the results screen: on to the next rival (after the final: the champion); the presses on the win screen may
+  // already have taken the first button
+  const act = await g(() => { const b = document.querySelector('#overlay.on .actions button.primary[data-act]'); return b ? b.dataset.act : null; });
+  if (act) await p.click(`#overlay .actions button[data-act="${act}"]`);
 }
 ok(new Set(seen).size === RIVALS && !seen.includes('zapponi') && seen.includes('dani'), 'fought all the others: ' + seen.join(', '));
 ok(await waitFor(() => /CAMPEÓN/.test(document.querySelector('#overlay')?.textContent || ''), 30000, 'champion'), 'champion banner after the last fight');
+// (the final's CONTINUAR plays the champion's ending: a tap shows all of it, another goes on to the champion screen)
+ok(await waitFor(() => window.__game.state === 'ending' && !!document.querySelector('#ending.on'), 120000, 'ending'), 'the champion\'s ending');
+await p.waitForTimeout(400);
+await p.mouse.click(480, 270); await p.waitForTimeout(300); await p.mouse.click(480, 270);
+ok(await waitFor(() => !!document.querySelector('#overlay.on .actions [data-a="ok"]'), 60000, 'champion screen'), 'the champion screen');
 await p.click('#overlay .actions [data-a="ok"]');
 ok(await waitFor(() => window.__game.state === 'title' && !document.querySelector('#overlay').classList.contains('on'), 90000, 'title again'), 'MENÚ PRINCIPAL goes back to the title');
 const vc = await g(() => Object.keys(window.__game.audio.voiceClips || {}).length);
-ok(vc === 17, `announcer clips loaded: ${vc}/17`);
+ok(vc === 18, `announcer clips loaded: ${vc}/18`);
 ok(errs.length === 0, 'no page errors' + (errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''));
 console.log(results.filter(r => r.startsWith('PASS')).length + '/' + results.length + ' passed');
 await b.close(); srv.close();

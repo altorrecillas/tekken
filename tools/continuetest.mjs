@@ -50,6 +50,8 @@ try {
   await p.goto(URL_);
   await title();
   check(await contBtn() === null, 'a fresh device: no CONTINUAR on the title');
+  const N = await p.evaluate(() => window.__game.roster.length - 1); // (rivals in the ladder)
+  const rung = (k) => new RegExp(`${k}/${N}`);
 
   // ---------------------------------------------------------------- an arcade fight under way
   await p.click('#title .menu button[data-act="arcade"]');
@@ -77,7 +79,7 @@ try {
   await p.goto(URL_);
   await title();
   const lbl = await contBtn();
-  check(!!lbl && /CONTINUAR/.test(lbl) && /ARCADE/.test(lbl) && /1\/5/.test(lbl), `reopened: the title offers "${lbl}"`);
+  check(!!lbl && /CONTINUAR/.test(lbl) && /ARCADE/.test(lbl) && rung(1).test(lbl), `reopened: the title offers "${lbl}"`);
   check(await p.evaluate(() => document.querySelector('#title .menu button.sel')?.dataset.act) === 'continue', 'CONTINUAR comes first and is selected');
   await p.screenshot({ path: path.join(OUT, 'continue_title.png') });
 
@@ -110,7 +112,7 @@ try {
   const atQuit = await state();
   await p.click('#pause .menu.local [data-act="quit"]');
   await title();
-  check(/1\/5/.test(await contBtn() || ''), 'back at the title, CONTINUAR is still there');
+  check(rung(1).test(await contBtn() || ''), 'back at the title, CONTINUAR is still there');
   // (the game sent to the background at the title must not overwrite the saved moment)
   await p.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { value: false, configurable: true }); });
   await p.click('#title .menu button[data-act="continue"]');
@@ -121,23 +123,32 @@ try {
   // ---------------------------------------------------------------- a fight won: CONTINUAR moves to the next rival
   await waitFor(() => !(window.__game.resumeT > 0), null, 10000, 'countdown over');
   await p.evaluate(() => { const m = window.__game.match; m.wins[0] = (m.opts.rounds || 2) - 1; m.endRound(0, 'ko'); });
+  // (the results screen of the fight: SIGUIENTE COMBATE)
+  await waitFor(() => window.__game.state === 'results', null, 180000, 'results');
+  await p.click('#overlay .actions button[data-act="next"]');
   await waitFor(() => window.__game.arcade.stage === 1 && window.__game.state === 'fight' && window.__game.match.phase === 'intro', null, 180000, 'next fight');
   const s2 = await p.evaluate(() => JSON.parse(localStorage.getItem('pdb_save')));
   check(s2 && s2.arcade.stage === 1 && s2.fight === null, 'a fight won: the run is saved at the next rival, from its start');
   await p.goto(URL_);
   await title();
-  check(/2\/5/.test(await contBtn() || ''), `reopened: "${await contBtn()}"`);
+  check(rung(2).test(await contBtn() || ''), `reopened: "${await contBtn()}"`);
 
   // ---------------------------------------------------------------- the last fight won: nothing left to continue
   await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('pdb_save')); s.arcade.stage = s.arcade.ladder.length - 1; s.fight = null; localStorage.setItem('pdb_save', JSON.stringify(s)); });
   await p.goto(URL_);
   await title();
-  check(/5\/5/.test(await contBtn() || ''), 'a run at the last rival: CONTINUAR 5/5');
+  check(rung(N).test(await contBtn() || ''), `a run at the last rival: CONTINUAR ${N}/${N}`);
   await p.click('#title .menu button[data-act="continue"]');
   await waitFor(() => window.__game.state === 'fight' && window.__game.match?.phase === 'intro', null, 120000, 'last fight');
   await p.evaluate(() => { const m = window.__game.match; m.startRound(); m.wins[0] = (m.opts.rounds || 2) - 1; m.endRound(0, 'ko'); });
   await waitFor(() => /CAMPEÓN/.test(document.querySelector('#overlay')?.textContent || ''), null, 180000, 'champion');
   check(await p.evaluate(() => localStorage.getItem('pdb_save')) === null, 'champion: the run is over, nothing left to continue');
+  await p.click('#overlay .actions button[data-act="champ"]');
+  // (the champion's ending first: a tap shows all of it, another goes on)
+  await waitFor(() => window.__game.state === 'ending' && !!document.querySelector('#ending.on'), null, 120000, 'the ending');
+  await p.waitForTimeout(400);
+  await p.mouse.click(450, 250); await p.waitForTimeout(300); await p.mouse.click(450, 250);
+  await waitFor(() => !!document.querySelector('#overlay.on .actions [data-a="ok"]'), null, 30000, 'champion banner');
   await p.click('#overlay .actions [data-a="ok"]');
   await title();
   check(await contBtn() === null, 'and the title shows no CONTINUAR');

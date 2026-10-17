@@ -84,8 +84,11 @@ def hairline_mask(frame, pos, valid, front_el, temple_el, side_el=16.0, back_el=
     return m
 
 
-def beard_mask(frame, pos, valid, extent=1.0, seed=2, sideburn=True, goatee=0.0, lip_clear=0.34, cheek=0.0):
-    """Beard region from 3D rules: jaw, chin, under-chin, upper lip, sideburns."""
+def beard_mask(frame, pos, valid, extent=1.0, seed=2, sideburn=True, goatee=0.0, lip_clear=0.34, cheek=0.0, fade=0.08, rise=1.0):
+    """Beard region from 3D rules: jaw, chin, under-chin, upper lip, sideburns.
+    fade: dm over which the beard thins out towards its upper edge on the cheeks (a full beard of several days has no
+    hard line there: at game distance one reads as a mask). rise: how steeply the upper edge climbs from the cheeks to
+    the sideburns (1 = up to eye height by the ear)."""
     el, az = frame.angles(pos)
     lm = frame.lm
     mouth_y = (lm[61][1] + lm[291][1]) / 2
@@ -98,8 +101,8 @@ def beard_mask(frame, pos, valid, extent=1.0, seed=2, sideburn=True, goatee=0.0,
     top_front = nose_y - 0.05
     # (cheek: dm higher up the cheeks, for a fuller beard of several days)
     top_side = (nose_y + mouth_y) / 2 + 0.1 + cheek
-    top = np.interp(a, [0, 35, 70, 90], [top_front, top_side, top_side + 0.25, top_side + 0.6])
-    lower = smoothstep(top + 0.08, top - 0.08, y)
+    top = np.interp(a, [0, 35, 70, 90], [top_front, top_side, top_side + 0.25 * rise, top_side + 0.6 * rise])
+    lower = smoothstep(top + fade, top - fade, y)
     # stop on the neck: under the chin, fade out ~0.55 dm behind/below chin
     neck_fade = smoothstep(chin[1] - 0.95 * extent, chin[1] - 0.35 * extent, y)
     front = smoothstep(-5, 25, 90 - a)  # fade towards the ears
