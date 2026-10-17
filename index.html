@@ -84,6 +84,8 @@ button { touch-action: manipulation; }
 .sel-info .big { font-size: min(8vw, 96px); line-height: .85; letter-spacing: .03em; text-shadow: 0 5px 0 #000; }
 .sel-info .ttl { font-family: 'Teko'; font-size: 26px; color: var(--gold); letter-spacing: .2em; }
 .sel-info .dsc { font-family: 'Rajdhani'; font-size: 17px; color: #cfc8bb; max-width: 360px; margin-top: 6px; display: inline-block; }
+/* (a short window: the description goes, or the costume row slips under the cards) */
+@media (max-height: 700px) { .sel-info .dsc { display: none; } }
 .sel-info .stats { margin-top: 12px; font-family: 'Rajdhani'; font-size: 14px; letter-spacing: .1em; color: #aaa; }
 .stat { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
 .right .stat { justify-content: flex-end; }
