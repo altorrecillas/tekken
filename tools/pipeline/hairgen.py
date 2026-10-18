@@ -13,12 +13,13 @@ def smoothstep(e0, e1, x):
     return t * t * (3 - 2 * t)
 
 
-def strand_atlas(seed=0, curly=False, roots_v0=False):
+def strand_atlas(seed=0, curly=False, roots_v0=False, root_fade=0.0):
     """RGBA atlas: NVAR vertical card variants side by side. White-ish strands, alpha tapered at the tip.
     The strands are drawn from the top row down, and textures load with flipY, so in the first atlases (hair_cards.png,
     hair_cards_curly.png) a card's root (v=0) gets the strands' faded tips and its tip the dense roots: the first
     quarter of every card is almost transparent. roots_v0 flips the image so the dense roots sit at v=0 as intended
-    (the *_r.png atlases)."""
+    (the *_r.png atlases). root_fade: the share of the card's length, from its root, over which the strands fade in
+    (the *_s.png atlases: dense hair whose cards do not draw a hard line along the hairline)."""
     rng = np.random.default_rng(seed)
     img = np.zeros((ATLAS_H, ATLAS_W, 4), np.float32)
     cw = ATLAS_W // NVAR
@@ -40,6 +41,9 @@ def strand_atlas(seed=0, curly=False, roots_v0=False):
             tmp = np.zeros((ATLAS_H, cw), np.float32)
             cv2.polylines(tmp, [np.round(pts * 4).astype(np.int32)], False, 1.0, max(1, int(wid)), cv2.LINE_AA, shift=2)
             taper = np.clip(1.25 - np.arange(ATLAS_H) / max(length, 1), 0, 1)[:, None]
+            if root_fade > 0:
+                y_ = np.arange(ATLAS_H) / (root_fade * ATLAS_H)
+                taper = taper * (np.clip(y_, 0, 1) ** 2 * (3 - 2 * np.clip(y_, 0, 1)))[:, None]
             a = tmp * taper
             layer[..., 0] = np.maximum(layer[..., 0], a)
             layer[..., 1] = np.where(a > layer[..., 1] * 0.5, val, layer[..., 1])

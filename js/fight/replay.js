@@ -84,7 +84,7 @@ export function quietFacade(g) {
   return {
     st,
     // (the winner's line is left out: the play ends on his first moments of glory, it would be cut off)
-    fx: wrap(g.fx), hud: wrap(g.hud, [], ['say']), audio: wrap(g.audio, ['talkLevel'], ['say']), camCtl: wrap(g.camCtl, ['right', 'forwardFlat']),
+    fx: wrap(g.fx), hud: wrap(g.hud, [], ['say', 'introLine']), audio: wrap(g.audio, ['talkLevel'], ['say', 'line', 'hush']), camCtl: wrap(g.camCtl, ['right', 'forwardFlat']),
     get stage() { return g.stage; },
     ragdolls: { clear() { g.ragdolls.clear(); }, freeze() { if (!st.quiet) g.ragdolls.freeze(); } },
     onKO(att, def, p) { if (!st.quiet) g.onKO(att, def, p); },

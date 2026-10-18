@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 
 const _cv = new THREE.Vector3();
+const _UP = new THREE.Vector3(0, 1, 0);
 function damp(cur, tgt, lambda, dt) { return THREE.MathUtils.lerp(cur, tgt, 1 - Math.exp(-lambda * dt)); }
 function dampV(cur, tgt, lambda, dt) { return cur.lerp(tgt, 1 - Math.exp(-lambda * dt)); }
 
@@ -30,9 +31,11 @@ export class FightCamera {
   }
   right() { return this._right; }
   forwardFlat() { return this._fwd; }
-  shake(a) { this.trauma = Math.min(1, this.trauma + a); }
-  punch(att, a) { this.punchAmt = Math.max(this.punchAmt, a); }
+  // (shakeScale: OPCIONES -> Temblor de cámara)
+  shake(a) { this.trauma = Math.min(1, this.trauma + a * (this.shakeScale ?? 1)); }
+  punch(att, a) { this.punchAmt = Math.max(this.punchAmt, a * (this.shakeScale ?? 1)); }
   setMode(m, snap = false, focus = null) {
+    if (m === 'fight' && snap) this.sweepDir = -(this.sweepDir || -1);
     this.mode = m; this.modeT = 0; this.focus = focus; this._koSide = false;
     if (snap) this.snap = true;
   }
@@ -68,11 +71,22 @@ export class FightCamera {
       dist = Math.max(dist, (top + 0.12 - tl.y) / Math.tan(fov * Math.PI / 360) / 0.9);
       tp.copy(mid).addScaledVector(this.normal, dist).setY(1.22 + lift * 0.45 + sep * 0.04);
       fov = 34;
+      // a new round (the match's 'ready' phase: RONDA N, ¡A LUCHAR!): the camera swings in from a wider, higher angle,
+      // from one side and then the other round after round, and lands on the fight's framing as the fight starts
+      if (this.readyT != null && this.mode === 'fight') {
+        const k0 = Math.max(0, 1 - this.readyT / 1.6), k = k0 * k0 * (3 - 2 * k0);
+        if (k > 0) {
+          const off = _cv.subVectors(tp, tl).applyAxisAngle(_UP, k * 0.6 * (this.sweepDir || 1)).multiplyScalar(1 + k * 0.4);
+          off.y += k * 0.45;
+          tp.copy(tl).add(off);
+        }
+      }
     } else if (this.mode === 'intro') {
-      // driven by the match clock so the cut to the second fighter matches the name card even at low fps
-      const t = this.introT ?? this.modeT;
-      const f = t < 1.68 ? a : b;
-      const lt = t < 1.68 ? t : t - 1.68;
+      // driven by the match clock so the cut to the second fighter matches the name card even at low fps; each shot
+      // lasts as long as the fighter's line (Match.startIntro) and the camera covers the same move over it
+      const t = this.introT ?? this.modeT, cut = this.introCut || 1.68, end = Math.max(cut + 0.5, this.introEnd || 3.67);
+      const f = t < cut ? a : b;
+      const lt = (t < cut ? t / cut : (t - cut) / (end - cut)) * 1.68;
       const fp = f.pos;
       const facing = new THREE.Vector3(Math.sin(f.yaw), 0, Math.cos(f.yaw));
       const side = new THREE.Vector3(-facing.z, 0, facing.x);

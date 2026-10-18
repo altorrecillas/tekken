@@ -1,4 +1,5 @@
-// Audio engine: synthesized impacts, recorded voices (announcer, shouts), recorded music and crowd.
+// Audio engine: recorded impacts, swishes and footsteps (with synthesized layers for weight), recorded voices
+// (announcer, shouts, lines), recorded music and crowd.
 
 // announcer lines (the clip files in assets/voice/ say the same; the text is the speech-synthesis fallback)
 const ANN_TEXT = {
@@ -10,6 +11,14 @@ const ANN_TEXT = {
 
 // background music: Kevin MacLeod (incompetech.com), CC BY 4.0 (see README)
 const MUSIC = { menu: 'assets/music/menu.mp3', terrace: 'assets/music/terrace.mp3', street: 'assets/music/street.mp3', porche: 'assets/music/porche.mp3', festival: 'assets/music/festival.mp3' };
+
+// each stage's background loop (see ambience) and its level under the music; a crowd cheers on a knockout
+const AMBIENCE = {
+  street: { file: 'assets/sfx/crowd_loop.mp3', gain: 0.35, crowd: true },
+  festival: { file: 'assets/sfx/crowd_loop.mp3', gain: 0.2, crowd: true },
+  porche: { file: 'assets/sfx/amb_porche.mp3', gain: 0.32 },
+  terrace: { file: 'assets/sfx/amb_terrace.mp3', gain: 0.3 },
+};
 
 // fighters' shouts: recorded voices (assets/voice/fx, see voices.json) and a pitch per fighter
 const FIGHTER_VOICE = { alejandro: ['vb', 1.0], arnau: ['h1', 1.05], camilo: ['h0', 1.0], rafa: ['h2', 0.93], zapponi: ['h3', 0.87],
@@ -38,7 +47,10 @@ export class Audio {
     comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.18;
     this.master.connect(comp).connect(c.destination);
     this.sfxBus = c.createGain(); this.sfxBus.gain.value = this.vol.sfx; this.sfxBus.connect(this.master);
-    this.musicBus = c.createGain(); this.musicBus.gain.value = this.vol.music; this.musicBus.connect(this.master);
+    // the music and the stage's background go through one low-pass filter, open but for slow motion (slowmo)
+    this.worldLP = c.createBiquadFilter(); this.worldLP.type = 'lowpass'; this.worldLP.frequency.value = 20000; this.worldLP.Q.value = 0.5;
+    this.worldLP.connect(this.master);
+    this.musicBus = c.createGain(); this.musicBus.gain.value = this.vol.music; this.musicBus.connect(this.worldLP);
     this.voiceBus = c.createGain(); this.voiceBus.gain.value = this.vol.voice; this.voiceBus.connect(this.master);
     // reverb send (outdoor slap + short tail)
     this.rev = c.createConvolver(); this.rev.buffer = this.impulse(1.6, 3.2);
@@ -47,10 +59,11 @@ export class Audio {
     this.noiseBuf = this.makeNoise(2);
     this.shaper = c.createWaveShaper(); this.shaper.curve = this.distCurve(18);
     this.loadVoice();
+    this.loadTakes();
     for (const v of this.pendingSets || []) this.loadVoiceSet(v);
     this.pendingSets = null;
-    for (const id of this.pendingQuotes || []) this.loadQuote(id);
-    this.pendingQuotes = null;
+    for (const key of this.pendingLines || []) this.loadLine(...key.split(':').reverse());
+    this.pendingLines = null;
     // music and ambience asked for before the first touch start now (inside the touch, as iOS requires)
     if (this.wantMusic) this.music(this.wantMusic);
     if (this.wantAmb) this.ambience(this.wantAmb);
@@ -75,16 +88,18 @@ export class Audio {
       }
     });
   }
-  // fetch the voices of the fighters about to fight (their shouts and their victory lines)
-  preloadVoices(ids) { for (const id of ids) { this.loadVoiceSet((FIGHTER_VOICE[id] || FIGHTER_VOICE.alejandro)[0]); this.loadQuote(id); } }
-  // a fighter's victory line (assets/voice/quote_<id>.mp3, made by tools/quotes_tts.py) and its loudness frame by
-  // frame, 60 a second: the jaw follows it while he says it (talkLevel)
-  loadQuote(id) {
-    if (!this.ctx) { (this.pendingQuotes ||= new Set()).add(id); return; }
-    this.quotes ||= {};
-    if (this.quotes[id]) return;
-    const q = this.quotes[id] = { buf: null, env: null };
-    fetch(`assets/voice/quote_${id}.mp3`)
+  // fetch the voices of the fighters about to fight (their shouts, their presentation and victory lines)
+  preloadVoices(ids) { for (const id of ids) { this.loadVoiceSet((FIGHTER_VOICE[id] || FIGHTER_VOICE.alejandro)[0]); this.loadLine(id, 'intro'); this.loadLine(id, 'quote'); } }
+  // a fighter's spoken line, made by tools/quotes_tts.py: 'quote' his victory line (assets/voice/quote_<id>.mp3),
+  // 'intro' his line in the fight's presentation (intro_<id>.mp3); with its loudness frame by frame, 60 a second:
+  // the jaw follows it while he says it (talkLevel)
+  loadLine(id, kind = 'quote') {
+    const key = kind + ':' + id;
+    if (!this.ctx) { (this.pendingLines ||= new Set()).add(key); return; }
+    this.lines ||= {};
+    if (this.lines[key]) return;
+    const q = this.lines[key] = { buf: null, env: null };
+    fetch(`assets/voice/${kind}_${id}.mp3`)
       .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
       .then(b => new Promise((ok, no) => this.ctx.decodeAudioData(b, ok, no)))
       .then(buf => {
@@ -98,12 +113,14 @@ export class Audio {
         for (let i = 0; i < n; i++) env[i] /= peak;
         q.buf = buf; q.env = env;
       })
-      .catch(() => { /* no line: the win screen stays silent */ });
+      .catch(() => { /* no line: he stays silent */ });
   }
-  // the winner says his line, placed like his shouts, with a little of the arena's reverb
-  say(f) {
+  // the winner says his victory line
+  say(f) { this.line(f, 'quote'); }
+  // a fighter says one of his lines, placed like his shouts, with a little of the arena's reverb
+  line(f, kind) {
     if (!this.enabled || !this.ctx) return;
-    const q = this.quotes?.[f.id];
+    const q = this.lines?.[kind + ':' + f.id];
     if (!q?.buf) return;
     const c = this.ctx, t = c.currentTime + 0.02;
     const src = c.createBufferSource(); src.buffer = q.buf;
@@ -114,10 +131,37 @@ export class Audio {
     try { this.voiceSrc[f.id]?.stop(); } catch (e) { /* already ended */ }
     this.voiceSrc[f.id] = src;
     src.start(t);
+    this.duck(q.buf.duration);
     // (the mouth runs on the page's clock: the audio clock can stall or race where there is no output device; what is
     // heard comes out a little later than it is scheduled)
     const lat = 0.02 + Math.min(0.25, c.outputLatency || c.baseLatency || 0);
     (this.talk ||= {})[f.id] = { t0: performance.now() + lat * 1000, env: q.env, src };
+  }
+  // slow motion (a knockout, a Rage Art): the music and the background sink away under a muffle while the blows and
+  // the voices stay crisp; they come back when time runs again
+  slowmo(on) {
+    if (!this.ctx || !this.worldLP) return;
+    const t = this.ctx.currentTime, f = this.worldLP.frequency;
+    f.cancelScheduledValues(t); f.setValueAtTime(Math.max(40, f.value), t);
+    f.exponentialRampToValueAtTime(on ? 650 : 20000, t + (on ? 0.12 : 0.7));
+  }
+  // the music steps back while someone speaks (a line must be understood over it) and comes back after
+  duck(sec) {
+    const g = this.musicBus?.gain;
+    if (!g) return;
+    const t = this.ctx.currentTime, base = this.vol.music;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(base * 0.55, t + 0.15);
+    g.setValueAtTime(base * 0.55, t + Math.max(0.2, sec - 0.2));
+    g.linearRampToValueAtTime(base, t + sec + 0.5);
+  }
+  // the fighters stop talking (the presentation skipped)
+  hush() {
+    for (const id in this.voiceSrc || {}) { try { this.voiceSrc[id].stop(); } catch (e) { /* already ended */ } }
+    this.voiceSrc = {};
+    this.talk = {};
+    const g = this.musicBus?.gain;
+    if (g) { const t = this.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(this.vol.music, t + 0.3); }
   }
   // how loud a speaking fighter's line is right now (0..1): how far his mouth opens
   talkLevel(id) {
@@ -166,6 +210,46 @@ export class Audio {
     p.pan.value = Math.max(-0.8, Math.min(0.8, (x || 0) * 0.25));
     return p;
   }
+  // ------------------------------------------------------------------ recorded effects
+  // the fight's recorded effects (assets/sfx/fight.mp3 + fight.json, made by tools/sfx_build.py): one file, a table of
+  // takes per group. The table is shifted by where its sync point really lands in the decoded file (an MP3 decoder may
+  // add or trim a few milliseconds of silence at the start). Until it has loaded the synthesized sounds play.
+  loadTakes() {
+    if (this.takesLoading || !this.ctx) return;
+    this.takesLoading = true;
+    const bin = fetch('assets/sfx/fight.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))));
+    Promise.all([fetch('assets/sfx/fight.json').then(r => r.json()), bin])
+      .then(([tab, b]) => new Promise((ok, no) => this.ctx.decodeAudioData(b, (buf) => ok([tab, buf]), no)))
+      .then(([tab, buf]) => {
+        const d = buf.getChannelData(0), sr = buf.sampleRate;
+        const a = Math.max(0, Math.floor((tab.sync - 0.06) * sr)), e = Math.min(d.length, Math.floor((tab.sync + 0.12) * sr));
+        let pk = 0;
+        for (let i = a; i < e; i++) pk = Math.max(pk, Math.abs(d[i]));
+        let at = a;
+        while (at < e && Math.abs(d[at]) <= pk * 0.2) at++;
+        const shift = Math.max(-0.05, Math.min(0.1, at / sr - tab.sync));
+        const groups = {};
+        for (const [g, list] of Object.entries(tab.groups)) groups[g] = list.map(([t, dur]) => [t + shift, dur]);
+        this.takes = { buf, groups, last: {} };
+      })
+      .catch(() => { this.takesLoading = false; /* the synthesized sounds stay */ });
+  }
+  // one take of a group: at random but never the one just played, a little higher or lower and louder or softer
+  // each time (no two punches sound the same)
+  take(g, t, { out, gain = 1, rate = 1, rev = 0, vary = 0.05 } = {}) {
+    const T = this.takes, list = T?.groups[g];
+    if (!list?.length) return;
+    let i = Math.floor(Math.random() * list.length);
+    if (list.length > 1 && i === T.last[g]) i = (i + 1 + Math.floor(Math.random() * (list.length - 1))) % list.length;
+    T.last[g] = i;
+    const [off, dur] = list[i], c = this.ctx;
+    const s = c.createBufferSource(); s.buffer = T.buf;
+    s.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * vary);
+    const gn = c.createGain(); gn.gain.value = gain * (1 + (Math.random() * 2 - 1) * 0.12);
+    s.connect(gn).connect(out);
+    if (rev) { const r = c.createGain(); r.gain.value = rev; gn.connect(r).connect(this.revSend); }
+    s.start(t, off, dur);
+  }
   // ------------------------------------------------------------------ primitives
   noise(t, dur, { type = 'bandpass', f0 = 1000, f1 = null, q = 1, gain = 0.5, attack = 0.002, out, rev = 0.2 }) {
     const c = this.ctx;
@@ -197,11 +281,57 @@ export class Audio {
     o.start(t); o.stop(t + dur + 0.05);
   }
   // ------------------------------------------------------------------ game sounds
-  hit(kind, power = 1, pos) {
+  // a blow landing: the recorded punch (light or heavy) with a body thud under kicks and big blows, a woody knock for a
+  // block, a crack for an open hand; o.ch (counter hit) adds a sharp crack, o.ko (the blow that knocks him out) a deep
+  // boom with a long tail
+  hit(kind, power = 1, pos, o = {}) {
     if (!this.ctx || !this.enabled) return;
     const c = this.ctx, t = c.currentTime + 0.001;
     const out = this.pan(pos?.x); out.connect(this.sfxBus);
-    const p = power;
+    const p = Math.min(1.35, power);
+    if (!this.takes) { this.hitSynth(kind, p, out, t); return; }
+    switch (kind) {
+      case 'light':
+        this.take('punchL', t, { out, gain: 0.72 * p, rate: 1.06, rev: 0.12 });
+        break;
+      case 'kick':
+        this.take('punchL', t, { out, gain: 0.66 * p, rate: 0.9, rev: 0.12 });
+        this.take('thudM', t + 0.004, { out, gain: 0.55 * p });
+        break;
+      case 'heavy':
+        this.take('punchH', t, { out, gain: 0.92 * p, rev: 0.25 });
+        this.take('thudM', t + 0.006, { out, gain: 0.45 });
+        this.tone(t, 0.22, { f0: 120, f1: 38, gain: 0.3 * p, out, rev: 0 });
+        break;
+      case 'kickHeavy':
+        this.take('punchH', t, { out, gain: 0.92 * p, rate: 0.88, rev: 0.3 });
+        this.take('thudH', t + 0.004, { out, gain: 0.5 * p, rate: 1.1 });
+        break;
+      case 'slap':
+        this.take('slap', t, { out, gain: 1.5, rate: 1.12, rev: 0.15 });
+        this.noise(t, 0.035, { type: 'highpass', f0: 2600, gain: 0.55 * p, out, rev: 0.12 });
+        break;
+      case 'block':
+        this.take('block', t, { out, gain: 1.7 * Math.min(1.2, p), rev: 0.1 });
+        this.take('thudM', t, { out, gain: 0.25, rate: 1.3 });
+        break;
+      case 'slam':
+        this.take('thudH', t, { out, gain: 1.0, rate: 0.9, rev: 0.4 });
+        this.take('punchH', t + 0.01, { out, gain: 0.6, rate: 0.75, rev: 0.4 });
+        this.tone(t, 0.5, { f0: 85, f1: 26, gain: 0.55, out, dist: true, rev: 0.3 });
+        break;
+    }
+    if (o.ch) {
+      this.take('slap', t, { out, gain: 1.1, rate: 1.35, vary: 0.03, rev: 0.2 });
+      this.noise(t, 0.05, { type: 'highpass', f0: 3800, gain: 0.45, out, rev: 0.25 });
+    }
+    if (o.ko) {
+      this.take('thudH', t + 0.01, { out, gain: 1.0, rate: 0.78, vary: 0.02, rev: 0.7 });
+      this.tone(t, 0.95, { f0: 72, f1: 22, gain: 0.7, out, dist: true, rev: 0.6 });
+    }
+  }
+  // the synthesized blows (until the recorded ones have loaded)
+  hitSynth(kind, p, out, t) {
     switch (kind) {
       case 'light':
         this.tone(t, 0.09, { f0: 190, f1: 70, gain: 0.7 * p, out });
@@ -237,20 +367,42 @@ export class Audio {
         break;
     }
   }
-  whoosh(kind, power = 1) {
+  // a limb swinging through the air, a few frames before it lands (Match: pendingWhoosh)
+  whoosh(kind, power = 1, pos) {
     if (!this.ctx || !this.enabled) return;
-    const t = this.ctx.currentTime + 0.02;
+    const t = this.ctx.currentTime + 0.003;
     const heavy = kind === 'heavy' || kind === 'kick';
-    this.noise(t, heavy ? 0.24 : 0.14, { f0: heavy ? 900 : 1600, f1: heavy ? 350 : 700, q: 1.6, gain: heavy ? 0.28 : 0.16, attack: 0.05, out: this.sfxBus, rev: 0.05 });
+    const out = this.pan(pos?.x); out.connect(this.sfxBus);
+    if (this.takes) {
+      this.take(heavy ? 'swishH' : 'swishL', t, { out, gain: (heavy ? 0.5 : 0.34) * Math.min(1.2, power), rate: kind === 'kick' ? 0.84 : heavy ? 0.93 : 1.08, vary: 0.07, rev: 0.04 });
+      return;
+    }
+    this.noise(t, heavy ? 0.24 : 0.14, { f0: heavy ? 900 : 1600, f1: heavy ? 350 : 700, q: 1.6, gain: heavy ? 0.28 : 0.16, attack: 0.05, out, rev: 0.05 });
   }
   play(name, pos) {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
     const out = this.pan(pos?.x); out.connect(this.sfxBus);
-    if (name === 'step') this.noise(t, 0.07, { type: 'lowpass', f0: 600, gain: 0.25, out, rev: 0.05 });
-    else if (name === 'land') { this.tone(t, 0.12, { f0: 90, f1: 40, gain: 0.5, out }); this.noise(t, 0.1, { type: 'lowpass', f0: 800, gain: 0.3, out }); }
-    else if (name === 'bodyfall') { this.tone(t, 0.3, { f0: 80, f1: 30, gain: 0.9, out, dist: true, rev: 0.3 }); this.noise(t, 0.35, { type: 'lowpass', f0: 1200, f1: 200, gain: 0.5, out, rev: 0.3 }); }
-    else if (name === 'grab') this.noise(t, 0.2, { f0: 2000, q: 0.6, gain: 0.25, attack: 0.02, out });
+    // (footsteps on the stage's floor: concrete, or the festival's wooden platform; `surface` is set with the stage)
+    const step = this.surface === 'wood' ? 'stepW' : 'stepC', rec = !!this.takes;
+    if (name === 'step') {
+      if (rec) this.take(step, t, { out, gain: step === 'stepW' ? 0.38 : 0.6, rev: 0.05, vary: 0.08 });
+      else this.noise(t, 0.07, { type: 'lowpass', f0: 600, gain: 0.25, out, rev: 0.05 });
+    } else if (name === 'land') {
+      if (rec) { this.take(step, t, { out, gain: step === 'stepW' ? 0.6 : 0.95, rate: 0.9 }); this.take('thudM', t, { out, gain: 0.5 }); }
+      else { this.tone(t, 0.12, { f0: 90, f1: 40, gain: 0.5, out }); this.noise(t, 0.1, { type: 'lowpass', f0: 800, gain: 0.3, out }); }
+    } else if (name === 'bodyfall') {
+      // the body hits the floor and bounces once
+      if (rec) {
+        this.take('thudH', t, { out, gain: 0.95, rev: 0.3 });
+        this.take('thudM', t + 0.11, { out, gain: 0.4, rate: 1.1 });
+        this.take(step, t + 0.02, { out, gain: 0.7, rate: 0.8 });
+        this.tone(t, 0.3, { f0: 80, f1: 30, gain: 0.4, out, dist: true, rev: 0.3 });
+      } else { this.tone(t, 0.3, { f0: 80, f1: 30, gain: 0.9, out, dist: true, rev: 0.3 }); this.noise(t, 0.35, { type: 'lowpass', f0: 1200, f1: 200, gain: 0.5, out, rev: 0.3 }); }
+    } else if (name === 'grab') {
+      this.noise(t, 0.2, { f0: 2000, q: 0.6, gain: 0.25, attack: 0.02, out });
+      if (rec) this.take('swishL', t, { out, gain: 0.3, rate: 0.62 });
+    }
     else if (name === 'zap') {
       // the defibrillator: a hum that drops away under a burst of crackles
       this.tone(t, 0.32, { type: 'sawtooth', f0: 140, f1: 55, gain: 0.32, out, dist: true, rev: 0.25 });
@@ -329,21 +481,22 @@ export class Audio {
       .catch(() => null));
   }
   // ------------------------------------------------------------------ ambience
-  // Street stage: a recorded race-day crowd in a seamless loop. The terrace keeps only the music: the old synthesized
-  // beds (filtered noise for cicadas and murmur) read as a strange hiss on phone speakers.
+  // Each stage's recorded background in a seamless loop, under the music: the race-day crowd on the street (and, further
+  // off, at the festival), a city street at El Porche, an evening outdoors on the rooftop (tools/ambience_build.py).
+  // (The old synthesized beds, filtered noise for cicadas and murmur, read as a strange hiss on phone speakers.)
   ambience(kind) {
     this.wantAmb = kind;
     if (!this.ctx) return;
     if (this.amb?.kind === kind) return;
     this.stopAmbience();
-    // (the festival: the same crowd, further off, under the music)
-    if (kind !== 'street' && kind !== 'festival') return;
+    const bed = AMBIENCE[kind];
+    if (!bed) return;
     const c = this.ctx;
-    const out = c.createGain(); out.gain.value = 0; out.connect(this.master);
-    out.gain.linearRampToValueAtTime(kind === 'festival' ? 0.2 : 0.35, c.currentTime + 2);
+    const out = c.createGain(); out.gain.value = 0; out.connect(this.worldLP);
+    out.gain.linearRampToValueAtTime(bed.gain, c.currentTime + 2);
     const swell = c.createGain(); swell.gain.value = 1; swell.connect(out);
-    const amb = this.amb = { kind, out, swell, nodes: [] };
-    this.loadBuffer('assets/sfx/crowd_loop.mp3').then(buf => {
+    const amb = this.amb = { kind, out, swell, nodes: [], crowd: !!bed.crowd };
+    this.loadBuffer(bed.file).then(buf => {
       if (this.amb !== amb || !buf) return;
       const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
       // (a few milliseconds off each end: mp3 encoder padding would leave a gap at the loop point)
@@ -355,7 +508,7 @@ export class Audio {
   // KO on the street: the crowd swells and a recorded cheer goes up
   crowdSwell() {
     const amb = this.amb;
-    if (!this.ctx || !amb?.swell) return;
+    if (!this.ctx || !amb?.swell || !amb.crowd) return;
     const g = amb.swell.gain, t = this.ctx.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
     g.linearRampToValueAtTime(1.8, t + 0.4); g.linearRampToValueAtTime(1, t + 5);

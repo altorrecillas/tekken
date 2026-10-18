@@ -54,6 +54,16 @@ export class HUD {
     this.intro.classList.remove('show'); void this.intro.offsetWidth; this.intro.classList.add('show');
     if (i === 0 && this.stageName && this.stageEl) { this.stageEl.innerHTML = this.stageName; this.stageEl.classList.add('show'); }
   }
+  // the line a fighter says in the presentation, under his name and title (Match.startIntro)
+  introLine(i, text) {
+    if (this.subtitles === false) return;
+    const el = document.createElement('div');
+    el.className = 'ln';
+    if (i) el.style.cssText = 'margin-left:auto;margin-right:6.3%;text-align:right';
+    el.textContent = `“${text}”`;
+    this.intro.appendChild(el);
+    void el.offsetWidth; el.classList.add('on');
+  }
   roundStart(round, wins, fighters) {
     this.show(true);
     this.intro.classList.remove('show');
@@ -95,9 +105,10 @@ export class HUD {
     this.wins.forEach((arr, i) => arr.forEach((el, k) => el.classList.toggle('on', k < wins[i])));
   }
   // the winner's line, when he says it (Match: on its frame of the win pose)
+  // (subtitles: OPCIONES -> Subtítulos)
   say(f) {
     const q = this.winnerEl.querySelector('.quote');
-    if (!q || !f.style.say) return;
+    if (!q || !f.style.say || this.subtitles === false) return;
     q.textContent = `“${f.style.say}”`;
     q.classList.add('on');
   }

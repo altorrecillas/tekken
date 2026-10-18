@@ -38,6 +38,9 @@ function segPointDist(a, b, p) {
 export const SLOWMO = 0.28;
 const _r = new THREE.Vector3();
 
+// frames into a fighter's shot of the presentation when he says his line
+const INTRO_LINE = 14;
+
 export class Match {
   constructor(game, chars, ids, opts = {}) {
     this.game = game;
@@ -136,7 +139,8 @@ export class Match {
       if (bone) f.pendingTrail = { bone, at: Math.max(0, m.hit.f[0] - 7), dur: (m.hit.f[1] - Math.max(0, m.hit.f[0] - 7) + 3) / 60, move: m };
       else f.pendingTrail = null;
     } else f.pendingTrail = null;
-    this.audio?.whoosh(m.sfx, f.stats.power);
+    // the limb's swish a few frames before it can land (a blow cut short never swishes)
+    f.pendingWhoosh = m.hit ? { at: Math.max(0, m.hit.f[0] - 5), move: m } : null;
     f.voiceT = (f.voiceT || 0) - 1;
     if (m.hit && m.hit.dmg >= 16 && this.crand() < 0.55) this.audio?.voice(f, 'attack');
   }
@@ -162,13 +166,17 @@ export class Match {
     this.game.ragdolls?.clear?.();
   }
 
+  // the presentation: the camera on each fighter in turn, his name and title, and his line (styles.js introSay, said
+  // INTRO_LINE frames into his shot; the shot lasts until his voice has ended, introLen). A button skips it
   startIntro() {
     const [a, b] = this.fighters;
     a.pos.set(-1.4, 0, 0); b.pos.set(1.4, 0, 0);
     a.yaw = Math.PI / 2; b.yaw = -Math.PI / 2;
     for (const f of this.fighters) { f.reset(); f.setState('intro'); f.snapPose = true; f.play('intro', 1); f.prevPos.copy(f.pos); f.prevYaw = f.yaw; }
-    // the second fighter performs while the camera is on him
-    b.cf = -88; // the cut lands mid-gesture
+    const shot = (f) => Math.max(100, INTRO_LINE + (f.style.introLen || 0) + 22);
+    this.introCut = shot(a); this.introEnd = this.introCut + shot(b);
+    // the second fighter performs while the camera is on him: the cut lands mid-gesture
+    b.cf = -(this.introCut - 12);
     this.phase = 'intro'; this.pt = 0;
     this.camera.setMode('intro', true);
     this.hud.hideAll();
@@ -186,10 +194,13 @@ export class Match {
     }
     if (this.phase === 'intro') {
       for (const f of this.fighters) { f.readInput(); f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate(); }
-      const skip = a.inp.pressed || b.inp.pressed;
+      const skip = a.inp.pressed || b.inp.pressed, cut = this.introCut || 100;
       if (this.pt === 1) this.hud.introNames(this.fighters, 0);
-      if (this.pt === 101) this.hud.introNames(this.fighters, 1);
-      if (this.pt > 220 || (skip && this.pt > 20)) this.startRound();
+      if (this.pt === cut + 1) this.hud.introNames(this.fighters, 1);
+      for (const [f, at] of [[a, INTRO_LINE], [b, cut + INTRO_LINE]]) {
+        if (this.pt === at && f.style.introSay) { this.audio?.line?.(f, 'intro'); this.hud.introLine?.(f.index, f.style.introSay); }
+      }
+      if (this.pt > (this.introEnd || 220) || (skip && this.pt > 20)) { this.audio?.hush?.(); this.startRound(); }
       return;
     }
     if (this.hitstop > 0) {
@@ -219,6 +230,8 @@ export class Match {
       for (const f of this.fighters) {
         const pt = f.pendingTrail;
         if (pt && f.state === 'move' && f.move === pt.move && f.mf >= pt.at) { this.fx.trail?.(f, { bone: pt.bone }, pt.dur); f.pendingTrail = null; }
+        const pw = f.pendingWhoosh;
+        if (pw && f.state === 'move' && f.move === pw.move && f.mf >= pw.at) { this.audio?.whoosh(pw.move.sfx, f.stats.power, f.pos); f.pendingWhoosh = null; }
       }
       for (const f of this.fighters) { if (!f.ragdoll) f.hurtVolumes(); if (f.invuln > 0) f.invuln--; }
       if (this.phase === 'fight') {
@@ -439,7 +452,7 @@ export class Match {
     if (h.fx === 'electric') { this.fx.electric?.(p, def); this.sfx('zap', def); }
     this.camera.shake(heavy ? 0.42 : 0.2);
     this.camera.punch(att, heavy ? 1 : 0.4);
-    this.audio?.hit(m.sfx === 'slap' ? 'slap' : heavy ? (m.sfx === 'kick' ? 'kickHeavy' : 'heavy') : (m.sfx === 'kick' ? 'kick' : 'light'), att.stats.power, p);
+    this.audio?.hit(m.sfx === 'slap' ? 'slap' : heavy ? (m.sfx === 'kick' ? 'kickHeavy' : 'heavy') : (m.sfx === 'kick' ? 'kick' : 'light'), att.stats.power, p, { ch, ko });
     if (ko) this.audio?.voice(def, 'ko');
     else if (this.crand() < (heavy ? 0.8 : 0.4)) this.audio?.voice(def, heavy ? 'hurtBig' : 'hurt');
     if (ch) { this.hud.popup(att.index, 'COUNTER HIT', 'ch'); }

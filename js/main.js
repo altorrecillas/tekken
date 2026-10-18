@@ -14,7 +14,7 @@ import { Audio } from './audio/audio.js';
 import { FightCamera } from './fight/camera.js';
 import { Match, SLOWMO } from './fight/match.js';
 import { FPS } from './fight/fighter.js';
-import { KeyboardController, GamepadController, MergedController, KEYMAPS, menuKeysPressed, START, B1, B2, B3, B4 } from './fight/input.js';
+import { KeyboardController, GamepadController, MergedController, KEYMAPS, menuKeysPressed, menuKeys, freeKeys, padHas, keyLabel, START, B1, B2, B3, B4 } from './fight/input.js';
 import { TouchController, loadTouchPrefs, saveTouchPrefs } from './ui/touch.js';
 import { AIController } from './fight/ai.js';
 import { STYLES } from './fight/styles.js';
@@ -31,6 +31,7 @@ import { costumesOf, costumeChoices, mirrorCostume } from './fight/costumes.js';
 import { Progress } from './ui/progress.js';
 import { ENDINGS } from './ui/endings.js';
 import { Training } from './ui/training.js';
+import { ControlsUI, controlsHelp } from './ui/controls.js';
 const _fkv = new THREE.Vector3();
 
 const ROSTER = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi'];
@@ -45,7 +46,7 @@ const STAGES = {
   street: { cls: StreetStage, name: 'LA META 10K', sub: 'CARRERA POPULAR DEL BARRIO', dust: [0.55, 0.55, 0.56], dustLight: 0.6, amb: 'street', music: 'street',
     grade: { sat: 1.12, slope: [1.0, 1.0, 1.02] } },
   // the open-air stage of the neighbourhood's festival at golden hour (the user's photo)
-  festival: { cls: FestivalStage, name: 'EL FESTIVAL', sub: 'FIESTAS DEL BARRIO', dust: [0.66, 0.6, 0.52], dustLight: 0.8, amb: 'festival', music: 'festival',
+  festival: { cls: FestivalStage, name: 'EL FESTIVAL', sub: 'FIESTAS DEL BARRIO', surface: 'wood', dust: [0.66, 0.6, 0.52], dustLight: 0.8, amb: 'festival', music: 'festival',
     grade: { sat: 1.08, slope: [1.02, 1.0, 0.97] } },
 };
 const STAGE_KEYS = Object.keys(STAGES);
@@ -99,6 +100,7 @@ class Game {
     this.touch = new TouchController($('#touch'));
     this.p1ctrl = new MergedController(new KeyboardController(KEYMAPS.p1), new GamepadController(0), this.touch);
     this.p2keys = new MergedController(new KeyboardController(KEYMAPS.p2), new GamepadController(1));
+    this.controlsUI = new ControlsUI(this);
     this.roster = ROSTER;
     // the version, small in a corner (which build this is: see js/version.js); out of the way during a fight
     this.verEl = $('#ver');
@@ -157,6 +159,19 @@ class Game {
 
   loadAudioPrefs() {
     try { const v = JSON.parse(lsGet('pdb_audio') || 'null'); if (v) Object.assign(this.audio.vol, v); } catch (e) { /* ignore */ }
+    // accessibility (OPCIONES): subtitles, camera shake (1 normal, 0.4 gentle, 0 none), screen flashes (1, 0.35)
+    this.prefs = { subs: true, shake: 1, flash: 1 };
+    try {
+      const v = JSON.parse(lsGet('pdb_prefs') || 'null') || {};
+      if (typeof v.subs === 'boolean') this.prefs.subs = v.subs;
+      if ([0, 0.4, 1].includes(v.shake)) this.prefs.shake = v.shake;
+      if ([0.35, 1].includes(v.flash)) this.prefs.flash = v.flash;
+    } catch (e) { /* ignore */ }
+    this.applyPrefs();
+  }
+  applyPrefs() {
+    this.hud.subtitles = this.prefs.subs;
+    this.camCtl.shakeScale = this.prefs.shake;
   }
   saveAudioPrefs() { lsSet('pdb_audio', JSON.stringify(this.audio.vol)); }
   // VERSUS needs a second controller: hidden on touch-only devices until a gamepad shows up
@@ -262,8 +277,10 @@ class Game {
     try {
       await Promise.all(ids.map(id => this.ensureChar(id)));
       if (this.state === 'title' && !this.match) { this.showcaseIds = ids; await this.setupShowcase({ entrance: true }); }
+      mark('showcase');
     } catch (e) { console.warn('title fighters:', e.message); }
     for (const id of ROSTER) { try { await this.ensureChar(id); } catch (e) { /* retried on demand */ } }
+    mark('roster');
   }
 
   // dynamic resolution: keep ~60 fps by scaling the internal render resolution
@@ -302,6 +319,7 @@ class Game {
     const def = STAGES[key];
     this.stage = new def.cls(this.renderer, this.scene, this.quality);
     this.stageKey = key;
+    this.audio.surface = def.surface || 'concrete';
     this.fx.dustColor = new THREE.Color(...def.dust);
     this.fx.dustLight = def.dustLight ?? 0.8;
     this.camCtl.koView = this.stage.koView || null;
@@ -467,14 +485,15 @@ class Game {
     this.refreshMenu();
   }
   refreshMenu() { this.menu.btns.forEach((b, i) => b.classList.toggle('sel', i === this.menu.idx)); }
-  menuInput(keys, pad) {
+  // k: what this frame's keys mean on a menu (either player's, js/fight/input.js menuKeys), pad: the first pad's
+  menuInput(k, pad) {
     if (!this.menu) return;
     const row = this.state === 'results';
-    const up = keys.has('ArrowUp') || keys.has('KeyW') || pad.up || (row && (keys.has('ArrowLeft') || keys.has('KeyA') || pad.left));
-    const down = keys.has('ArrowDown') || keys.has('KeyS') || pad.down || (row && (keys.has('ArrowRight') || keys.has('KeyD') || pad.right));
+    const up = k.up || pad.up || (row && (k.left || pad.left));
+    const down = k.down || pad.down || (row && (k.right || pad.right));
     if (up) { this.menu.idx = (this.menu.idx + this.menu.btns.length - 1) % this.menu.btns.length; this.refreshMenu(); this.audio.play('ui'); }
     if (down) { this.menu.idx = (this.menu.idx + 1) % this.menu.btns.length; this.refreshMenu(); this.audio.play('ui'); }
-    if (keys.has('Enter') || keys.has('KeyU') || keys.has('Space') || pad.ok) { this.audio.play('uiok'); this.menu.cb(this.menu.btns[this.menu.idx].dataset.act); }
+    if (k.ok || pad.ok) { this.audio.play('uiok'); this.menu.cb(this.menu.btns[this.menu.idx].dataset.act); }
   }
   titleAction(act) {
     this.audio.init();
@@ -546,7 +565,10 @@ class Game {
     if (this.mode === 'arcade') { bar.textContent = `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}`; return; }
     // online the host picks the stage; the other phone sees it change
     if (this.mode === 'online' && !this.online.isHost) { bar.innerHTML = `${mode} · ESCENARIO <span class="stg">${STAGES[this.stagePick].name}</span> <small>(lo elige ${this.online.peerName.replace(/[&<>"']/g, '')})</small>`; return; }
-    bar.innerHTML = `${mode} · ESCENARIO <span class="stg"><b data-d="-1">◀</b> ${STAGES[this.stagePick].name} <b data-d="1">▶</b></span> <small>(W / S)</small>`;
+    // (the first player's up and down keys, as he has them; nothing on a phone played by touch)
+    const ud = [KEYMAPS.p1.up, KEYMAPS.p1.down].map((l) => l.find(Boolean));
+    const hint = document.body.classList.contains('touchui') || !ud[0] || !ud[1] ? '' : ` <small>(${ud.map(keyLabel).join(' / ')})</small>`;
+    bar.innerHTML = `${mode} · ESCENARIO <span class="stg"><b data-d="-1">◀</b> ${STAGES[this.stagePick].name} <b data-d="1">▶</b></span>${hint}`;
     bar.querySelectorAll('b').forEach(b => (b.onclick = () => this.cycleStage(+b.dataset.d)));
   }
   cycleStage(d) {
@@ -678,19 +700,21 @@ class Game {
     if (!vs) b.ch.group.visible = false;
     this.camCtl.setMode('select', true);
   }
-  selectInput(keys, pads) {
-    const s = this.sel;
+  // keys: the keys pressed this frame, M: what they mean on a menu for each player (js/fight/input.js menuKeys),
+  // pads: each pad's menu buttons pressed this frame. (Q / E and - / = pick costumes while no player fights with them)
+  selectInput(keys, M, pads) {
+    const s = this.sel, F = freeKeys(keys), A = M.any;
     if (this.mode === 'online') {
       // this phone's player only, with either keyboard layout or the first pad
       const L = this.online.local;
-      const l = keys.has('KeyA') || keys.has('ArrowLeft') || pads[0].left, r = keys.has('KeyD') || keys.has('ArrowRight') || pads[0].right;
-      const ok = keys.has('KeyU') || keys.has('Enter') || keys.has('Space') || keys.has('Numpad4') || pads[0].ok, back = keys.has('Escape') || keys.has('KeyK') || keys.has('Backspace') || pads[0].back;
+      const l = A.left || pads[0].left, r = A.right || pads[0].right;
+      const ok = A.ok || pads[0].ok, back = A.back || pads[0].back;
       if (this.online.isHost) {
-        if (keys.has('KeyW') || keys.has('ArrowUp') || pads[0].up) this.cycleStage(-1);
-        if (keys.has('KeyS') || keys.has('ArrowDown') || pads[0].down) this.cycleStage(1);
+        if (A.up || pads[0].up) this.cycleStage(-1);
+        if (A.down || pads[0].down) this.cycleStage(1);
       }
-      if (keys.has('KeyQ') || pads[0].lb) this.cycleCostume(L, -1);
-      if (keys.has('KeyE') || pads[0].rb) this.cycleCostume(L, 1);
+      if (F.has('KeyQ') || pads[0].lb) this.cycleCostume(L, -1);
+      if (F.has('KeyE') || pads[0].rb) this.cycleCostume(L, 1);
       if (s.done[L]) { if (back) { s.done[L] = false; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); } return; }
       if (l) { s.i[L] = (s.i[L] + ROSTER.length - 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); }
       if (r) { s.i[L] = (s.i[L] + 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); }
@@ -698,22 +722,19 @@ class Game {
       else if (back) this.online.backFromSelect();
       return;
     }
-    const P = [
-      { l: keys.has('KeyA') || pads[0].left, r: keys.has('KeyD') || pads[0].right, ok: keys.has('KeyU') || keys.has('Enter') || keys.has('Space') || pads[0].ok, back: keys.has('Escape') || keys.has('KeyK') || pads[0].back },
-      { l: keys.has('ArrowLeft') || pads[1].left, r: keys.has('ArrowRight') || pads[1].right, ok: keys.has('Numpad4') || keys.has('Digit7') || keys.has('NumpadEnter') || pads[1].ok, back: keys.has('Backspace') || pads[1].back },
-    ];
-    if (this.mode !== 'versus') { // single player: arrows also move P1
-      P[0].l ||= keys.has('ArrowLeft'); P[0].r ||= keys.has('ArrowRight');
+    const P = [0, 1].map((i) => ({ l: M.p[i].left || pads[i].left, r: M.p[i].right || pads[i].right, ok: M.p[i].ok || pads[i].ok, back: M.p[i].back || pads[i].back }));
+    if (this.mode !== 'versus') { // single player: the second player's keys also move P1
+      P[0].l ||= M.p[1].left; P[0].r ||= M.p[1].right; P[0].ok ||= M.p[1].ok; P[0].back ||= M.p[1].back;
     }
     if (this.mode !== 'arcade') {
-      if (keys.has('KeyW') || keys.has('ArrowUp') || pads[0].up) this.cycleStage(-1);
-      if (keys.has('KeyS') || keys.has('ArrowDown') || pads[0].down) this.cycleStage(1);
+      if (A.up || pads[0].up) this.cycleStage(-1);
+      if (A.down || pads[0].down) this.cycleStage(1);
     }
-    if (keys.has('KeyQ') || pads[0].lb) this.cycleCostume(0, -1);
-    if (keys.has('KeyE') || pads[0].rb) this.cycleCostume(0, 1);
+    if (F.has('KeyQ') || pads[0].lb) this.cycleCostume(0, -1);
+    if (F.has('KeyE') || pads[0].rb) this.cycleCostume(0, 1);
     if (this.mode === 'versus') {
-      if (keys.has('Minus') || pads[1].lb) this.cycleCostume(1, -1);
-      if (keys.has('Equal') || pads[1].rb) this.cycleCostume(1, 1);
+      if (F.has('Minus') || pads[1].lb) this.cycleCostume(1, -1);
+      if (F.has('Equal') || pads[1].rb) this.cycleCostume(1, 1);
     }
     for (let i = 0; i < 2; i++) {
       if (i === 1 && this.mode !== 'versus') break;
@@ -1233,12 +1254,15 @@ class Game {
       // (the arcade run is kept: CONTINUAR goes on from this very moment)
       $('#pause .menu.local [data-act="quit"]').textContent = this.mode === 'arcade' ? 'GUARDAR Y SALIR' : 'SALIR AL MENÚ';
       $('#pause .menu.local [data-act="tset"]').hidden = !(this.fightOpts?.training && this.training.m === this.match);
+      // (the keys and buttons can be changed mid-fight; not on a phone played by touch only)
+      $('#pause .menu.local [data-act="controls"]').hidden = document.body.classList.contains('touchui') && !this.padActive;
       this.setupMenu('#pause .menu.local', (act) => {
         if (act === 'resume') this.pause(false);
         else if (act === 'tset') this.showTrainingSettings();
         else if (act === 'restart') { $('#pause').classList.remove('on'); this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts); }
         else if (act === 'quit') { $('#pause').classList.remove('on'); this.saveArcade(); this.backToTitle(); }
         else if (act === 'movelist') this.showMoveList();
+        else if (act === 'controls') this.controlsUI.show(() => this.pause(true), 'overlay-pause');
       });
     } else {
       $('#pause').classList.remove('on');
@@ -1266,20 +1290,24 @@ class Game {
     this.showOverlay(`<h3>${f.ch.meta.display} — MOVIMIENTOS</h3><table>${rows}</table><p style="color:#999;font-size:14px;margin-top:10px">1 = puño izq · 2 = puño der · 3 = patada izq · 4 = patada der · f = hacia el rival · b = atrás · d = abajo · u = arriba</p>`, () => this.pause(true), null, { ok: 'VOLVER' });
     this.state = 'overlay-pause';
   }
+  // EXTRAS -> CONTROLES: how to play, with the keys and buttons as the players have them (CONFIGURAR changes them)
   showControls() {
+    const h = controlsHelp();
     this.showOverlay(`<h3>CONTROLES</h3><table>
-      <tr><td>Jugador 1</td><td>WASD mover · U = 1 (puño izq) · I = 2 (puño der) · J = 3 (patada izq) · K = 4 (patada der)</td></tr>
-      <tr><td>Jugador 2</td><td>Flechas · Numpad 4/5/1/2 (o 7/8/9/0)</td></tr>
-      <tr><td>Mando</td><td>□ 1 · △ 2 · ✕ 3 · ○ 4 · L1 1+2 · R1 3+4 · L2/R2 agarres</td></tr>
+      <tr><td>Jugador 1</td><td>${h.p1}</td></tr>
+      <tr><td>Jugador 2</td><td>${h.p2}</td></tr>
+      <tr><td>Mando</td><td>${h.pad}</td></tr>
+      <tr><td>Botones</td><td>1 = puño izquierdo · 2 = puño derecho · 3 = patada izquierda · 4 = patada derecha</td></tr>
       <tr><td>Bloquear</td><td>Mantener atrás (alto/medio) · abajo-atrás (bajo)</td></tr>
       <tr><td>Esquivar</td><td>Toque rápido arriba o abajo</td></tr>
       <tr><td>Dash</td><td>adelante, adelante · atrás, atrás</td></tr>
       <tr><td>Agarre</td><td>1+3 o 2+4 · Escapar: 1 o 2 al ser agarrado</td></tr>
       <tr><td>Recuperación</td><td>Pulsa cualquier botón justo al caer al suelo para levantarte al instante</td></tr>
-      <tr><td>Pausa</td><td>ESC / Enter / START</td></tr>
-      <tr><td>Táctil</td><td>Joystick a la izquierda (aparece donde apoyes el pulgar) · botones 1 2 3 4 a la derecha · el hueco entre dos botones pulsa los dos (1+2, 3+4, 1+3, 2+4) · el botón RAGE ART aparece cuando tienes furia · II = pausa</td></tr></table>`, () => this.toTitle(), null, { ok: 'VOLVER' });
+      <tr><td>Pausa</td><td>${h.pause}</td></tr>
+      <tr><td>Táctil</td><td>Joystick a la izquierda (aparece donde apoyes el pulgar) · botones 1 2 3 4 a la derecha · el hueco entre dos botones pulsa los dos (1+2, 3+4, 1+3, 2+4) · el botón RAGE ART aparece cuando tienes furia · II = pausa</td></tr></table>`, () => this.controlsUI.show(() => this.showControls()), () => this.toTitle(), { ok: 'CONFIGURAR', back: 'VOLVER' });
   }
-  showOptions() {
+  // (keep: the choices made on the screen before going to CONTROLES and back, not saved yet)
+  showOptions(keep) {
     const QN = { low: 'BAJA', medium: 'MEDIA', high: 'ALTA', ultra: 'ULTRA' };
     const t = this.touch.opt, sel = (id, list, cur) => `<select id="${id}">${list.map(([v, l]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
     const fs = fullscreenSupported() ? '<div class="row"><span>Pantalla completa</span><button id="optFs" class="mini">ACTIVAR / SALIR</button></div>' : '';
@@ -1288,6 +1316,8 @@ class Game {
       <div class="row"><span>Calidad gráfica</span>${sel('optQ', Object.entries(QN), this.quality)}</div>
       <div class="row"><span>Música</span><input id="optM" type="range" min="0" max="1" step="0.05" value="${this.audio.vol.music}"></div>
       <div class="row"><span>Efectos</span><input id="optS" type="range" min="0" max="1" step="0.05" value="${this.audio.vol.sfx}"></div>
+      <div class="row"><span>Voces</span><input id="optV" type="range" min="0" max="1" step="0.05" value="${this.audio.vol.voice}"></div>
+      <div class="row"><span>Teclado y mando</span><button id="optCtl" class="mini">CONFIGURAR</button></div>
       ${fs}
       </div><div>
       <h4>CONTROLES TÁCTILES</h4>
@@ -1296,12 +1326,19 @@ class Game {
       <div class="row"><span>Opacidad</span><input id="optTo" type="range" min="0.35" max="1" step="0.05" value="${t.opacity}"></div>
       <div class="row"><span>Joystick</span>${sel('optTk', [['float', 'Flotante'], ['fixed', 'Fijo']], t.stick)}</div>
       <div class="row"><span>Vibración</span>${sel('optTh', [[1, 'Sí'], [0, 'No']], t.haptics ? 1 : 0)}</div>
+      <h4>ACCESIBILIDAD</h4>
+      <div class="row"><span>Subtítulos</span>${sel('optSub', [[1, 'Sí'], [0, 'No']], this.prefs.subs ? 1 : 0)}</div>
+      <div class="row"><span>Temblor de cámara</span>${sel('optShk', [[1, 'Normal'], [0.4, 'Suave'], [0, 'Sin temblor']], this.prefs.shake)}</div>
+      <div class="row"><span>Destellos</span>${sel('optFl', [[1, 'Normales'], [0.35, 'Suaves']], this.prefs.flash)}</div>
       </div></div>
       <p class="note">Un cambio de calidad gráfica recarga el juego.</p>
-      <p class="note">Música: Kevin MacLeod (incompetech.com) · Público: Gregor Quendel · licencia CC BY 4.0 · Gritos: HaelDB, VoiceBosch, PlumpDev y SkyRae (OpenGameArt) · Voces: Piper (davefx; Sharvard, CC BY 3.0)</p>`, () => {
+      <p class="note">Música: Kevin MacLeod (incompetech.com) · Público: Gregor Quendel · licencia CC BY 4.0 · Gritos: HaelDB, VoiceBosch, PlumpDev y SkyRae (OpenGameArt) · Voces: Piper (davefx; Sharvard, CC BY 3.0) · Golpes, pasos y ambiente (CC0): Kenney, artisticdude, IgnasD y Kresiek The Furry</p>`, () => {
       const T = this.touch;
       T.opt = { ...T.opt, show: $('#optTs').value, size: +$('#optTz').value, opacity: +$('#optTo').value, stick: $('#optTk').value, haptics: $('#optTh').value === '1' };
       saveTouchPrefs(T.opt);
+      this.prefs = { subs: $('#optSub').value === '1', shake: +$('#optShk').value, flash: +$('#optFl').value };
+      lsSet('pdb_prefs', JSON.stringify(this.prefs));
+      this.applyPrefs();
       if (T.opt.show === 'never') { T.disable(); document.body.classList.remove('touchui'); }
       else if (T.opt.show === 'always' || DEVICE.touch) { T.enable(); T.applyPrefs(); document.body.classList.add('touchui'); }
       this.saveAudioPrefs();
@@ -1311,7 +1348,16 @@ class Game {
     }, () => { this.saveAudioPrefs(); this.toTitle(); }, { ok: 'GUARDAR', back: 'VOLVER' });
     $('#optM').oninput = (e) => { this.audio.vol.music = +e.target.value; if (this.audio.musicBus) this.audio.musicBus.gain.value = +e.target.value; };
     $('#optS').oninput = (e) => { this.audio.vol.sfx = +e.target.value; if (this.audio.sfxBus) this.audio.sfxBus.gain.value = +e.target.value; };
+    $('#optV').oninput = (e) => { this.audio.vol.voice = +e.target.value; if (this.audio.voiceBus) this.audio.voiceBus.gain.value = +e.target.value; };
     if ($('#optFs')) $('#optFs').onclick = () => toggleFullscreen();
+    const FORM = ['optQ', 'optTs', 'optTz', 'optTo', 'optTk', 'optTh', 'optSub', 'optShk', 'optFl'];
+    for (const id of FORM) if (keep?.[id] != null && $('#' + id)) $('#' + id).value = keep[id];
+    $('#optCtl').onclick = (e) => {
+      e.stopPropagation(); this.audio.play('uiok');
+      const k = Object.fromEntries(FORM.map((id) => [id, $('#' + id)?.value]));
+      $('#overlay').classList.remove('on');
+      this.controlsUI.show(() => this.showOptions(k));
+    };
   }
 
   // ------------------------------------------------------------------ loop
@@ -1320,13 +1366,15 @@ class Game {
     for (let i = 0; i < 2; i++) {
       const g = navigator.getGamepads?.()[i];
       const prev = (this._pad || [])[i] || {};
-      const cur = { left: false, right: false, up: false, down: false, ok: false, back: false, start: false, lb: false, rb: false };
+      const cur = { left: false, right: false, up: false, down: false, ok: false, back: false, start: false, lb: false, rb: false, y: false };
       if (g) {
         const ax = g.axes[0] || 0, ay = g.axes[1] || 0;
         cur.left = g.buttons[14]?.pressed || ax < -0.5; cur.right = g.buttons[15]?.pressed || ax > 0.5;
         cur.up = g.buttons[12]?.pressed || ay < -0.5; cur.down = g.buttons[13]?.pressed || ay > 0.5;
-        cur.ok = g.buttons[0]?.pressed || g.buttons[2]?.pressed; cur.back = g.buttons[1]?.pressed; cur.start = g.buttons[9]?.pressed;
-        cur.lb = g.buttons[4]?.pressed; cur.rb = g.buttons[5]?.pressed;
+        // (the menus keep the usual buttons whatever the fight's are: bottom / left accept, right goes back; START is
+        // the player's pause button)
+        cur.ok = g.buttons[0]?.pressed || g.buttons[2]?.pressed; cur.back = g.buttons[1]?.pressed; cur.start = padHas(g, 'start');
+        cur.lb = g.buttons[4]?.pressed; cur.rb = g.buttons[5]?.pressed; cur.y = g.buttons[3]?.pressed;
       }
       const edge = {};
       for (const k in cur) edge[k] = cur[k] && !prev[k];
@@ -1347,26 +1395,30 @@ class Game {
     const realDt = Math.min(0.5, (now - this.last) / 1000);
     this.last = now;
     if (this.state === 'fight') this.dynRes(dt);
+    // the keys pressed this frame, what they mean on the menus (each player's own keys: OPCIONES -> CONTROLES) and
+    // the pads' menu buttons
     const keys = menuKeysPressed();
+    const M = menuKeys(keys), A = M.any;
     const pads = this.padMenuState();
-    if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (keys.has('Escape') || keys.has('Backspace') || pads[0].back)) { this.audio.play('ui'); this.showTitleMenu('main'); } else this.menuInput(keys, pads[0]); }
+    if (this.controlsUI.open) this.controlsUI.input(keys, M, pads);
+    else if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (A.back || pads[0].back)) { this.audio.play('ui'); this.showTitleMenu('main'); } else this.menuInput(A, pads[0]); }
     else if (this.state === 'ending') { if (keys.size || pads[0].ok || pads[0].back || pads[0].start) this.endingTap(); }
-    else if (this.state === 'select') this.selectInput(keys, pads);
-    else if (this.state === 'pause') { this.menuInput(keys, pads[0]); if (keys.has('Escape') || pads[0].start) this.pause(false); }
-    else if (this.state === 'results') this.menuInput(keys, pads[0]);
+    else if (this.state === 'select') this.selectInput(keys, M, pads);
+    else if (this.state === 'pause') { this.menuInput(A, pads[0]); if (A.back || pads[0].start || pads[0].back || pads[1].start) this.pause(false); }
+    else if (this.state === 'results') this.menuInput(A, pads[0]);
     else if (this.state === 'highlight') { if (this.hl?.phase === 'play' && (keys.size || pads[0].ok || pads[0].back || pads[0].start)) this.endHighlight(); }
     else if (this.state === 'overlay' || this.state === 'overlay-pause') {
-      if (keys.has('Enter') || keys.has('KeyU') || keys.has('Space') || pads[0].ok) this.overlayCb.ok();
-      else if (keys.has('Escape') || keys.has('KeyK') || pads[0].back) this.overlayCb.back();
+      if (A.ok || pads[0].ok) this.overlayCb.ok();
+      else if (A.back || pads[0].back) this.overlayCb.back();
     } else if (this.state === 'fight' && this.replaying) {
       if (keys.size || pads[0].ok || pads[0].start || pads[0].back) this.online.replayEnded();
     } else if (this.state === 'fight') {
-      if (keys.has('Escape') || pads[0].start || pads[1].start || (keys.has('Enter') && this.match?.phase === 'fight')) this.pause(true);
-      else if (this.fightOpts?.training && this.training.m === this.match) this.training.tick(dt, keys);
+      if (keys.has('Escape') || pads[0].start || pads[1].start || (A.start && this.match?.phase === 'fight')) this.pause(true);
+      else if (this.fightOpts?.training && this.training.m === this.match) this.training.tick(dt, freeKeys(keys));
     } else if (this.state === 'online') {
       if (keys.has('Escape')) this.online.escape();
     } else if (this.state === 'netresults') {
-      if (keys.has('Enter') || pads[0].ok) this.online.choose('rematch');
+      if (A.ok || pads[0].ok) this.online.choose('rematch');
     }
     // online: the rollback session plays the frames (both phones' inputs), whatever this screen is showing
     this.online.tick(realDt);
@@ -1425,7 +1477,7 @@ class Game {
           for (const f of m.fighters) { if (!f.ragdoll) f.syncRender(1); }
           this.ragdolls.sync();
           // the camera follows the simulated time too, so a capture shows the framing a player would see
-          this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null;
+          this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null; this.camCtl.introCut = (m.introCut || 101) / FPS; this.camCtl.introEnd = (m.introEnd || 220) / FPS; this.camCtl.readyT = m.phase === 'ready' ? m.pt / FPS : null;
           this.camCtl.update(Math.min(2, steps / FPS), m.fighters);
           return;
         }
@@ -1442,7 +1494,7 @@ class Game {
       this.stage.followShadow(c, spread);
       this.stage.keyBoost = m.phase === 'intro' || m.phase === 'matchEnd' ? 1.4 : 1; // cinematic close-ups get more face light
       this.stage.followCamera(this.camera, c);
-      this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null;
+      this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null; this.camCtl.introCut = (m.introCut || 101) / FPS; this.camCtl.introEnd = (m.introEnd || 220) / FPS; this.camCtl.readyT = m.phase === 'ready' ? m.pt / FPS : null;
       // (the title's fighters walking in: the shot stays where they are heading)
       this.camCtl.update(dt, this.entrance?.m === m ? this.titleGhosts : m.fighters);
       // per-fighter key light (view space): from in front of each fighter, above and towards the lens, so a face in
@@ -1461,7 +1513,7 @@ class Game {
       this.stage.followShadow(c, G[0].pos.distanceTo(G[1].pos));
       this.stage.keyBoost = 1;
       this.stage.followCamera(this.camera, c);
-      this.camCtl.introT = null;
+      this.camCtl.introT = null; this.camCtl.readyT = null;
       this.camCtl.update(dt, G);
     }
     // effects
@@ -1469,6 +1521,8 @@ class Game {
     e.hitFlash = Math.max(0, e.hitFlash - dt * 5);
     e.radial = Math.max(0, e.radial - dt * 1.4);
     const targetDesat = m && m.slowmo > 0 ? 0.45 : 0;
+    // (slow motion is heard too: the music and the background sink under a muffle, js/audio/audio.js slowmo)
+    if (!!targetDesat !== !!this._slowHeard) { this._slowHeard = !!targetDesat; this.audio.slowmo?.(this._slowHeard); }
     e.desat += (targetDesat - e.desat) * (1 - Math.exp(-dt * 6));
     const lb = m && (m.phase === 'intro' || m.phase === 'matchEnd' || this.state === 'highlight') ? 1 : 0;
     e.letterbox += (lb - e.letterbox) * (1 - Math.exp(-dt * 4));
@@ -1488,7 +1542,8 @@ class Game {
     if (q.get('fxtest')) { const [r, h, d] = q.get('fxtest').split(',').map(Number); e.radial = r; e.hitFlash = h; e.desat = d || 0; }
     if (this.post && !q.get('norender')) {
       const u = this.post.u;
-      u.hitFlash.value = e.hitFlash; u.radial.value = e.radial; u.desat.value = e.desat; u.letterbox.value = e.letterbox;
+      const fl = this.prefs?.flash ?? 1;
+      u.hitFlash.value = e.hitFlash * fl; u.radial.value = e.radial * fl; u.desat.value = e.desat; u.letterbox.value = e.letterbox;
       if (this.post.bokeh) {
         const cine = e.letterbox > 0.5 || this.camCtl.mode === 'ko' || this.camCtl.mode === 'win';
         this.post.bokeh.enabled = cine && this.state !== 'title';

@@ -18,6 +18,7 @@ export const STYLES = {
     ],
     title: 'El Tatuado', desc: 'Kickboxer rápido y preciso. Patadas altas y rodillazos.',
     say: '¿Eso era todo? Ni me he despeinado.', sayAt: 78, sayLen: 147, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Calienta bien, que esto va a ser rápido.', introLen: 133, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
     aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3'], juggle: ['1', '2', '4'],
     bob: 0.022,
@@ -102,6 +103,7 @@ export const STYLES = {
     ],
     title: 'El Gamer', desc: 'Joven e impredecible. Cabezazos y barridos.',
     say: '¡En mi consola esto era más difícil!', sayAt: 78, sayLen: 166, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Partida nueva. Esta la gano yo.', introLen: 117, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.2, weight: 1.12, power: 1.12, speed: 1.04 },
     aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3'], juggle: ['1', '1', '2', 'b+2'],
     stance: { hgPosL: [0.09, -0.19, 0.28], hgPosR: [0.12, -0.23, 0.2], spine: [0.18, 0.1, 0], rootRot: [0.05, -0.35, 0], neck: [0.12, 0.15, 0] },
@@ -180,6 +182,7 @@ export const STYLES = {
     ],
     title: 'El Maratoniano', desc: 'Alcance enorme y fondo inagotable. Patadas a la carrera.',
     say: 'No molestes, estoy trabajando.', sayAt: 78, sayLen: 127, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Tengo una reunión. Acabemos rápido.', introLen: 141, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 174, walk: 1.4, weight: 0.95, power: 1.02, speed: 1.07 },
     aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
     stance: { rootPos: [0, -0.06, -0.02], hgPosL: [0.06, -0.13, 0.33], hgPosR: [0.12, -0.16, 0.2] },
@@ -266,6 +269,7 @@ export const STYLES = {
     ],
     title: 'El Veterano', desc: 'Peso pesado con sarcasmo. Golpes lentos pero devastadores.',
     say: '¿Ya? Iba a empezar a calentar.', sayAt: 78, sayLen: 138, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Tranquilo, que iré despacito.', introLen: 112, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.05, weight: 1.3, power: 1.08, speed: 0.99 },
     aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', '1+2'],
     stance: { rootPos: [0, -0.06, -0.03], rootRot: [0.04, -0.4, 0], hgPosL: [0.1, -0.21, 0.3], hgPosR: [0.13, -0.19, 0.14], footL: [0.1, 0.071, 0.24], footR: [0.24, 0.071, -0.2] },
@@ -335,6 +339,7 @@ export const STYLES = {
     ],
     title: 'El Toro', desc: 'Luchador de fuerza bruta. Lariats y suplex.',
     say: '¡Espectacular, vale!', sayAt: 78, sayLen: 107, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: '¡Esto va a ser espectacular, vale!', introLen: 132, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 196, walk: 1.15, weight: 1.35, power: 1.14, speed: 1.04 },
     aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', 'f+2'],
     stance: { rootPos: [0, -0.1, -0.02], rootRot: [0.12, -0.3, 0], spine: [0.18, 0.1, 0], hgPosL: [0.15, -0.26, 0.4], hgPosR: [0.13, -0.26, 0.3], fistL: 0.92, fistR: 0.92,
@@ -415,6 +420,7 @@ export const STYLES = {
     ],
     title: 'El Zorro Plateado', desc: 'Veterano fibroso de la vieja escuela. Esquivas, gancho al hígado y guantazos.',
     say: 'Más sabe el zorro por viejo que por zorro.', sayAt: 78, sayLen: 171, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Ponte los guantes, chaval.', introLen: 88, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 176, walk: 1.3, weight: 0.92, power: 1.0, speed: 1.1 },
     aiMoves: ['1', '1', '2', 'b+1', '1+2', 'd+2', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '1+2', 'b+1'],
     // old-school boxer: more upright and bladed, chin tucked, both fists high by the face
@@ -521,6 +527,7 @@ export const STYLES = {
     ],
     title: 'La Coordinadora', desc: 'Al mando de la sala de emergencias. Palmas certeras, empujones y un desfibrilador en las manos.',
     say: 'Te falta tomar áloe vera.', sayAt: 78, sayLen: 108, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Tranquilo, la ambulancia ya está avisada.', introLen: 138, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
     aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '2', 'b+1'],
     // a calm, upright guard with open hands, a little lower and wider than a boxer's

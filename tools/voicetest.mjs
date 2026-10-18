@@ -14,8 +14,10 @@ p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
 p.on('console', m => { if (m.type() === 'error' && !/404/.test(m.text())) errs.push('console ' + m.text()); });
 await p.goto(`http://127.0.0.1:${PORT}/index.html?q=low&nodynres=1`);
 const t0 = Date.now();
-while (Date.now() - t0 < 240000) { if (await p.evaluate(() => window.__game?.state === 'title').catch(() => false)) break; await p.waitForTimeout(500); }
-await p.click('#title [data-act="arcade"]');   // user gesture: audio starts, select screen preloads every voice
+// (once the roster has loaded and the title's fighters have walked in: before that a slow machine's page is stuck for
+// seconds at a time compiling them, and the click would time out)
+while (Date.now() - t0 < 300000) { if (await p.evaluate(() => window.__game?.state === 'title' && window.__bootTimes?.roster != null && !window.__game.entrance).catch(() => false)) break; await p.waitForTimeout(500); }
+await p.click('#title [data-act="arcade"]', { timeout: 120000 });   // user gesture: audio starts, select screen preloads every voice
 await p.waitForTimeout(8000);
 const r = await p.evaluate(async () => {
   const A = window.__game.audio;
@@ -29,23 +31,25 @@ const r = await p.evaluate(async () => {
     if (A.voiceSrc[id] && A.voiceSrc[id] !== before) played++;
   }
   for (const k of ['round1', 'fight', 'ko', 'win_rafa', 'win_dani']) A.announce(k);
-  // the victory lines: loaded with their loudness curve, said, the mouth moving while they last
+  // the victory lines and the presentation's lines: loaded with their loudness curve, said, the mouth moving while
+  // they last
   const lines = {};
-  for (const id of window.__game.roster) {
-    const q = A.quotes?.[id];
-    lines[id] = { s: q?.buf ? +q.buf.duration.toFixed(2) : 0, env: q?.env?.length || 0, talk: 0 };
+  for (const kind of ['quote', 'intro']) for (const id of window.__game.roster) {
+    const q = A.lines?.[kind + ':' + id];
+    lines[kind + ' ' + id] = { s: q?.buf ? +q.buf.duration.toFixed(2) : 0, env: q?.env?.length || 0, talk: 0 };
   }
-  for (const id of window.__game.roster) {
-    A.say({ id, pos: { x: 0 } });
+  for (const kind of ['quote', 'intro']) for (const id of window.__game.roster) {
+    A.line({ id, pos: { x: 0 } }, kind);
     let peak = 0;
     for (let i = 0; i < 12; i++) { await new Promise((ok) => setTimeout(ok, 60)); peak = Math.max(peak, A.talkLevel(id)); }
-    lines[id].talk = +peak.toFixed(2);
+    lines[kind + ' ' + id].talk = +peak.toFixed(2);
+    A.hush();
   }
   return { sets, played, ann: Object.keys(A.voiceClips || {}).length, ctx: A.ctx?.state, lines };
 });
 console.log(JSON.stringify(r));
 const bad = Object.entries(r.lines || {}).filter(([, l]) => !(l.s > 0.8 && l.env > 40 && l.talk > 0.2));
-console.log(bad.length ? 'FAIL victory lines: ' + bad.map(([id, l]) => `${id} ${JSON.stringify(l)}`).join(', ') : `victory lines: all ${Object.keys(r.lines).length} load, play and move the mouth`);
+console.log(bad.length ? 'FAIL spoken lines: ' + bad.map(([id, l]) => `${id} ${JSON.stringify(l)}`).join(', ') : `spoken lines (victory and presentation): all ${Object.keys(r.lines).length} load, play and move the mouth`);
 console.log('mp3 served', mp3, 'missing', mp3fail);
 console.log(errs.length ? errs.join('\n') : 'no page errors');
 await b.close(); srv.close();

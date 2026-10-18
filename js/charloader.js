@@ -52,8 +52,24 @@ export async function loadCharacterData(id) {
   return { id, base, meta, bin };
 }
 
-function view(bin, [off, len], Type) {
-  return new Type(bin, off, len);
+// mesh attributes, either format (tools/pipeline/meshfmt.py): 1, raw typed arrays [offset, count]; 2, quantized
+// {o, n, t, q, k, c}, decoded here to the same types as format 1 (nothing downstream changes, the download is a third)
+const TYPES = { f32: Float32Array, i16: Int16Array, i8: Int8Array, u16: Uint16Array, u8: Uint8Array, u32: Uint32Array };
+const COMP = { position: 3, normal: 3, uv: 2, skinIndex: 4, skinWeight: 4, index: 1, color: 3, tangent: 4 };
+const F1 = { position: Float32Array, normal: Float32Array, uv: Float32Array, skinIndex: Uint16Array, skinWeight: Float32Array, index: Uint32Array, color: Float32Array, tangent: Float32Array };
+function attr(bin, d, name) {
+  if (Array.isArray(d)) return new F1[name](bin, d[0], d[1]);
+  const k = COMP[name];
+  if (d.c) { const rows = d.n / d.c.length, out = new F1[name](rows * k); for (let i = 0; i < rows; i++) out.set(d.c, i * k); return out; }
+  const src = new TYPES[d.t](bin, d.o, d.n);
+  if (name === 'index') return src; // (uint16 or uint32: three takes either)
+  if (name === 'skinIndex') return Uint16Array.from(src);
+  const kk = d.k || k, q = d.q, rows = d.n / kk, out = new Float32Array(rows * k);
+  for (let i = 0, j = 0, o = 0; i < rows; i++, j += kk, o += k) {
+    for (let c = 0; c < kk; c++) out[o + c] = q ? q[c] + src[j + c] * q[kk + c] : src[j + c];
+    if (kk < k) out[o + 3] = 1; // (a tangent's w)
+  }
+  return out;
 }
 
 export const LOD = { hair: 1.0 };
@@ -85,14 +101,14 @@ export function buildCharacter(data, makeMaterial) {
   const meshes = {};
   for (const p of meta.parts) {
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(view(bin, p.position, Float32Array), 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(view(bin, p.normal, Float32Array), 3));
-    g.setAttribute('uv', new THREE.BufferAttribute(view(bin, p.uv, Float32Array), 2));
-    g.setAttribute('skinIndex', new THREE.BufferAttribute(view(bin, p.skinIndex, Uint16Array), 4));
-    g.setAttribute('skinWeight', new THREE.BufferAttribute(view(bin, p.skinWeight, Float32Array), 4));
-    g.setIndex(new THREE.BufferAttribute(view(bin, p.index, Uint32Array), 1));
-    if (p.color) g.setAttribute('color', new THREE.BufferAttribute(view(bin, p.color, Float32Array), 3));
-    if (p.tangent) g.setAttribute('tangent', new THREE.BufferAttribute(view(bin, p.tangent, Float32Array), 4));
+    g.setAttribute('position', new THREE.BufferAttribute(attr(bin, p.position, 'position'), 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(attr(bin, p.normal, 'normal'), 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(attr(bin, p.uv, 'uv'), 2));
+    g.setAttribute('skinIndex', new THREE.BufferAttribute(attr(bin, p.skinIndex, 'skinIndex'), 4));
+    g.setAttribute('skinWeight', new THREE.BufferAttribute(attr(bin, p.skinWeight, 'skinWeight'), 4));
+    g.setIndex(new THREE.BufferAttribute(attr(bin, p.index, 'index'), 1));
+    if (p.color) g.setAttribute('color', new THREE.BufferAttribute(attr(bin, p.color, 'color'), 3));
+    if (p.tangent) g.setAttribute('tangent', new THREE.BufferAttribute(attr(bin, p.tangent, 'tangent'), 4));
     g.computeBoundingSphere();
     if (p.mat.lod && LOD.hair < 1) {
       const n = g.index.count;

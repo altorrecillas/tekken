@@ -7,3 +7,17 @@ Gregor Quendel - Free Crowd Cheering Sounds (www.gregorquendel.com)
 https://opengameart.org/content/free-crowd-cheering-sounds
 Licensed under Creative Commons: By Attribution 4.0 License
 http://creativecommons.org/licenses/by/4.0/
+
+------------------------------------------------------------------------------------------------------------------
+All the following are CC0 (public domain): no attribution needed, credited anyway.
+
+fight.mp3 + fight.json (made by tools/sfx_build.py: trimmed, levelled, packed in one file)
+  punches, body thuds, open-hand slaps, blocks (wood knocks), footsteps (concrete, wood):
+    Kenney - Impact Sounds 1.0 (www.kenney.nl)  https://kenney.nl/assets/impact-sounds
+  swishes:
+    artisticdude - Swishes Sound Pack  https://opengameart.org/content/swishes-sound-pack
+
+amb_porche.mp3 (made by tools/ambience_build.py: filtered, compressed, seamless loop)
+    IgnasD - High traffic road sounds  https://opengameart.org/content/high-traffic-road-sounds
+amb_terrace.mp3 (made by tools/ambience_build.py)
+    Kresiek The Furry - AMB Outside 1  https://opengameart.org/content/amb-outside-1

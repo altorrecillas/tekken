@@ -30,7 +30,7 @@ python3 -m http.server 8000
 Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, Cloudflare Pages o un servidor propio). El HTTPS hace falta para poder instalarla como app en el móvil.
 
 - **GitHub:** ejecuta `bash subir_a_github.sh` en esta carpeta. El script te pregunta a qué repositorio subirlo (o crea uno nuevo), hace el commit a tu nombre, lo sube y, si quieres, lo publica con GitHub Pages. Así se puede jugar desde `https://<tu-usuario>.github.io/<repositorio>/`.
-- Las mallas de los personajes se sirven comprimidas (`mesh.bin.gz`, unos 17 MB en total en vez de unos 40 MB). El juego las descomprime en el navegador, así que no hay que configurar nada en el servidor. Si cambias un personaje, `tools/pipeline/buildchar.py` vuelve a generar el `.gz`; también puedes regenerarlos todos con `bash tools/precompress.sh`.
+- Las mallas de los personajes se sirven **cuantizadas** y comprimidas (`mesh.bin.gz`, unos 13 MB los siete luchadores; antes eran 26 MB). Las posiciones van en enteros de 16 bits dentro de la caja de cada pieza (unos 0,03 mm de precisión) y las normales, UV, pesos, colores y tangentes en enteros pequeños. Comparado píxel a píxel con las mallas originales, no hay diferencia visible. El juego las descomprime y las decodifica en el navegador (`js/charloader.js`), así que no hay que configurar nada en el servidor. Si cambias un personaje, `tools/pipeline/buildchar.py` las vuelve a generar ya cuantizadas, con su `.gz`; `bash tools/precompress.sh` regenera todos los `.gz`.
 - **Carga escalonada:** la primera pantalla solo espera al código, al escenario y a los datos pequeños de los menús (unos 6 MB): el título sale sobre El Porche vacío y los dos luchadores del fondo entran andando en cuanto llegan; el resto de la plantilla se descarga después, de uno en uno, sin bloquear nada. Antes había que bajar unos 27 MB (todos los luchadores del fondo y sus texturas) antes de ver el título. La pantalla de carga se ve desde el primer instante: el logo con una fuente de reserva mientras llega la suya, una barra que se mueve mientras baja el código y luego el progreso real, y una línea con lo que se está preparando.
   - Las fuentes van en WOFF2 con solo los caracteres que usa el juego (11 KB cada una en vez de 60–400 KB en TTF).
   - Las texturas compartidas (mechones de pelo, ojos, dientes, pestañas) van en WebP: una décima parte del PNG, con la transparencia exacta. El pipeline sigue escribiendo los PNG como fuente y genera los WebP.
@@ -43,7 +43,7 @@ Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, C
 | Modo | Descripción |
 |---|---|
 | Arcade | Te enfrentas a los otros seis, uno tras otro (la pantalla de carga indica «COMBATE X DE 6»). Al vencerlos a todos eres **Campeón del barrio** y ves el **final** de tu luchador. La CPU se endurece en cada combate y los escenarios se alternan. |
-| Versus → 2 jugadores | Dos jugadores en la misma pantalla, con teclado o mandos (en un móvil o tablet sin mando aparece atenuado: hace falta un mando). En la selección se elige escenario con **W/S** o con las flechas ◀ ▶. |
+| Versus → 2 jugadores | Dos jugadores en la misma pantalla, con teclado o mandos (en un móvil o tablet sin mando aparece atenuado: hace falta un mando). En la selección se elige escenario con arriba / abajo (**W/S** o las flechas) o con las flechas ◀ ▶. |
 | Versus → Online | Dos jugadores, **cada uno en su móvil**, por WiFi (o por QR sin internet). Ver [Versus online](#versus-online-dos-móviles). |
 
 Los dos versus están en el submenú **VERSUS** del menú principal.
@@ -58,13 +58,13 @@ Los dos versus están en el submenú **VERSUS** del menú principal.
 - La jugada se elige por puntuación: el daño, la longitud del combo, y si tuvo lanzamiento, contraataque, Rage Art, agarre o K.O. (más si fue el K.O. final o una ronda perfecta).
 - En el arcade, entre combate y combate, el botón principal es **SIGUIENTE COMBATE**.
 
-**Trajes:** en la selección de luchador cada uno tiene un **segundo traje** de otros colores (Q / E con el teclado del jugador 1, − / = el jugador 2, L1 / R1 con mando, o las flechas ◀ ▶ del panel). Si los dos eligen al mismo luchador con el mismo traje, el segundo jugador sale con el otro, para distinguirlos. El **traje de campeón** (dorado y negro) se desbloquea al ganar el arcade con ese luchador. Online, cada móvil ve el traje que ha elegido el otro.
+**Trajes:** en la selección de luchador cada uno tiene un **segundo traje** de otros colores (Q / E con el teclado del jugador 1, − / = el jugador 2, mientras no se hayan asignado a una acción; L1 / R1 con mando, o las flechas ◀ ▶ del panel). Si los dos eligen al mismo luchador con el mismo traje, el segundo jugador sale con el otro, para distinguirlos. El **traje de campeón** (dorado y negro) se desbloquea al ganar el arcade con ese luchador. Online, cada móvil ve el traje que ha elegido el otro.
 
 **EXTRAS** (menú principal):
 - **LOGROS:** 21 logros, por ejemplo primera victoria, campeón del barrio, ronda perfecta, combo de 5 y de 7 golpes, remates con Rage Art, contraataque o agarre, remontada, 500 golpes, todos los escenarios, ganar online o completar las pruebas de combo. Al desbloquear uno aparece un aviso arriba a la derecha.
 - **FINALES:** los finales del arcade desbloqueados, para volver a verlos.
 - **CABEZONES:** cabezas grandes (solo de aspecto; los golpes miden la cabeza real). Se desbloquea al ganar el arcade.
-- **CONTROLES:** la ayuda de controles.
+- **CONTROLES:** la ayuda de controles, con las teclas y los botones tal como los tenga cada jugador, y **CONFIGURAR** para cambiarlos (ver [Cambiar los controles](#cambiar-los-controles)).
 - Todo se guarda en el dispositivo.
 
 **Continuar (arcade):** el arcade se guarda solo en el dispositivo. Guarda la escalera de rivales, la dificultad y, a mitad de un combate, el combate exacto: ronda, vida, posiciones y reloj.
@@ -144,15 +144,32 @@ El escenario principal es **El Porche**: en él están el título y la pantalla 
 
 ## Controles
 
+Los controles de fábrica (todos se pueden cambiar, ver más abajo):
+
 | Acción | Jugador 1 (teclado) | Jugador 2 (teclado) | Mando |
 |---|---|---|---|
 | Moverse / saltar / agacharse | W A S D | Flechas | Stick / cruceta |
-| 1 · puño izquierdo | U | Num 4 / 7 | X / □ |
+| 1 · puño izquierdo | U / Y | Num 4 / 7 | X / □ |
 | 2 · puño derecho | I | Num 5 / 8 | Y / △ |
-| 3 · patada izquierda | J | Num 1 / 9 | A / ✕ |
+| 3 · patada izquierda | J / H | Num 1 / 9 | A / ✕ |
 | 4 · patada derecha | K | Num 2 / 0 | B / ○ |
-| Pausa y lista de movimientos | Enter / Esc | Num Enter | Start |
-| Atajos | — | — | L1 = 1+2 · R1 = 3+4 · L2 = agarre 1+3 · R2 = agarre 2+4 |
+| Pausa y lista de movimientos | Enter (y siempre Esc) | Num Enter / Retroceso | Start / Options |
+| Atajos | se pueden asignar | se pueden asignar | L1 = 1+2 · R1 = 3+4 · L2 = agarre 1+3 · R2 = agarre 2+4 |
+
+En los menús, cada jugador usa sus propias teclas: sus direcciones para moverse, su **1** para aceptar y su **4** para volver. Intro y Espacio también aceptan, y Esc y Retroceso vuelven, mientras no se hayan asignado a una acción de combate. Con mando, ✕ / A (o □ / X) acepta y ○ / B vuelve, se hayan cambiado o no los botones del combate.
+
+### Cambiar los controles
+
+En **Opciones → Teclado y mando → CONFIGURAR**, en **Extras → Controles → CONFIGURAR** o en la **pausa → CONTROLES** (en el ordenador o con mando):
+
+- Tres pestañas: **TECLADO · J1**, **TECLADO · J2** y **MANDO**. Cada acción tiene dos casillas, principal y alternativa.
+- Para cambiar una, se elige la casilla (clic, toque, o moviéndose con las flechas o la cruceta y aceptando) y se pulsa la tecla o el botón nuevo. Si esa tecla ya hacía otra cosa, aunque fuera del otro jugador, **se intercambian**: la otra acción se queda con la tecla vieja. Así una tecla nunca hace dos cosas.
+- **Supr** (o △ / Y en el mando) deja una casilla vacía; **Esc** (o ○ / B mientras se espera una tecla, o la cruceta mientras se espera un botón) cancela. Esc, Supr, F1–F12 y las teclas del sistema no se pueden asignar, y la cruceta del mando siempre mueve.
+- Además de 1, 2, 3 y 4 se pueden asignar atajos de **1+2**, **3+4** y los agarres **1+3** y **2+4** a una sola tecla o botón.
+- Una acción del luchador sin ninguna tecla sale marcada en rojo.
+- **RESTAURAR TECLADO** devuelve las teclas de fábrica de los dos jugadores a la vez (pueden haberse intercambiado entre ellos); **RESTAURAR MANDO**, los botones.
+- Cada cambio se guarda en el momento en el dispositivo. Las teclas salen con el nombre que tienen en tu teclado (la Ñ es la Ñ) y los botones con los del mando conectado: PlayStation (✕ ○ □ △), Xbox (A B X Y) o Nintendo.
+- Los atajos de Entrenamiento (R, P y T) solo funcionan mientras no se hayan asignado a una acción.
 
 ### Controles táctiles
 
@@ -164,6 +181,13 @@ En móvil y tablet aparecen controles en pantalla durante el combate, con la dis
 - **II:** pausa y lista de movimientos, bajo el reloj.
 - Cada pulsación se ilumina y, en Android, vibra un poco.
 - En **Opciones → Controles táctiles** se puede elegir cuándo mostrarlos (automático, siempre o nunca), el tamaño, la opacidad, el tipo de joystick (flotante o fijo) y la vibración.
+
+### Opciones de sonido y accesibilidad
+
+En **Opciones**: volumen de música, efectos y voces por separado, y en **ACCESIBILIDAD**:
+- **Subtítulos:** las frases de presentación y de victoria con o sin texto.
+- **Temblor de cámara:** normal, suave o sin temblor (los golpes fuertes sacuden y empujan la cámara; para quien se marea).
+- **Destellos:** normales o suaves (el fogonazo de los golpes y el desenfoque radial de los Rage Art y los K.O.).
 - Si conectas un mando, los controles táctiles se ocultan solos.
 
 ### Reglas básicas
@@ -204,11 +228,26 @@ Al ganar un combate, cada luchador dice su frase con su propia voz (con subtítu
 | Dani | «Más sabe el zorro por viejo que por zorro.» | Se toca la sien con el dedo y acaba con los brazos en V, como al cruzar una meta |
 | Noemí | «Te falta tomar áloe vera.» | Mano en la cadera, le riñe con el dedo y se lleva la mano al auricular: caso cerrado |
 
-Las frases se cambian en `tools/quotes_tts.py` (texto, voz y tono) y en `say` de `js/fight/styles.js` (el subtítulo).
+### Frases de presentación
+
+Antes del primer asalto, la cámara enfoca a cada luchador mientras sale su nombre y dice una frase con su voz (con subtítulo y la boca moviéndose). Cada plano dura lo que tarda en decirla, y cualquier botón salta la presentación. Al empezar cada asalto («RONDA 1», «¡A LUCHAR!»), la cámara entra girando desde un plano más abierto, una vez por cada lado, y se queda en el encuadre del combate justo cuando empieza.
+
+| Luchador | Frase |
+|---|---|
+| Alejandro | «Calienta bien, que esto va a ser rápido.» |
+| Arnau | «Partida nueva. Esta la gano yo.» |
+| Camilo | «Tengo una reunión. Acabemos rápido.» |
+| Rafa | «Tranquilo, que iré despacito.» |
+| Zapponi | «¡Esto va a ser espectacular, vale!» |
+| Dani | «Ponte los guantes, chaval.» |
+| Noemí | «Tranquilo, la ambulancia ya está avisada.» |
+
+Las frases se cambian en `tools/quotes_tts.py` (texto, voz y tono; `INTROS` las de presentación, que se generan con `--intro`) y en `js/fight/styles.js`: `say` y `introSay` son los subtítulos, y `sayLen` e `introLen` lo que dura cada una en fotogramas, que la herramienta imprime al generarlas.
 
 ## Tecnología
 
 - **Render:** PBR de Three.js con cadena HDR: MSAA, GTAO, bloom, profundidad de campo en las cinemáticas y un pase final con tonemapping AgX, grading CDL por escenario, viñeta y grano.
+  - **Profundidad de campo** (presentación, K.O. y victoria, en calidad alta y ultra; `CineDOF` en `js/engine/post.js`): el fondo se desenfoca como con un teleobjetivo y el enfoque sigue al personaje. El pase de profundidad respeta el recorte de las tarjetas de pelo (antes el pelo era un bloque sólido y dejaba un halo nítido de fondo alrededor de la cabeza) y deja fuera chispas y polvo. El desenfoque recoge muestras en espiral y cada una cuenta solo hasta donde llega su propio desenfoque, así que un luchador enfocado no mancha de color el fondo borroso que tiene detrás.
   - Sombras solares en dos cascadas: una fina que sigue a los luchadores y otra amplia para el escenario (`js/engine/sunshadow.js`).
   - Una luz principal y un contraluz que solo afectan a los personajes (`FIGHTER_KEY`).
   - Sombras de contacto bajo los pies y reflejos planos en la piscina.
@@ -233,9 +272,12 @@ Las frases se cambian en `tools/quotes_tts.py` (texto, voz y tono) y en `say` de
   - Máquina de estados de lucha a 60 Hz fijos, con hitstop, empuje, counters, juggles, agarres y knockdowns.
   - Ragdoll Verlet en los KO.
 - **Público de La Meta 10K:** los propios luchadores, re-vestidos y posados, pre-renderizados en un atlas de 64 sprites (`crowdlab.html`) y dibujados con una sola llamada instanciada.
-- **Audio:** golpes sintetizados con WebAudio; música, público y voces grabados.
+- **Audio:** golpes, pasos, caídas y ambiente grabados; música, público y voces grabados.
+  - **Golpes grabados** (`assets/sfx/fight.mp3`, 233 KB, con su tabla `fight.json`; los prepara `tools/sfx_build.py`): puñetazos ligeros y fuertes, golpes sordos al cuerpo, bofetadas, bloqueos con un golpe seco de madera, pasos en cemento o en la tarima del festival y silbidos de los golpes al aire. Cada impacto elige una de las cinco tomas al azar (nunca la misma dos veces seguidas), con un poco de variación de tono y volumen, y se mezcla en capas: una patada lleva el puñetazo más grave y un golpe al cuerpo; un golpe fuerte, además, un grave sintetizado para que pese. Un contraataque suena con un chasquido seco, y el golpe que deja K.O., con un retumbe largo. El silbido suena justo antes de que el golpe pueda llegar, no al empezar el movimiento. Mientras el archivo no ha cargado, suenan los golpes sintetizados de antes. Grabaciones CC0 de [Kenney](https://kenney.nl/assets/impact-sounds) y [artisticdude](https://opengameart.org/content/swishes-sound-pack).
+  - **Ambiente de cada escenario** (`tools/ambience_build.py`, bucles sin cortes bajo la música): una calle con tráfico en El Porche (IgnasD) y una tarde al aire libre en la azotea (Kresiek The Furry), ambas CC0. Cuando un luchador habla, la música baja un poco para que se le entienda.
+  - **Cámara lenta** (K.O., Rage Art): la música y el ambiente se apagan bajo un filtro, como si el mundo se detuviera, mientras los golpes, las voces y la ovación del público siguen nítidos; vuelven al recuperar la velocidad.
   - **Música** en `assets/music/` (unos 10 MB, se reproduce en streaming, una pista a la vez): «Latin Industries» en los menús, «Exit the Premises» en la azotea, «Club Diver» en la calle, «MTA» en El Porche y «Pamgaea» en El Festival, de [Kevin MacLeod](https://incompetech.com) con licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Graves por debajo de 32 Hz recortados y volumen normalizado a −16 LUFS para que suene limpia también en el altavoz del móvil.
-  - **Público de la calle** en `assets/sfx/`: un bucle de ambiente sin cortes y una ovación en cada K.O., de las [grabaciones de Gregor Quendel](https://opengameart.org/content/free-crowd-cheering-sounds) (CC BY 4.0). La azotea y El Porche solo llevan música.
+  - **Público de la calle** en `assets/sfx/`: un bucle de ambiente sin cortes y una ovación en cada K.O., de las [grabaciones de Gregor Quendel](https://opengameart.org/content/free-crowd-cheering-sounds) (CC BY 4.0). En El Festival suena el mismo público, más lejos.
   - Los créditos también aparecen en el menú de opciones.
   - **Locutor en español** con voz natural: frases pregrabadas en `assets/voice/` («Ronda uno», «¡A luchar!», «¡K.O.!», «¡Gana Rafa!»…), unos 230 KB en total.
   - Generadas con el sintetizador neuronal [Piper](https://github.com/rhasspy/piper) (voz `es_ES-davefx-medium`), con un ligero eco de pabellón.
@@ -262,8 +304,11 @@ Las frases se cambian en `tools/quotes_tts.py` (texto, voz y tono) y en `say` de
 
 Son los scripts usados para generar los personajes y probar el juego. Se incluyen como referencia: para regenerar los personajes hacen falta los assets de MakeHuman y los modelos de MediaPipe, que no están en el repositorio.
 
-- `tools/pipeline/`: pipeline de construcción de personajes en Python. El punto de entrada es `buildchar.py`; los parámetros de cada luchador están en `people.py` y la ropa en `outfits.py`. `hairgen.py` genera el pelo con tarjetas (la melena rizada de Noemí es `grow_bob`) y `garments.py` la ropa (bata con escote en V recto y caída desde el pecho). `noemi_photo.py` prepara su foto: borra el micrófono del casco que le cruza la mandíbula. Las texturas de mechones `hair_cards_r.png` y `hair_cards_curly_r.png` tienen la raíz densa en la raíz de cada tarjeta (las primeras, `hair_cards.png` y `hair_cards_curly.png`, la tienen invertida y dejan transparente el primer cuarto de cada mechón: en los peinados cortos eso difumina el nacimiento del pelo y se queda así, pero a la melena de Noemí le dejaba la coronilla calva, así que ella usa la rizada nueva). `keeppart.py <carpeta vieja> <carpeta nueva> hair` devuelve a una reconstrucción el pelo de la versión aprobada: al volver a generar un luchador la cabeza se mueve fracciones de milímetro y los mechones aleatorios salen distintos, aunque el peinado sea el mismo. La barba de Dani lleva en el canal verde de `beard_d.png` la proporción de canas de cada zona (más blanca en la barbilla).
+- `tools/pipeline/`: pipeline de construcción de personajes en Python. El punto de entrada es `buildchar.py`; los parámetros de cada luchador están en `people.py` y la ropa en `outfits.py`. `hairgen.py` genera el pelo con tarjetas (la melena rizada de Noemí es `grow_bob`) y `garments.py` la ropa (bata con escote en V recto y caída desde el pecho). `noemi_photo.py` prepara su foto: borra el micrófono del casco que le cruza la mandíbula. Las texturas de mechones `hair_cards_s.png` y `hair_cards_curly_s.png` (las de Alejandro, Arnau, Camilo, Rafa y Dani, y las que toma un luchador nuevo) tienen la raíz densa en la raíz de cada tarjeta y la hacen aparecer poco a poco en el primer 7 % del mechón: el pelo se ve lleno y su nacimiento no dibuja una línea dura de peluca. Las `_r` tienen la raíz densa sin ese difuminado; la melena de Noemí usa `hair_cards_curly_r.png`, que en su raya queda mejor. Las primeras, `hair_cards.png` y `hair_cards_curly.png`, estaban invertidas: dejaban transparente el primer cuarto de cada mechón (pelo ralo, con el cuero cabelludo pintado a la vista); se quedan solo como referencia. `meshfmt.py` lee y escribe las mallas en sus dos formatos (el cuantizado es el que se publica; `python3 meshfmt.py <carpeta>` convierte una del formato antiguo y dice el error máximo de cada dato). `keeppart.py <carpeta vieja> <carpeta nueva> hair` devuelve a una reconstrucción el pelo de la versión aprobada: al volver a generar un luchador la cabeza se mueve fracciones de milímetro y los mechones aleatorios salen distintos, aunque el peinado sea el mismo. La barba de Dani lleva en el canal verde de `beard_d.png` la proporción de canas de cada zona (más blanca en la barbilla).
 - `tools/festival_prep.py`: limpia la foto del escenario del festival y saca sus texturas (`assets/stage/fest_*`).
+- `tools/sfx_build.py <carpeta de Kenney> <carpeta de swishes>`: prepara los golpes grabados (`assets/sfx/fight.mp3` y `fight.json`): recorta cada toma, iguala el volumen de las tomas de cada grupo y las junta en un solo archivo con la tabla de dónde empieza cada una.
+- `tools/ambience_build.py <escenario> <grabación>`: prepara el ambiente de un escenario (`assets/sfx/amb_<escenario>.mp3`): filtra, suaviza los momentos fuertes y hace un bucle sin cortes.
+- `tools/quotes_tts.py <carpeta de voces> [--intro] [luchadores]`: genera con Piper las frases de victoria o, con `--intro`, las de presentación, e imprime en qué fotograma acaba cada una.
 - `tools/*.mjs`: capturas headless con Playwright (`shot.mjs`), pruebas de flujo de menús (`flow.mjs`, `flow2.mjs`), simulación de combates sin gráficos para equilibrar (`simtest.mjs` y `rr.sh`) y horneado del público (`crowdbake.mjs`). Las herramientas localizan el juego a partir de su propia carpeta; la variable `GAME_ROOT` permite apuntar a otra copia.
 - Móvil:
   - `tools/mshot.mjs`: capturas con perfiles de móvil y tablet (844×390 @3x, 667×375 @2x, vertical, 1180×820 @2x).
@@ -273,10 +318,11 @@ Son los scripts usados para generar los personajes y probar el juego. Se incluye
   - `tools/extrastest.mjs`: EXTRAS y desbloqueos. Arcade ganado, final del campeón (texto que se escribe solo, un toque lo muestra entero), logros con sus avisos, galería de finales, cabezones, el traje de campeón en la selección y los trajes distintos en un combate espejo.
   - `tools/loadprof.mjs [Mbps] [latencia]`: mide la primera carga con una red de móvil simulada (20 Mbps por defecto): cuándo se ve la pantalla de carga, cuándo se puede usar el título, cuántos MB se han bajado hasta entonces, las fases del arranque y los ficheros que más pesan.
   - `tools/preloads.py`: regenera en `index.html` la lista de módulos que el navegador pide de golpe al empezar.
+  - `tools/controlstest.mjs [salida]`: prueba los controles configurables en el juego real: cambiar teclas con clic y tecla, los intercambios (también entre jugadores), Esc, Supr, las teclas reservadas, un mando simulado que maneja la pantalla y cambia botones, RESTAURAR, que todo siga tras recargar, que los menús sigan las teclas nuevas, un combate con la tecla y el botón nuevos, la pausa y la ayuda de EXTRAS; y que un guardado estropeado no rompa nada.
   - `tools/wintest.mjs [salida] [--fighters a,b] [--shots]`: gana un combate con cada luchador y comprueba su frase de victoria: empieza en su fotograma, sale el subtítulo, la boca se abre con ella, un botón no la corta y el móvil de Camilo solo aparece en su gesto. `--shots` guarda una captura de cada uno a media frase.
   - `tools/trainingtest.mjs [salida] [--fighters a,b]`: juega todas las pruebas de combo de todos los luchadores con un jugador guionizado que prueba distintos tiempos, y falla si alguna no se puede hacer. Además, el bloqueo del sparring, el historial de entradas y la grabación y su repetición.
   - `tools/continuetest.mjs [salida]`: el «continuar» del arcade. Simula que el juego pasa a segundo plano a mitad de combate y se cierra. Comprueba que al volver aparece CONTINUAR, que el combate sigue exactamente igual (fotograma, vida, posiciones, reloj y rival), la cuenta atrás, el guardado solo cada pocos segundos, GUARDAR Y SALIR, el paso al siguiente rival y el borrado al ser campeón.
-  - `tools/voicetest.mjs` y `tools/musictest.mjs`: cargan y reproducen todas las voces y gritos, y la música del menú y de los escenarios (cambios de pista, pausa al ocultar la página, público de la calle).
+  - `tools/voicetest.mjs` y `tools/musictest.mjs`: cargan y reproducen todas las voces y gritos, las frases de victoria y de presentación (con la boca moviéndose), y la música del menú y de los escenarios (cambios de pista, pausa al ocultar la página, público de la calle).
   - `tools/netaudit.mjs`: mide los bytes descargados hasta que el título responde y en una sesión completa, y lista los ficheros que nunca se piden.
   - `tools/perfprobe.mjs`: cuenta las llamadas de dibujo, los triángulos y la memoria de texturas de un combate con cada calidad.
 - Modo online (ver [Versus online](#versus-online-dos-móviles)):

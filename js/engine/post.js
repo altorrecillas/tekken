@@ -125,6 +125,96 @@ const FinalShader = {
     }`,
 };
 
+// Depth of field for the cinematic shots (intro, KO, victory), on three.js's BokehPass with two things of our own:
+// - its depth pass: with the pass's shared override material a head of hair was a solid block in the depth (the cards'
+//   cut-out ignored), the background kept a sharp halo around it, and a spark or a puff of dust punched a hole of
+//   focus in the blur. Here alpha-tested materials (the hair cards) keep their cut-out, and the effects (transparent,
+//   additive, sprites, lines, points) stay out of the depth;
+// - its blur: a gather over a golden-angle spiral where each sample counts only as far as its own blur reaches the
+//   pixel (scatter as gather), so a sharp fighter does not smear a coloured halo over the blurred street behind him;
+//   something behind a pixel never spills over it more than the pixel's own blur. The radius is as three's: 0.4 of
+//   |distance - focus| x aperture of the screen's width, up to 0.4 x maxblur.
+const DOF_FS = `
+  #include <common>
+  #include <packing>
+  varying vec2 vUv;
+  uniform sampler2D tColor; uniform sampler2D tDepth;
+  uniform float maxblur, aperture, nearClip, farClip, focus;
+  uniform vec2 resolution;
+  float dist(const in vec2 uv) { return -perspectiveDepthToViewZ(unpackRGBAToDepth(texture2D(tDepth, uv)), nearClip, farClip); }
+  float cocPx(const in float d, const in float maxPx) { return min(maxPx, 0.4 * abs(d - focus) * aperture * resolution.x); }
+  void main() {
+    float maxPx = 0.4 * maxblur * resolution.x;
+    float d0 = dist(vUv), s0 = cocPx(d0, maxPx);
+    vec3 col = texture2D(tColor, vUv).rgb;
+    float tot = 1.0;
+    float rs = max(0.5, maxPx * maxPx / 192.0), r = rs, ang = 0.0;
+    vec2 px = 1.0 / resolution;
+    for (int i = 0; i < 96; i++) {
+      if (r > maxPx) break;
+      vec2 tc = vUv + vec2(cos(ang), sin(ang)) * r * px;
+      vec3 c = texture2D(tColor, tc).rgb;
+      float d = dist(tc);
+      float s = cocPx(d, maxPx);
+      if (d > d0) s = min(s, s0 * 2.0);
+      float m = smoothstep(r - rs, r + rs, s);
+      col += mix(col / tot, c, m);
+      tot += 1.0;
+      ang += 2.39996323;
+      r += rs / r;
+    }
+    gl_FragColor = vec4(col / tot, 1.0);
+  }`;
+class CineDOF extends BokehPass {
+  constructor(scene, camera, params) {
+    super(scene, camera, params);
+    this._depthMats = new Map();
+    this._hide = []; this._swap = [];
+    this.uniforms.resolution = { value: new THREE.Vector2(1, 1) };
+    this.materialBokeh.dispose();
+    this.materialBokeh = new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: this.materialBokeh.vertexShader, fragmentShader: DOF_FS });
+    this._fsQuad.material = this.materialBokeh;
+  }
+  setSize(w, h) { super.setSize(w, h); this.uniforms.resolution.value.set(w, h); }
+  _depthFor(m) {
+    if (!m || (!m.alphaTest && !m.alphaMap)) return this._materialDepth;
+    let d = this._depthMats.get(m);
+    if (!d) {
+      d = new THREE.MeshDepthMaterial({ map: m.map, alphaMap: m.alphaMap, alphaTest: m.alphaTest || 0.5, side: m.side, depthPacking: THREE.RGBADepthPacking, blending: THREE.NoBlending });
+      this._depthMats.set(m, d);
+    }
+    return d;
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    const hide = this._hide, swap = this._swap;
+    hide.length = 0; swap.length = 0;
+    this.scene.traverseVisible((o) => {
+      if (o.isPoints || o.isLine || o.isSprite || o.userData.noAO) { hide.push(o); return; }
+      if (!o.isMesh) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m || m.transparent || m.blending === THREE.AdditiveBlending) { hide.push(o); return; }
+      swap.push(o, o.material);
+    });
+    for (const o of hide) o.visible = false;
+    for (let i = 0; i < swap.length; i += 2) { const m = swap[i + 1]; swap[i].material = Array.isArray(m) ? m.map((x) => this._depthFor(x)) : this._depthFor(m); }
+    const oldClear = renderer.getClearColor(this._oldClearColor), oldAlpha = renderer.getClearAlpha(), oldAuto = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setClearColor(0xffffff); renderer.setClearAlpha(1.0);
+    renderer.setRenderTarget(this._renderTargetDepth);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+    for (let i = 0; i < swap.length; i += 2) swap[i].material = swap[i + 1];
+    for (const o of hide) o.visible = true;
+    this.uniforms.tColor.value = readBuffer.texture;
+    this.uniforms.nearClip.value = this.camera.near;
+    this.uniforms.farClip.value = this.camera.far;
+    if (this.renderToScreen) { renderer.setRenderTarget(null); this._fsQuad.render(renderer); }
+    else { renderer.setRenderTarget(writeBuffer); renderer.clear(); this._fsQuad.render(renderer); }
+    renderer.setClearColor(oldClear); renderer.setClearAlpha(oldAlpha); renderer.autoClear = oldAuto;
+  }
+  dispose() { super.dispose(); for (const d of this._depthMats.values()) d.dispose(); }
+}
+
 export const QUALITY = {
   low: { scale: 0.75, msaa: 0, gtao: false, bloom: true, shadow: 1024, smaa: true },
   medium: { scale: 1.0, msaa: 0, gtao: false, bloom: true, shadow: 2048, smaa: true },
@@ -166,8 +256,9 @@ export class PostFX {
       this.composer.addPass(this.gtao);
     }
     if (this.q.gtao) {
-      // depth of field for cinematics only (intro, KO, victory): enabled per frame by the game
-      this.bokeh = new BokehPass(this.scene, this.camera, { focus: 2.0, aperture: 0.0035, maxblur: 0.0075 });
+      // depth of field for cinematics only (intro, KO, victory): enabled per frame by the game. (The blur reaches 0.4
+      // of maxblur: 0.016 is a background a hundredth of the screen soft, the look of a long lens)
+      this.bokeh = new CineDOF(this.scene, this.camera, { focus: 2.0, aperture: 0.0035, maxblur: 0.016 });
       this.bokeh.enabled = false;
       this.composer.addPass(this.bokeh);
     }

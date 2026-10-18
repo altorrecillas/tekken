@@ -163,6 +163,8 @@ button { touch-action: manipulation; }
 #stageName small { display: block; font-size: 15px; letter-spacing: .3em; color: var(--gold); }
 #introNames .nm { font-family: 'Bebas'; font-size: min(12vw, 130px); line-height: .85; text-shadow: 0 6px 0 #000; margin-left: 6%; animation: slideIn .6s cubic-bezier(.2,1.2,.3,1); }
 #introNames .ttl { font-family: 'Teko'; font-size: 30px; letter-spacing: .3em; color: var(--gold); margin-left: 6.3%; }
+#introNames .ln { font-family: 'Rajdhani'; font-size: 24px; color: #eee; font-style: italic; text-shadow: 0 2px 0 #000; margin: 8px 0 0 6.3%; max-width: 62%; opacity: 0; transform: translateY(8px); transition: opacity .35s, transform .35s; }
+#introNames .ln.on { opacity: 1; transform: none; }
 @keyframes slideIn { from { transform: translateX(-40%); opacity: 0; } }
 #winner { position: absolute; bottom: 12%; left: 7%; text-align: left; opacity: 0; transition: opacity .6s; }
 #winner.show { opacity: 1; }
@@ -191,13 +193,36 @@ button { touch-action: manipulation; }
 .panel .note { color: #999; font-size: 14px; margin: 10px 0 0; }
 .panel .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; }
 .panel .opts h4:first-child { border-top: 0; padding-top: 0; margin-top: 2px; }
-#overlay .panel:has(.opts) { min-width: min(94vw, 880px); }
+#overlay .panel:has(.opts) { min-width: min(94vw, 880px); background: rgba(14,14,22,.97); }
 .panel select, .panel input[type=range] { min-height: 34px; min-width: 150px; }
 .panel .actions { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; position: sticky; bottom: -22px; padding: 10px 0 4px; background: linear-gradient(180deg, rgba(14,14,22,0), rgba(14,14,22,.96) 30%); }
 .panel .actions button, .panel button.mini { font-family: 'Bebas'; font-size: 26px; letter-spacing: .1em; color: #fff; background: #26222f; border: 1px solid #5a5068; padding: 8px 28px; min-height: 48px; min-width: 140px; cursor: pointer; }
 .panel .actions button:hover { background: #342e40; }
 .panel .actions button.primary { background: linear-gradient(180deg, #ffb13b, #e0661b); color: #1a0f05; border-color: #ffd27a; }
 .panel button.mini { font-size: 18px; padding: 4px 14px; min-height: 38px; min-width: 0; }
+/* OPCIONES -> CONTROLES (js/ui/controls.js) */
+#overlay .panel:has(.ctl) { min-width: min(94vw, 900px); background: rgba(14,14,22,.97); }
+.ctl-tabs { display: flex; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }
+.ctl-tabs button { font-family: 'Bebas'; font-size: 22px; letter-spacing: .08em; color: #cfc8bb; background: #1d1b26; border: 1px solid #4a4256; padding: 4px 18px; min-height: 40px; cursor: pointer; }
+.ctl-tabs button.on { background: linear-gradient(180deg, #ffb13b, #e0661b); color: #1a0f05; border-color: #ffd27a; }
+.ctl-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 0 28px; align-items: start; }
+.ctl table { width: 100%; }
+.ctl th { font-family: 'Teko'; font-weight: 500; font-size: 15px; letter-spacing: .2em; color: #8f879c; text-align: center; padding: 0 4px 2px; }
+.ctl td { padding: 3px 4px; }
+.panel .ctl td:first-child { font-size: 19px; white-space: nowrap; }
+.panel .ctl td.warn { color: #ff7a5c; }
+.ctl .slot { font-family: 'Teko'; font-size: 21px; line-height: 1; letter-spacing: .04em; width: 100%; min-width: 92px; min-height: 34px; padding: 4px 8px 2px; color: #fff; background: #1d1b26; border: 1px solid #4a4256; cursor: pointer; white-space: nowrap; }
+.ctl .slot.empty { color: #6d6878; }
+.ctl .slot:hover { border-color: #8a7f9c; }
+.ctl .slot.wait { color: #1a0f05; border-color: #ffd27a; animation: ctlwait .7s ease-in-out infinite alternate; }
+.ctl .slot.flash { animation: ctlflash .8s ease-out; }
+.ctl .sel { outline: 2px solid var(--gold); outline-offset: 1px; }
+.ctl .actions button.sel { outline-offset: 3px; }
+.ctl-msg { min-height: 2.8em; }
+@keyframes ctlwait { from { background: #ffd27a; } to { background: #f08a2c; } }
+@keyframes ctlflash { from { background: #3f9a5e; border-color: #7fe0a0; } to { background: #1d1b26; border-color: #4a4256; } }
+@media (max-width: 760px) { .ctl-grid { grid-template-columns: 1fr; } }
+@media (max-height: 520px) { .ctl-tabs button { font-size: 18px; min-height: 34px; padding: 2px 12px; } .ctl .slot { font-size: 18px; min-height: 30px; } .panel .ctl td:first-child { font-size: 16px; } .ctl-msg { min-height: 0; } }
 
 /* ---------- touch controls (built by js/ui/touch.js) ---------- */
 #touch { position: fixed; inset: 0; z-index: 12; pointer-events: none; display: none; --tk-alpha: .85; --rb: 34px; --R: 63px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -544,7 +569,7 @@ button { touch-action: manipulation; }
   #timer { font-size: 38px; top: max(4px, env(safe-area-inset-top)); min-width: 60px; }
   .combo { top: 21%; } .combo .hits { font-size: 34px; } .combo .dmg { font-size: 15px; }
   .popup { font-size: 24px; top: 30%; }
-  #introNames { bottom: 11%; } #introNames .nm { font-size: min(10vw, 66px); } #introNames .ttl { font-size: 16px; }
+  #introNames { bottom: 11%; } #introNames .nm { font-size: min(10vw, 66px); } #introNames .ttl { font-size: 16px; } #introNames .ln { font-size: 15px; margin-top: 4px; }
   #stageName { font-size: 15px; } #stageName small { font-size: 10px; }
   #winner { bottom: 11%; } #winner .nm { font-size: min(10vw, 72px); } #winner .sub { font-size: 16px; } #winner .quote { font-size: 14px; }
   #announce { font-size: min(14vw, 100px); } #announce.ko { font-size: min(20vw, 150px); }
@@ -636,8 +661,10 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/UnrealBloomPass.js">
 <link rel="modulepreload" href="vendor/three/jsm/math/SimplexNoise.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/SMAAShader.js">
+<link rel="modulepreload" href="js/ui/controls.js">
 <link rel="modulepreload" href="js/net/simstate.js">
 <link rel="modulepreload" href="js/ui/touch.js">
+<link rel="modulepreload" href="js/fight/input.js">
 <link rel="modulepreload" href="js/anim/body.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/GTAOShader.js">
 <link rel="modulepreload" href="js/fight/camera.js">
@@ -648,11 +675,11 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/EffectComposer.js">
 <link rel="modulepreload" href="js/fight/ai.js">
 <link rel="modulepreload" href="js/ui/progress.js">
+<link rel="modulepreload" href="js/charloader.js">
 <link rel="modulepreload" href="js/anim/feet.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/PoissonDenoiseShader.js">
 <link rel="modulepreload" href="js/engine/sunshadow.js">
 <link rel="modulepreload" href="js/anim/clip.js">
-<link rel="modulepreload" href="js/charloader.js">
 <link rel="modulepreload" href="js/engine/device.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/BokehShader.js">
 <link rel="modulepreload" href="js/net/lan.js">
@@ -667,7 +694,6 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/net/qr.js">
 <link rel="modulepreload" href="js/net/sdp.js">
 <link rel="modulepreload" href="js/fight/costumes.js">
-<link rel="modulepreload" href="js/fight/input.js">
 <link rel="modulepreload" href="js/fight/stats.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
 <link rel="modulepreload" href="js/net/signal.js">
@@ -761,6 +787,7 @@ button { touch-action: manipulation; }
     <button data-act="resume">CONTINUAR</button>
     <button data-act="movelist">LISTA DE MOVIMIENTOS</button>
     <button data-act="tset" hidden>AJUSTES DE ENTRENAMIENTO</button>
+    <button data-act="controls">CONTROLES</button>
     <button data-act="restart">REINICIAR COMBATE</button>
     <button data-act="quit">SALIR AL MENÚ</button>
   </div>

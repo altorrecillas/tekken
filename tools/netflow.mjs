@@ -149,6 +149,13 @@ try {
   await Promise.all([H, G].map((p) => waitFor(p, () => window.__game.match.phase === 'fight' || window.__game.match.round >= 1, null, 30000, 'round 1')));
   check(true, 'the intro skipped from the guest\'s phone ends on both');
   await brawl(H, G, 8);
+  // (the two scripted players press at random: now and then eight seconds go by without a blow landing; they go on
+  // a little longer before the check)
+  for (let k = 0; k < 2; k++) {
+    const st = await S(H);
+    if (st.hp.some((h, i) => h < st.maxHp[i])) break;
+    await brawl(H, G, 6);
+  }
   const s1 = await Promise.all([S(H), S(G)]);
   console.log(`  host:  frame ${s1[0].frame} hp ${s1[0].hp} ${JSON.stringify(s1[0].stats)}`);
   console.log(`  guest: frame ${s1[1].frame} hp ${s1[1].hp} ${JSON.stringify(s1[1].stats)}`);

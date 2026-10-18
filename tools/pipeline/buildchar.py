@@ -800,7 +800,7 @@ def build(pid, quick=False):
         order = np.argsort(perm[tri_strand], kind='stable')
         hidx = hidx[order]
         ex.add_part('hair', to_m(hp_, ground), hn, huv, si, sw, hidx.ravel(),
-                    dict(type='haircards', lod=True, map='../../shared/' + hc.get('atlas', 'hair_cards.png').replace('.png', '.webp'), tint=list(tint)), color=col, tangent=tang)
+                    dict(type='haircards', lod=True, map='../../shared/' + hc.get('atlas', 'hair_cards_s.png').replace('.png', '.webp'), tint=list(tint)), color=col, tangent=tang)
         print(f'  hair cards: {len(hp_)} verts, {len(hidx)} tris')
         if band is not None:
             # elastic hair tie around the knot
@@ -892,11 +892,13 @@ def build(pid, quick=False):
         height=float((Vg[:13380, 1].max() - ground) * UNIT),
     )
     ex.write(os.path.join(outdir, 'mesh.json'), os.path.join(outdir, 'mesh.bin'), extra)
-    # the game downloads the gzip-precompressed mesh (inflated in the browser with DecompressionStream)
-    import gzip, shutil
-    with open(os.path.join(outdir, 'mesh.bin'), 'rb') as fi, gzip.GzipFile(os.path.join(outdir, 'mesh.bin.gz'), 'wb', compresslevel=9, mtime=0) as fo:
-        shutil.copyfileobj(fi, fo)
-    print('  exported', os.path.getsize(os.path.join(outdir, 'mesh.bin')) // 1024, 'KB; height', round(extra['height'], 3))
+    raw = os.path.getsize(os.path.join(outdir, 'mesh.bin'))
+    # quantized for the game (meshfmt.py: a third of the download, invisible errors) and gzip-precompressed (inflated in
+    # the browser with DecompressionStream)
+    import meshfmt
+    meta_, parts_ = meshfmt.load(outdir)
+    meshfmt.save(outdir, meta_, parts_, quantized=True)
+    print('  exported', raw // 1024, 'KB raw ->', os.path.getsize(os.path.join(outdir, 'mesh.bin.gz')) // 1024, 'KB quantized and gzipped; height', round(extra['height'], 3))
 
 
 def shared_assets():
@@ -908,9 +910,12 @@ def shared_assets():
     # the same strands with the dense roots at the card's root (see strand_atlas)
     cv2.imwrite(os.path.join(d, 'hair_cards_r.png'), strand_atlas(1, False, roots_v0=True))
     cv2.imwrite(os.path.join(d, 'hair_cards_curly_r.png'), strand_atlas(2, True, roots_v0=True))
+    # dense roots that fade in over the first few percent of the card: no hard line along the hairline
+    cv2.imwrite(os.path.join(d, 'hair_cards_s.png'), strand_atlas(1, False, roots_v0=True, root_fade=0.07))
+    cv2.imwrite(os.path.join(d, 'hair_cards_curly_s.png'), strand_atlas(2, True, roots_v0=True, root_fade=0.07))
     # the game loads WebP copies (a tenth of the size, the alpha kept exact); the PNGs stay as the sources
     from PIL import Image as _Image
-    for n in ('hair_cards', 'hair_cards_curly', 'hair_cards_r', 'hair_cards_curly_r'):
+    for n in ('hair_cards', 'hair_cards_curly', 'hair_cards_r', 'hair_cards_curly_r', 'hair_cards_s', 'hair_cards_curly_s'):
         _Image.open(os.path.join(d, n + '.png')).save(os.path.join(d, n + '.webp'), 'WEBP', quality=90, alpha_quality=100, method=6)
     import shutil
     eye = cv2.imread(os.path.join(M.MHA, 'eyes/materials/brownlight_eye.png'), cv2.IMREAD_UNCHANGED)
