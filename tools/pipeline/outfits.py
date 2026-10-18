@@ -6,6 +6,12 @@ from garments import cover_top, cover_bottom, cover_socks, socks_offset, Decal, 
 from headtex import fbm
 
 FONT_DIR = '/usr/share/fonts/truetype/noto/'
+# where a top's neckline sits (the smoothed neck-weight field's value along it, garments.cover_top): a crew neck at the
+# base of the neck, a zip jacket a little higher up it. (The first builds cut 0.42 - 0.55: a wide, low scoop that bared
+# the collarbones and read as a shirt two sizes too big; together with the cloth standing off the skin at the
+# shirt's own distance it looked like a thick ring. make_shell's neck_snug lays the band on the neck)
+CREW = 0.62
+ZIP_NECK = 0.7
 
 
 def font(name, size):
@@ -184,7 +190,7 @@ def emblem_img():
 
 def outfit_alejandro(ctx, P):
     """Yellow two-button polo (as in his photo) + raspberry chino shorts."""
-    top = cover_top(ctx, sleeve=0.4, hem=ctx.y_hip - 0.22, neck=0.52)
+    top = cover_top(ctx, sleeve=0.4, hem=ctx.y_hip - 0.22, neck=CREW)
     yellow = (0.97, 0.73, 0.02)
     ybgr = [int(yellow[2] * 255), int(yellow[1] * 255), int(yellow[0] * 255)]
     decals = [front_decal(ctx, placket_img(ybgr), 0.0, ctx.y_neck - 0.72, 0.3, 1.3, min_facing=0.35, bump=0.9),
@@ -192,7 +198,9 @@ def outfit_alejandro(ctx, P):
     shorts = cover_bottom(ctx, length=0.58, waist=ctx.y_navel - 0.3)
     return [G('shirt', top, loose(ctx, 0.11, 0.12), yellow, rough=0.86, knit=1.0, fold=1.1, decals=decals, sheen=0.55,
               sheen_color=(1.0, 0.85, 0.4), snap=dict(arm=0.4, y_low=ctx.y_hip - 0.22), pique=1.0, rib_cuffs=1.0,
-              collar=dict(stand=0.3, leaf=0.44, gap=0.17, tip=0.32),
+              # (a polo's collar: a 2.5 cm stand, a leaf falling 3.5 - 4.5 cm with short points; the first one, 4.4 cm on a
+              # wide neckline, read as a sweater's band)
+              collar=dict(stand=0.25, leaf=0.36, gap=0.17, tip=0.2),
               buttons=[dict(y=ctx.y_neck - 0.45), dict(y=ctx.y_neck - 0.95)]),
             G('shorts', shorts, loose(ctx, 0.15, 0, 0.3), (0.72, 0.2, 0.3), rough=0.82, knit=0.6, fold=1.2, sheen=0.35,
               sheen_color=(0.9, 0.5, 0.6), snap=dict(leg=0.58, y_high=ctx.y_navel - 0.3))]
@@ -224,7 +232,7 @@ def outfit_alejandro_alt(ctx, P):
 
 def outfit_arnau(ctx, P):
     """Black zip jacket (long sleeves) + black cargo pants."""
-    top = cover_top(ctx, sleeve=1.93, hem=ctx.y_hip - 0.45, neck=0.55)
+    top = cover_top(ctx, sleeve=1.93, hem=ctx.y_hip - 0.45, neck=ZIP_NECK)
     zip_img = np.zeros((600, 40, 4), np.uint8)
     zip_img[:, 14:26] = (70, 70, 72, 255)
     zip_img[::6, 10:30] = (140, 140, 145, 255)
@@ -247,7 +255,7 @@ def outfit_arnau(ctx, P):
 
 def outfit_camilo(ctx, P):
     """Red running tee with race bib + black running shorts + white socks."""
-    top = cover_top(ctx, sleeve=0.4, hem=ctx.y_hip - 0.1)
+    top = cover_top(ctx, sleeve=0.4, hem=ctx.y_hip - 0.1, neck=CREW)
     bib = bib_img(1127, 'CAMILO', sponsor='10K VALENCIA', color=(25, 90, 200))
     decals = [front_decal(ctx, bib, 0.05, ctx.y_navel + 0.9, 1.5, 1.05, min_facing=0.3, bump=0.3)]
     shorts = cover_bottom(ctx, length=0.3)
@@ -261,7 +269,7 @@ def outfit_camilo(ctx, P):
 
 def outfit_rafa(ctx, P):
     """Neon green running tee (VISTA ALEGRE) + black shorts."""
-    top = cover_top(ctx, sleeve=0.45, hem=ctx.y_hip - 0.25)
+    top = cover_top(ctx, sleeve=0.45, hem=ctx.y_hip - 0.25, neck=CREW)
     txt = text_img('VISTA ALEGRE', 700, 140, font('NotoSans-CondensedBlack.ttf', 110), fill=(20, 40, 30, 255), italic=0.2)
     runner = Image.new('RGBA', (400, 400), (0, 0, 0, 0))
     d = ImageDraw.Draw(runner)
@@ -291,7 +299,7 @@ def vest_cover(ctx):
 
 def outfit_zapponi(ctx, P):
     """Navy tee with flame print + black trail running vest + race bib + black shorts."""
-    top = cover_top(ctx, sleeve=0.45, hem=ctx.y_hip - 0.2)
+    top = cover_top(ctx, sleeve=0.45, hem=ctx.y_hip - 0.2, neck=CREW)
     fl = flames_img()
     bib = bib_img(6264, 'J. ANTONIO', sponsor='TRAIL', color=(20, 20, 24))
     red = np.zeros((64, 64, 4), np.uint8); red[:] = (40, 30, 200, 255)
@@ -388,7 +396,7 @@ def stitch_img(points, W, H, color=(40, 150, 220)):
 
 def outfit_dani(ctx, P):
     """Royal-blue running tee with a white club print (CORRE FELIZ) + washed denim shorts + white ankle socks."""
-    top = cover_top(ctx, sleeve=0.42, hem=ctx.y_hip - 0.15, neck=0.5)
+    top = cover_top(ctx, sleeve=0.42, hem=ctx.y_hip - 0.15, neck=CREW)
     blue = (0.018, 0.1, 0.5)  # royal blue
     half = text_img('½ BCN', 300, 90, font('NotoSans-CondensedBlack.ttf', 70), fill=(246, 246, 244, 255))
     # the print fills most of the front, from the chest down to above the navel

@@ -30,7 +30,7 @@ INTROS = {
     'rafa': 'Tranquilo, que iré despacito.',
     'zapponi': '¡Esto va a ser espectacular, vale!',
     'dani': 'Ponte los guantes, chaval.',
-    'noemi': 'Tranquilo, la ambulancia ya está avisada.',
+    'noemi': 'Voy cargadita de áloe vera, cuidado conmigo.',
 }
 
 

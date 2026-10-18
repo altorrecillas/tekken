@@ -559,10 +559,19 @@ export class Fighter {
     // exact update of x'' = -2w x' - w^2 (x - target) over one frame (unconditionally stable at any w)
     const dt = 1 / 60;
     // airborne and thrown bodies turn over fast (a swept fall, a suplex flip): the root follows the clip more
-    // tightly there, or the body lags behind its own feet (the feet are not filtered) and lands still upright
-    const fastRoot = this.state === 'air' || this.state === 'thrown';
+    // tightly there, or the body lags behind its own feet (the feet are not filtered) and lands still upright. So do
+    // jumping attacks, through the flight and the landing: with the hips coming down three frames late, the feet
+    // reached on tiptoe for a floor the body had not reached yet and then slapped down flat. (There the spring
+    // stiffens once the body is off the floor, and relaxes again, over six frames: switched at once, the lag it had
+    // built up closed in a frame, a jolt; stiff through the take-off, it no longer softened the push off the floor)
+    let wRoot = this.state === 'air' || this.state === 'thrown' ? 400 : 0;
+    const ab = this.state === 'move' && this.move?.airborne;
+    if (ab) {
+      const s0 = THREE.MathUtils.smoothstep(this.mf, ab[0] + 1, ab[0] + 7), s1 = THREE.MathUtils.smoothstep(this.mf, ab[1] + 3, ab[1] + 9);
+      wRoot = 50 + 350 * s0 * (1 - s1);
+    }
     for (const [o, n, w0] of SMOOTH_CH) {
-      const w = fastRoot && o <= ROOT_END ? 400 : w0;
+      const w = wRoot && o <= ROOT_END ? wRoot : w0;
       const e = Math.exp(-w * dt);
       for (let i = o; i < o + n; i++) {
         const j0 = Sm.x[i] - p[i], j1 = Sm.v[i] + j0 * w;
@@ -601,9 +610,6 @@ export class Fighter {
   }
 
   applyRig(p) {
-    // look at opponent head (character space)
-    const oh = this.lookAt || this.opp.headWorld || new THREE.Vector3(this.opp.pos.x, 1.55, this.opp.pos.z);
-    this.rig.lookTarget = this.worldToChar(oh, this.rig.lookTarget || new THREE.Vector3());
     // the opponent's body volumes in this character's space: fists and kicking feet stop on them
     const o = this.opp;
     if (o && o.rig.body && this.rig.body && !o.ragdoll && !this.ragdoll) {

@@ -695,7 +695,7 @@ class Game {
     const [a, b] = this.match.fighters;
     // single player: the fighter stands clear of the info panel and faces the camera
     if (vs) { a.pos.set(-0.75, 0, 0.6); b.pos.set(0.75, 0, 0.6); a.yaw = 0.35; b.yaw = -0.35; }
-    else { a.pos.set(0.15, 0, 0.6); b.pos.set(2.5, 0, 0.6); a.yaw = -0.12; b.yaw = -0.35; a.lookAt = new THREE.Vector3(0, 1.1, 6.44); }
+    else { a.pos.set(0.15, 0, 0.6); b.pos.set(2.5, 0, 0.6); a.yaw = -0.12; b.yaw = -0.35; }
     for (const f of this.match.fighters) { f.setState('idle'); f.play('intro', 1); f.prevPos.copy(f.pos); f.prevYaw = f.yaw; }
     if (!vs) b.ch.group.visible = false;
     this.camCtl.setMode('select', true);

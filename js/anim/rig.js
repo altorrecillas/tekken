@@ -48,7 +48,7 @@ const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THRE
 const _m1 = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
 const _e = new THREE.Euler();
 const _X_AXIS = new THREE.Vector3(1, 0, 0);
-const _hv = new THREE.Vector3(), _hv2 = new THREE.Vector3(), _hv3 = new THREE.Vector3();
+const _hv = new THREE.Vector3(), _hv2 = new THREE.Vector3(), _hv3 = new THREE.Vector3(), _hv4 = new THREE.Vector3();
 
 function basisQuat(x, y, out) {
   // orthonormal basis with x axis = x, y axis ~ y
@@ -57,6 +57,12 @@ function basisQuat(x, y, out) {
   const Z = new THREE.Vector3().crossVectors(X, Y);
   _m1.makeBasis(X, Y, Z);
   return out.setFromRotationMatrix(_m1);
+}
+// x clamped into [lo, hi], the last `knee` of the range on either side approached asymptotically (continuous slope)
+function softClamp(x, lo, hi, knee) {
+  if (x > hi - knee) return hi - knee + knee * Math.tanh((x - hi + knee) / knee);
+  if (x < lo + knee) return lo + knee - knee * Math.tanh((lo + knee - x) / knee);
+  return x;
 }
 function perp(v, axis, out) {
   return out.copy(v).addScaledVector(axis, -v.dot(axis));
@@ -70,6 +76,7 @@ const _ch1 = new THREE.Vector3(), _ch2 = new THREE.Vector3(), _ch3 = new THREE.V
 const _cs1 = new THREE.Vector3(), _cs2 = new THREE.Vector3(), _at1 = new THREE.Vector3(), _sp1 = new THREE.Vector3(), _sp2 = new THREE.Vector3();
 const _sp3 = new THREE.Vector3(), _sp4 = new THREE.Vector3(), _sp5 = new THREE.Vector3();
 const _ah1 = new THREE.Vector3(), _ah2 = new THREE.Vector3(), _ah3 = new THREE.Vector3();
+const _sw1 = new THREE.Vector3(), _sw2 = new THREE.Vector3(), _sw3 = new THREE.Vector3(), _sw4 = new THREE.Vector3();
 const _lg1 = new THREE.Vector3(), _lg2 = new THREE.Vector3(), _lg3 = new THREE.Vector3(), _pd1 = new THREE.Vector3(), _pd2 = new THREE.Vector3();
 const HAND_OWN = ['hips', 'belly', 'chest', 'upper', 'neck', 'head', 'thigh.L', 'thigh.R'];
 const ARM_TORSO = ['hips', 'belly', 'chest'];
@@ -163,7 +170,6 @@ export class Rig {
     }
     this.chestRest = R('spine01');
     this.tmpPose = newPose();
-    this.lookTarget = null; // character-space point for the head to look at
     // body volumes fitted to the mesh: fists, elbows and kicking feet are kept out of the own body and, through
     // `obstacles` (the opponent's volumes in this character's space, set every frame by the fighter), out of the
     // opponent's: a strike stops on the surface and the elbow or knee bends instead of the limb going through
@@ -256,30 +262,15 @@ export class Rig {
       eulerQuat(p[sp] * w, p[sp + 1] * w, p[sp + 2] * w, _q2);
       this._setLocalRaw(SPINE[i], _q2);
     }
-    // neck + head (look target adds yaw/pitch)
+    // neck + head: the authored turn. (A look-at towards the opponent's head used to be added here, faded out for
+    // targets behind the shoulder, but the fade had its edges swapped: it never turned the head towards a target in
+    // front, and threw it round to the neck's limit for a few frames whenever the opponent passed behind the
+    // shoulder in a spin or a sweep. Every pose has been authored and approved with the head as its clip sets it, so
+    // the look-at is gone rather than switched on; this.look stays at zero, in the netplay snapshot as before)
     const nk = POSE.neck[0];
-    let lookYaw = 0, lookPitch = 0;
-    const lookAmt = p[POSE.look[0]];
-    if (this.lookTarget && lookAmt > 0) {
-      // compute direction in chest frame
-      const chest = this.world.spine01;
-      const headPos = _v1.copy(this.rest.head).sub(this.rest.spine01).applyQuaternion(chest.q).add(chest.p);
-      const d = _v2.copy(this.lookTarget).sub(headPos).applyQuaternion(_q3.copy(chest.q).invert());
-      const toYaw = Math.atan2(d.x, d.z);
-      // a target behind the shoulder (spins, turned backs) is let go instead of being chased round the back of the
-      // neck (the yaw wraps from +180 to -180 degrees and the head whips across)
-      const k = lookAmt * THREE.MathUtils.smoothstep(Math.abs(toYaw), 2.3, 1.6);
-      lookYaw = toYaw * k;
-      lookPitch = -Math.atan2(d.y, Math.hypot(d.x, d.z)) * k;
-      lookYaw = Math.max(-1.1, Math.min(1.1, lookYaw));
-      lookPitch = Math.max(-0.6, Math.min(0.6, lookPitch));
-    }
-    // the eyes lead but the head follows the look target smoothly
-    const L = this.look;
-    if (!L.init || this.snapLook) { L.yaw = lookYaw; L.pitch = lookPitch; L.init = true; this.snapLook = false; }
-    else if (this._stepState) { L.yaw += (lookYaw - L.yaw) * 0.3; L.pitch += (lookPitch - L.pitch) * 0.3; }
-    // anatomical range of the neck (authored turn + look): about 75 degrees of turn, 45 of nod
-    const yawT = THREE.MathUtils.clamp(p[nk + 1] + L.yaw, -1.3, 1.3), pitchT = THREE.MathUtils.clamp(p[nk] + L.pitch, -0.8, 0.85);
+    // anatomical range of the neck, about 75 degrees of turn and 45 of nod, reached softly (a head turning into a
+    // hard limit stopped dead in one frame)
+    const yawT = softClamp(p[nk + 1], -1.3, 1.3, 0.35), pitchT = softClamp(p[nk], -0.8, 0.85, 0.25);
     for (let i = 0; i < NECK.length; i++) {
       const w = NECK_W[i];
       eulerQuat(pitchT * w, yawT * w, p[nk + 2] * w, _q2);
@@ -357,11 +348,15 @@ export class Rig {
       const rel = _hv3.subVectors(T, c);
       // only hands in front of (or level with) the face can hit it; a hand flung up and back behind the head
       // (launched, arms flailing) is left alone
-      if (d < R && rel.dot(fw) > -0.35 * R) {
+      const fwd = rel.dot(fw);
+      if (d < R && fwd > -0.35 * R) {
         // exit through the front of the face, keeping the sideways offset: a radial push parks the hands on the
-        // crown whenever the torso is tilted back (thrown, launched)
-        rel.addScaledVector(fw, -rel.dot(fw));
-        T.copy(c).add(rel).addScaledVector(fw, Math.sqrt(Math.max(0, R * R - rel.lengthSq())));
+        // crown whenever the torso is tilted back (thrown, launched). The push fades out as the target reaches back
+        // beside the head (the head's own volume still keeps the hand out of it): at full strength right up to the
+        // cut-off, it held a hand smoothing the hair back in front of the face and then let it jump back 20 cm
+        rel.addScaledVector(fw, -fwd);
+        _hv4.copy(c).add(rel).addScaledVector(fw, Math.sqrt(Math.max(0, R * R - rel.lengthSq())));
+        T.lerp(_hv4, THREE.MathUtils.smoothstep(fwd, -0.35 * R, 0));
       }
     }
     // ... and out of the body (torso, head, thighs: volumes fitted to this character, bellies included), clear of
@@ -411,11 +406,8 @@ export class Rig {
       if (d0 > 0.012) {
         const Eo = _ah1.copy(ik.E), rr = this.vols['uarm.' + s].r;
         for (const n of ELBOW_OUT) pushOut(Eo, rr, this.body.seg[n], _ah2.set(sgn, 0, 0));
-        const np = Eo.sub(_ah3.addVectors(S, T).multiplyScalar(0.5));
-        if (np.lengthSq() > 1e-8) {
-          const ik2 = this._twoBone(S, T, A.a, A.b, np);
-          if (this._armInTorso(s, S, ik2.E, T) < d0) ik = ik2;
-        }
+        const ik2 = this._swingIK(S, T, A.a, A.b, ik, Eo);
+        if (ik2 && this._armInTorso(s, S, ik2.E, T) < d0) ik = ik2;
       }
     }
     // ... and round the opponent's body: arms wrapped round him in a clinch or a throw go round his sides instead of
@@ -426,11 +418,8 @@ export class Rig {
         const O = this.obstacles.seg, Eo = _ah1.copy(ik.E), rr = this.vols['uarm.' + s].r;
         const out = _ah2.set(sgn, 0, 0).applyQuaternion(chest.q);
         for (let it = 0; it < 2; it++) for (const n of OPP_TORSO) if (O[n].ok) pushOut(Eo, rr, O[n], out);
-        const np = Eo.sub(_ah3.addVectors(S, T).multiplyScalar(0.5));
-        if (np.lengthSq() > 1e-8) {
-          const ik2 = this._twoBone(S, T, A.a, A.b, np);
-          if (this._armInOpp(s, S, ik2.E, T) < d0) ik = ik2;
-        }
+        const ik2 = this._swingIK(S, T, A.a, A.b, ik, Eo);
+        if (ik2 && this._armInOpp(s, S, ik2.E, T) < d0) ik = ik2;
       }
     }
     bend.subVectors(ik.E, _ah3.addVectors(S, T).multiplyScalar(0.5)).normalize();
@@ -660,12 +649,14 @@ export class Rig {
     if (lo < this.floorY) { const dy = this.floorY - lo; F.y += dy; T.y += dy; }
     if (T.y < this.floorY + rw) T.y = this.floorY + rw;
     // the right fist is solved after the left one: keep them apart
-    if (s === 'R' && this.world['wrist.L']) {
+    const apart = () => {
+      if (s !== 'R' || !this.world['wrist.L']) return;
       const wl = this.world['wrist.L'];
       const oc = _ch4.copy(this.knuckle.L).multiplyScalar(0.6).applyQuaternion(wl.q).add(wl.p);
       const d = F.distanceTo(oc), min = rh + V['hand.L'].r * 0.8;
       if (d < min && d > 1e-5) { const k = (min - d) / d; _ch5.subVectors(F, oc).multiplyScalar(k); F.add(_ch5); T.add(_ch5); }
-    }
+    };
+    apart();
     // a gripping hand (throws) rests on the opponent's body instead of sinking into it
     if (this._gripping && this.obstacles) {
       const O = this.obstacles.seg;
@@ -676,6 +667,8 @@ export class Rig {
           if (pushOut(_ch4, rh, O[n], hint) > 0) { _ch4.sub(F); F.add(_ch4); T.add(_ch4); }
         }
       }
+      // (both hands pushed out of the same back, clasped round a waist, slid into one another: side by side again)
+      apart();
     }
     const strikingHand = this.striking === 'hand' + s;
     if (this.obstacles && !this._gripping && this._clearStrike(S, F, rh, (strikingHand ? 0.45 : 0.35) * this.arm[s].len, 'hand' + s)) T.copy(F).addScaledVector(dir, -ext);
@@ -753,6 +746,25 @@ export class Rig {
     for (const n of ARM_TORSO) d = Math.max(d, capsuleDepth(E, T, rf, B[n]));
     for (const n of ['thigh.L', 'thigh.R']) d = Math.max(d, capsuleDepth(E, T, rf, B[n]));
     return d;
+  }
+
+  // ik with its bend plane turned about the shoulder -> hand line towards Eo (the elbow pushed out of a body), by at
+  // most 100 degrees, and less and less as the arm straightens: the elbow of an arm near full reach lies close to
+  // that line, the push can carry it across, and the swing then only rolls the whole arm over, hand and all, in one
+  // frame (a hand posted on the floor beside the knee flipped over and back from frame to frame)
+  _swingIK(S, T, a, b, ik, Eo) {
+    const dir = _sw1.subVectors(T, S);
+    const w = 1 - THREE.MathUtils.smoothstep(dir.length() / (a + b), 0.88, 0.97);
+    if (w <= 0) return null;
+    dir.normalize();
+    const p0 = _sw2.subVectors(ik.E, S), p1 = _sw3.subVectors(Eo, S);
+    p0.addScaledVector(dir, -p0.dot(dir)); p1.addScaledVector(dir, -p1.dot(dir));
+    if (p0.lengthSq() < 1e-10 || p1.lengthSq() < 1e-10) return null;
+    p0.normalize(); p1.normalize();
+    const ang = Math.atan2(_sw4.crossVectors(p0, p1).dot(dir), p0.dot(p1));
+    const turn = Math.max(-1.75, Math.min(1.75, ang)) * w;
+    if (Math.abs(turn) < 1e-5) return null;
+    return this._twoBone(S, T, a, b, p0.applyAxisAngle(dir, turn));
   }
 
   // With the pole almost along the limb the bend plane is undefined and the elbow / knee can flip from one frame

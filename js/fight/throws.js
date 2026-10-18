@@ -31,8 +31,9 @@ export const THROWS = {
       return { d: t < 38 ? d : lerp(0.34, 1.2, smooth(ramp(t, 38, 47))), side: 0.02 * pull * (1 - smooth(ramp(t, 38, 47))),
         y: 0.26 * up, yaw: t < 38 ? 0 : -0.5 * smooth(ramp(t, 38, 47)) };
     },
-    // hands locked round the victim's waist, on the lower back
-    att: (t) => { const w = smooth(ramp(t, 0, 8)) * (1 - smooth(ramp(t, 42, 46))); return { L: ['spine04', [-0.1, 0, -0.07], w], R: ['spine04', [0.09, 0.02, -0.09], w] }; },
+    // hands locked round the victim's waist, on the lower back (the grip points are the wrists, which go round the
+    // sides: set either side of the spine, the two hands reaching for each other ended up one inside the other)
+    att: (t) => { const w = smooth(ramp(t, 0, 8)) * (1 - smooth(ramp(t, 42, 46))); return { L: ['spine04', [-0.15, 0, -0.08], w], R: ['spine04', [0.14, 0.02, -0.1], w] }; },
     // victim pushing down on top of the thrower's shoulders (his arms over the thrower's)
     def: (t) => { const w = 0.85 * smooth(ramp(t, 0, 8)) * (1 - smooth(ramp(t, 36, 42))); return { L: ['shoulder01.R', [0, 0.09, 0.03], w], R: ['shoulder01.L', [0, 0.09, 0.03], w] }; },
     events: [{ t: 26, kind: 'squeeze', dmg: 0.1 }, { t: 33, kind: 'squeeze', dmg: 0.1 }, { t: 47, kind: 'slam', dmg: 0.8 }],
@@ -54,7 +55,7 @@ export const THROWS = {
       };
     },
     // (let go as he goes over: the victim's legs swing through where the arms were)
-    att: (t) => { const w = smooth(ramp(t, 0, 8)) * (1 - smooth(ramp(t, 20, 25))); return { L: ['spine04', [-0.1, 0, -0.07], w], R: ['spine04', [0.09, 0.02, -0.09], w] }; },
+    att: (t) => { const w = smooth(ramp(t, 0, 8)) * (1 - smooth(ramp(t, 20, 25))); return { L: ['spine04', [-0.15, 0, -0.08], w], R: ['spine04', [0.14, 0.02, -0.1], w] }; },
     def: (t) => { const w = 0.8 * smooth(ramp(t, 0, 8)) * (1 - smooth(ramp(t, 18, 22))); return { L: ['shoulder01.R', [0, 0.09, 0.03], w], R: ['shoulder01.L', [0, 0.09, 0.03], w] }; },
     events: [{ t: 37, kind: 'slam', dmg: 1 }],
   },

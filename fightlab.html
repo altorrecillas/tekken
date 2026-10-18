@@ -124,6 +124,12 @@ else if (camMode === 'feet') { cam.fov = 22; cam.position.set(focus.pos.x + 0.2,
 else if (camMode === 'hands') { cam.fov = 28; cam.position.set(mid.x, 1.45, mid.z + Math.max(2.6, sep * 1.1 + 1.2)); cam.lookAt(mid.x, 1.25, mid.z); }
 else if (camMode === 'front') { cam.position.set(focus.pos.x - 3.2, 1.2, focus.pos.z + 1.2); cam.lookAt(focus.pos.x, 0.9, focus.pos.z); }
 else if (camMode === 'top') { cam.fov = 30; cam.position.set(focus.pos.x + 0.3, 3.2, focus.pos.z + 1.2); cam.lookAt(focus.pos.x + 0.3, 0.0, focus.pos.z); }
+// cam=custom&cp=x,y,z&cl=x,y,z[&fov=]: camera position and look-at point, x and z relative to the focus fighter
+else if (camMode === 'custom') {
+  const cp = (q.get('cp') || '0,1,3').split(',').map(Number), cl = (q.get('cl') || '0,0.7,0').split(',').map(Number);
+  if (q.get('fov')) cam.fov = +q.get('fov');
+  cam.position.set(focus.pos.x + cp[0], cp[1], focus.pos.z + cp[2]); cam.lookAt(focus.pos.x + cl[0], cl[1], focus.pos.z + cl[2]);
+}
 cam.updateProjectionMatrix();
 key.target.position.copy(mid); key.position.copy(mid).add(new THREE.Vector3(2, 5, 4));
 const log = [];

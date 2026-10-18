@@ -541,8 +541,10 @@ def build(pid, quick=False):
             g.offset = goff
     top_layer = None  # (per body vertex weights, coverage) of the top: the lower garment follows it underneath
     for g in outfit:
+        # (tops: the neckline lies on the base of the neck, see make_shell's neck_snug; an outfit can set its own)
+        snug = getattr(g, 'neck_snug', None) or (dict(frac=0.35, band=0.7) if g.name in ('shirt', 'jacket', 'polo', 'top') else None)
         sh = make_shell(ctx, g.covered, g.offset, hem_depth=g.hem_depth, name=g.name, snap=g.snap,
-                        relax=getattr(g, 'relax', 20 if g.name in ('shirt', 'jacket') else 4), drape=getattr(g, 'drape', None))
+                        relax=getattr(g, 'relax', 20 if g.name in ('shirt', 'jacket') else 4), drape=getattr(g, 'drape', None), neck_snug=snug)
         hidden[sh['hide']] = True
         col, nmap, rmap = fabric_maps(ctx, g.covered, g.color, seed=hash(g.name) % 97, knit=g.knit, fold=g.fold,
                                       rough=g.rough, decals=g.decals, extra=g.extra, shell=sh, pique=g.pique, rib_cuffs=g.rib_cuffs)
@@ -573,14 +575,15 @@ def build(pid, quick=False):
                 CW, CH = 1024, 256
                 ctex = np.zeros((CH, CW, 3), np.float32); ctex[:] = np.array(g.color, np.float32)[::-1] * 255
                 yy, xx = np.mgrid[0:CH, 0:CW].astype(np.float32)
-                rib = np.sin(xx * 0.9) * 0.5 + 0.5
-                ctex *= (0.93 + 0.07 * rib[..., None])
+                # (a fine, soft rib: a strong one made the collar a sweater's knitted band)
+                rib = np.sin(xx * 1.6) * 0.5 + 0.5
+                ctex *= (0.965 + 0.035 * rib[..., None])
                 edge = (np.abs(yy - CH * 0.06) < 2) | (np.abs(yy - CH * 0.94) < 2)
                 ctex[edge] *= 0.72
                 cv2.imwrite(os.path.join(outdir, 'collar.jpg'), np.clip(ctex, 0, 255).astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 90])
-                hh = (np.sin(xx * 0.9)).astype(np.float32)
+                hh = (np.sin(xx * 1.6)).astype(np.float32)
                 from headtex import normal_from_height
-                cv2.imwrite(os.path.join(outdir, 'collar_n.jpg'), normal_from_height(hh * 0.8, 1.0), [cv2.IMWRITE_JPEG_QUALITY, 90])
+                cv2.imwrite(os.path.join(outdir, 'collar_n.jpg'), normal_from_height(hh * 0.3, 1.0), [cv2.IMWRITE_JPEG_QUALITY, 90])
                 csi, csw = M.top4(col_['W'])
                 ex.add_part('collar', to_m(col_['pos'], ground), col_['nrm'], col_['uv'], csi, csw, col_['tris'].ravel(),
                             dict(type='cloth', map='collar.jpg', normalMap='collar_n.jpg', roughness=0.85, sheen=g.sheen,

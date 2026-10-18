@@ -237,8 +237,11 @@ def taubin(P, faces, pin, iters=10, lam=0.5, mu=-0.53):
     return Q
 
 
-def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2, snap=None, relax=0, drape=None):
+def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2, snap=None, relax=0, drape=None, neck_snug=None):
     """covered: bool per body vertex; offset: scalar or per-vertex array (dm).
+    neck_snug: dict(frac, band): the cloth comes down to `frac` of its offset at the neckline, easing back to the full
+    offset over `band` dm along the surface (a neckband lies on the base of the neck; at the shirt's own distance from
+    the skin it stood off it like a thick ring).
     Returns dict with verts (dm), normals, uv idx, tris, and the body vertex each shell vertex came from."""
     tris, tuv = ctx.tris, ctx.tuv
     cov = np.zeros(len(ctx.V), bool)
@@ -280,6 +283,22 @@ def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2
             k = rf / np.maximum(r, 1e-6)
             Vsrc[neck, 0] = c[0] + (Vsrc[neck, 0] - c[0]) * k
             Vsrc[neck, 2] = c[2] + (Vsrc[neck, 2] - c[2]) * k
+    neckdist = None
+    if neck_snug and len(be0):
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import dijkstra
+        bv_ = np.unique(be0); bv_ = bv_[bv_ < ctx.n]
+        nb_ = bv_[(ctx.V[bv_, 1] > ctx.y_neck - 0.9) & (ctx.armness[bv_] < 0.65)]
+        if len(nb_):
+            e_ = np.concatenate([ft[:, [0, 1]], ft[:, [1, 2]], ft[:, [2, 0]]])
+            w_ = np.linalg.norm(ctx.V[e_[:, 0]] - ctx.V[e_[:, 1]], axis=1)
+            G_ = coo_matrix((w_, (e_[:, 0], e_[:, 1])), shape=(len(ctx.V), len(ctx.V))).tocsr()
+            band = neck_snug.get('band', 0.7)
+            dn = dijkstra(G_, directed=False, indices=nb_, limit=band * 1.5, min_only=True)
+            neckdist = np.where(np.isfinite(dn), dn, 9.0)
+            s_ = np.clip(neckdist / band, 0.0, 1.0)
+            s_ = s_ * s_ * (3 - 2 * s_)
+            off = off * (neck_snug.get('frac', 0.35) + (1 - neck_snug.get('frac', 0.35)) * s_)
     P = Vsrc + Nn * off[:, None]
     if relax > 0 and len(be0):
         # fabric bridges over muscle detail (no shrink-wrapped pecs / abs), edges stay on their cut lines,
@@ -408,7 +427,7 @@ def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2
         d = dijkstra(G, directed=False, indices=np.unique(be), limit=1.0, min_only=True)
         hemdist = np.minimum(hemdist, np.where(np.isfinite(d), d, 10.0))
     return dict(pos=pos, nrm=nrm, uv=uv, tris=out_tris, src=src, hide=hide_faces, name=name, xform=xform, fsel=fsel, hemdist=hemdist,
-                neck_loop=neck_loop, P=P)
+                neck_loop=neck_loop, P=P, neckdist=neckdist)
 
 
 # -------------------------------------------------------------------- fabric textures
@@ -521,8 +540,10 @@ class Decal:
             height[m] += a[:, 0] * self.bump
 
 
-def smooth_shell_weights(shell, W, bone_names, iters=12, pelvis_bias=None, ctx=None):
-    """Laplacian-smooth the skin weights of a garment shell (removes LBS pinching)."""
+def smooth_shell_weights(shell, W, bone_names, iters=12, pelvis_bias=None, ctx=None, neck_keep=0.6):
+    """Laplacian-smooth the skin weights of a garment shell (removes LBS pinching). Near a snug neckline (the shell's
+    neckdist, see make_shell) the weights go back to the body's own over `neck_keep` dm: the band lies a few
+    millimetres off the skin, and smoothed weights let the skin of the shoulders rise through it when an arm goes up."""
     from scipy.sparse import coo_matrix, diags
     src = shell['src']
     Ws = W[src].astype(np.float64)
@@ -539,9 +560,13 @@ def smooth_shell_weights(shell, W, bone_names, iters=12, pelvis_bias=None, ctx=N
     np.add.at(Wu, inv, Ws)
     cnt = np.bincount(inv, minlength=n)[:, None]
     Wu /= np.maximum(cnt, 1)
+    W0 = Wu.copy()
     # keep the hem rows closer to the body (they sit on the skin)
     for _ in range(iters):
         Wu = 0.5 * Wu + 0.5 * (Dinv @ (A @ Wu))
+    if shell.get('neckdist') is not None and neck_keep > 0:
+        k = np.clip(1.0 - shell['neckdist'][uniq] / neck_keep, 0.0, 1.0)[:, None]
+        Wu = Wu * (1 - k) + W0 * k
     if pelvis_bias is not None and ctx is not None:
         yb, amt, bones = pelvis_bias
         idx = [bone_names.index(b) for b in bones]
@@ -575,7 +600,7 @@ def follow_top_layer(ctx, shell, Wg, top_W, top_cov, band=0.4):
     return W.astype(np.float32)
 
 
-def make_collar(ctx, shell, W, stand=0.3, leaf=0.42, gap=0.16, tip=0.3, npts=72, out_push=0.02):
+def make_collar(ctx, shell, W, stand=0.3, leaf=0.42, gap=0.16, tip=0.3, npts=72, out_push=0.01):
     """Fold-over polo collar built on a smoothed, resampled neckline loop."""
     loop = shell['neck_loop']
     if len(loop) < 6:
@@ -613,7 +638,7 @@ def make_collar(ctx, shell, W, stand=0.3, leaf=0.42, gap=0.16, tip=0.3, npts=72,
         front = np.cos(t) * 0.5 + 0.5  # 1 at the front, 0 at the back
         hs = stand * (1 - 0.3 * front)
         S = B + up * hs + out * 0.008
-        lw = leaf * (1 + 0.25 * front)
+        lw = leaf * (1 + 0.2 * front)
         # the leaf folds over the stand and rests on the garment, slightly away from it
         M1 = S + out * lw * 0.18 + up * 0.02
         F = S + out * lw * 0.55 - up * lw * 0.82

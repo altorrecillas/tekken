@@ -37,10 +37,12 @@ const waitFor = async (fn, arg, ms = 120000, what = 'condition') => {
 const t0 = Date.now();
 try {
   await p.goto(URL_);
-  await waitFor(() => window.__game?.state === 'title' && !!document.querySelector('#title.on'), null, 180000, 'title');
+  // (once the whole roster has loaded and the title's fighters have walked in: before that a slow or busy machine's
+  // page is stuck compiling the showcase for long stretches and a click times out)
+  await waitFor(() => window.__game?.state === 'title' && !!document.querySelector('#title.on') && window.__bootTimes?.roster != null && !window.__game.entrance, null, 300000, 'title');
   // (a click: the audio starts, the select screen fetches every voice and line; forced: the title menu may still be
   // sliding in on a slow machine)
-  await p.click('#title [data-act="arcade"]', { force: true });
+  await p.click('#title [data-act="arcade"]', { force: true, timeout: 90000 });
   await waitFor(() => window.__game.state === 'select', null, 30000, 'select');
   await p.waitForTimeout(3000);
   const roster = await p.evaluate(() => window.__game.roster.slice());

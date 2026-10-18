@@ -33,12 +33,21 @@ export const STYLES = {
           [0, {}],
           [6, { rootRot: [0.1, -1.5, 0], spine: [0.1, 0.35, 0], neck: [0, 0.9, 0], footRotL: [0.25, -1.3, 0], footRotR: [0.45, 0.65, 0],
             handL: [0.35, -0.05, 0.3], handR: [0.3, -0.1, 0.2], aimL: 1, aimR: 1 }, 'inout'],
+          // the rear foot leaves the floor under its own hip, the knee rising on its own side of the pelvis (left to
+          // find its way from the stance to the chamber, it swung across in front of the support knee: thighs
+          // through each other for six frames)
+          [9, { footR: [-0.1, 0.3, -0.18], kneeR: [0.45, 0.2, -0.8] }, 'inout'],
           [12, { rootPos: [0, -0.05, 0], rootRot: [0.3, -2.7, 0], spine: [0.2, 0.5, 0], neck: [0, 1.0, 0], footL: [0.02, 0.071, 0.18], footRotL: [0.3, -2.3, 0],
-            footR: [-0.03, 0.62, -0.18], kneeR: [0.43, 0.3, -0.9], footRotR: [0.4, 0, 0], handL: [0.4, -0.05, 0.25], handR: [0.4, 0.0, 0.1] }, 'inout'],
-          [20, { rootPos: [0, -0.04, 0.02], rootRot: [0.75, -3.1, 0.05], spine: [0.25, 0.45, 0.1], neck: [-0.2, 1.1, 0], footRotL: [0.35, -2.6, 0],
-            footR: [0.0, 0.8, 0.86], kneeR: [0, -1, 0.2], footRotR: [1.2, 0, 0], handL: [0.42, -0.12, 0.3], handR: [0.46, 0.0, 0.1] }, 'drive'],
+            footR: [-0.03, 0.62, -0.18], kneeR: [-0.1, 0.3, -0.95], footRotR: [0.4, 0, 0], handL: [0.4, -0.05, 0.25], handR: [0.4, 0.0, 0.1] }, 'inout'],
+          // the leg drives straight back from its own hip (aimed at the centre line it crossed over the support
+          // thigh), the trunk tipping further forward as counterweight (a hip opens only so far behind) while the
+          // head stays up on the target; the support knee bends away over its toes instead of towards the kick
+          [20, { rootPos: [0, -0.04, 0.02], rootRot: [0.9, -3.1, 0.05], spine: [0.2, 0.45, 0.1], neck: [-0.3, 1.1, 0], kneeL: [-0.3, 0.2, -0.9], footRotL: [0.35, -2.6, 0],
+            footR: [-0.03, 0.8, 0.9], kneeR: [-0.1, -1, 0.2], footRotR: [1.2, 0, 0], handL: [0.42, -0.12, 0.3], handR: [0.46, 0.0, 0.1] }, 'drive'],
           [24, {}, 'lin'],
-          [34, { rootPos: [0, -0.06, 0], rootRot: [0.35, -2.6, 0], spine: [0.15, 0.4, 0], neck: [0, 0.8, 0], footRotL: [0.25, -2.3, 0],
+          // re-chamber two frames sooner, so that the unwinding to the guard is spread over more frames (squeezed
+          // into seven, the knee whipped round)
+          [32, { rootPos: [0, -0.06, 0], rootRot: [0.35, -2.6, 0], spine: [0.15, 0.4, 0], neck: [0, 0.8, 0], kneeL: [0.15, 0, 1], footRotL: [0.25, -2.3, 0],
             footR: [-0.03, 0.55, -0.12], kneeR: [0.43, 0.3, -0.9], footRotR: [0.4, 0, 0] }, 'inout'],
           [41, { rootPos: [0, -0.09, -0.02], rootRot: [0.12, -1.2, 0], spine: [0.1, 0.2, 0], neck: [0.1, 0.5, 0], footRotL: [0.1, -1.0, 0],
             footR: [0.25, 0.071, -0.15], kneeR: [0.5, 0, 1], footRotR: [0.3, 0.65, 0], handL: [0.02, 0.2, 0.62], handR: [-0.08, 0.3, 0.44], aimL: 0, aimR: 0 }, 'inout'],
@@ -81,8 +90,9 @@ export const STYLES = {
         handL: [0.3, -0.68, 0.14], aimL: 1, fistL: 0.3, handR: [0.3, -0.62, 0.2], aimR: 1, fistR: 0.3, footL: [0.16, 0.071, 0.05], footR: [0.16, 0.071, -0.05], footRotL: [0, 0.2, 0], footRotR: [0, 0.22, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'out'],
       // (the hand goes up beside the head, not through the face)
       [36, { hgR: 1, hgPosR: [0.24, 0.08, 0.14], poleR: [0.8, -0.5, 0.2], fistR: 0.1, twistR: -0.6, neck: [-0.05, 0, 0.04] }, 'inout'],
-      [46, { hgPosR: [0.14, 0.1, 0.09] }, 'inout'],
-      [64, { hgPosR: [0.13, 0.09, -0.09], neck: [-0.12, 0.08, 0.06] }, 'inout'],
+      // (along the side of the head, on the hair: closer in, the hand went through the side of the skull)
+      [46, { hgPosR: [0.2, 0.12, 0.09] }, 'inout'],
+      [64, { hgPosR: [0.19, 0.11, -0.09], neck: [-0.12, 0.08, 0.06] }, 'inout'],
       [76, { handR: [0.3, -0.36, 0.38], aimR: 1, poleR: [0.2, -1, -0.5], fistR: 0.1, twistR: -1.4, handL: [0.3, -0.36, 0.38], aimL: 1, fistL: 0.1, twistL: -1.4,
         clavL: [0.16, 0], clavR: [0.16, 0], neck: [0.04, 0, 0.1] }, 'inout'],
       [96, { clavL: [0.04, 0], clavR: [0.04, 0], neck: [0.04, 0.06, 0.06] }, 'sine'],
@@ -192,7 +202,9 @@ export const STYLES = {
       sprintKick: {
         name: 'Sprint kick', total: 50, clip: C([
           [0, {}],
-          [6, { rootPos: [0, -0.1, 0.05], rootRot: [0.25, -0.3, 0], footR: [0.18, 0.2, -0.05], handL: [0.3, -0.3, -0.2], handR: [0.1, 0.1, 0.5], aimL: 1, aimR: 1 }, 'inout'],
+          // (the left arm swings back wide of the body: from the guard straight to behind the hip it went through
+          // the belly)
+          [6, { rootPos: [0, -0.1, 0.05], rootRot: [0.25, -0.3, 0], footR: [0.18, 0.2, -0.05], handL: [0.48, -0.25, -0.15], handR: [0.1, 0.1, 0.5], aimL: 1, aimR: 1 }, 'inout'],
           [18, { rootPos: [0, -0.02, 0.12], rootRot: [-0.35, -0.4, 0], spine: [0.2, 0.1, 0], footR: [0.02, 0.85, 0.75], kneeR: [0.1, 1, 0.3], footRotR: [-1.0, 0, 0], toeR: -0.4, handL: [0.3, 0.1, 0.4], handR: [0.4, -0.2, -0.1] }, 'drive'],
           [22, {}, 'lin'],
           [36, { rootPos: [0, -0.1, 0.05], footR: [0.2, 0.071, 0.2], rootRot: [0.1, -0.4, 0] }, 'inout'],
@@ -207,12 +219,20 @@ export const STYLES = {
           [8, { rootPos: [0, -0.22, 0], rootRot: [0.3, -0.4, 0], spine: [0.15, 0, 0], handL: [0.3, -0.35, 0.15], handR: [0.3, -0.4, 0.05], aimL: 1, aimR: 1 }, 'inout'],
           [13, { rootPos: [0, 0.3, 0.12], rootRot: [-0.1, -0.6, -0.1], footL: [0.1, 0.7, 0.2], kneeL: [0.2, 0.8, 0.6], footR: [0.12, 0.6, 0.3], kneeR: [0.2, 0.4, 1],
             handL: [0.4, 0.25, 0.2], handR: [0.4, 0.3, 0.1] }, 'inout'],
-          [18, { rootPos: [0, 0.45, 0.2], rootRot: [-0.35, -0.9, -0.2], footL: [0.12, 0.72, 0.05], kneeL: [0.2, 0.8, 0.5], footR: [0.0, 1.25, 1.0], kneeR: [0.2, 1, 0.3],
+          // (the hips square up to the kick: turned 50 degrees away from it, the leg went out across the body and the
+          // hip folded some 20 degrees past its limit)
+          [18, { rootPos: [0, 0.45, 0.2], rootRot: [-0.35, -0.6, -0.2], footL: [0.12, 0.72, 0.05], kneeL: [0.2, 0.8, 0.5], footR: [0.0, 1.25, 1.0], kneeR: [0.2, 1, 0.3],
             footRotR: [-1.2, 0.5, 0], handL: [0.5, 0.3, -0.1], handR: [0.4, 0.4, 0.1] }, 'drive'],
           // past the apex: the body starts to come down and the kick eases off (a held pose hung in the air)
-          [26, { rootPos: [0, 0.37, 0.22], rootRot: [-0.3, -0.85, -0.18], footR: [0.02, 1.14, 0.9] }, 'sine'],
-          [38, { rootPos: [0, -0.2, 0.15], rootRot: [0.25, -0.45, 0], footL: [0.05, 0.071, 0.3], footR: [0.2, 0.071, -0.15], kneeL: [0.3, 0, 1], kneeR: [0.5, 0, 1],
-            footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], handL: [0.05, 0.1, 0.55], handR: [0.1, 0.05, 0.4], aimL: 0.5, aimR: 0.5 }, 'in'],
+          [26, { rootPos: [0, 0.37, 0.22], rootRot: [-0.3, -0.55, -0.18], footR: [0.02, 1.14, 0.9] }, 'sine'],
+          // falling: the kicking leg comes down under the body and both legs reach for the floor
+          [32, { rootPos: [0, 0.1, 0.18], rootRot: [0.05, -0.6, -0.08], footL: [0.06, 0.24, 0.26], kneeL: [0.25, 0.2, 1], footR: [0.18, 0.26, -0.05], kneeR: [0.4, 0.2, 1],
+            footRotR: [0.1, 0.5, 0] }, 'inout'],
+          // touch-down at the stance's height and still moving down, then the knees take the landing up (the body used
+          // to fall the whole way in one accelerating segment and stop dead on the floor, the feet on tiptoe)
+          [35, { rootPos: [0, -0.07, 0.16], rootRot: [0.15, -0.5, 0], footL: [0.05, 0.071, 0.3], footR: [0.2, 0.071, -0.15], kneeL: [0.3, 0, 1], kneeR: [0.5, 0, 1],
+            footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], handL: [0.05, 0.1, 0.55], handR: [0.1, 0.05, 0.4], aimL: 0.5, aimR: 0.5 }, 'inout'],
+          [40, { rootPos: [0, -0.2, 0.15], rootRot: [0.25, -0.45, 0] }, 'inout'],
           [54, null, 'inout'],
         ]),
         hit: { f: [18, 25], limb: 'footR', r: 0.15, dmg: 24, lvl: 'high', react: 'hitHigh', blk: -14, kd: true, push: 0.7 },
@@ -263,8 +283,9 @@ export const STYLES = {
       [16, { handL: [0.45, -0.35, 0.1], handR: [0.45, -0.35, 0.1], fistL: 0.2, fistR: 0.2, poleL: [1, -0.3, -0.4], poleR: [1, -0.3, -0.4] }, 'inout'],
       [30, { neck: [0.1, 0, 0.45] }, 'inout'],
       [46, { neck: [0.1, 0, -0.45] }, 'inout'],
-      [58, { neck: [0.05, 0.1, 0], handL: [-0.12, 0.0, 0.5], handR: [-0.08, 0.02, 0.5], fistL: 0.1, fistR: 1 }, 'inout'],
-      [72, { handR: [-0.1, 0.0, 0.52], spine: [0.1, 0, 0] }, 'snap'],
+      // the right fist smacks into the open left hand (the hands used to start out one inside the other)
+      [58, { neck: [0.05, 0.1, 0], handL: [-0.02, 0.0, 0.5], handR: [0.03, 0.02, 0.5], fistL: 0.1, fistR: 1 }, 'inout'],
+      [72, { handR: [-0.045, 0.0, 0.52], spine: [0.1, 0, 0] }, 'snap'],
       [98, null, 'inout'],
     ],
     title: 'El Veterano', desc: 'Peso pesado con sarcasmo. Golpes lentos pero devastadores.',
@@ -527,12 +548,13 @@ export const STYLES = {
     ],
     title: 'La Coordinadora', desc: 'Al mando de la sala de emergencias. Palmas certeras, empujones y un desfibrilador en las manos.',
     say: 'Te falta tomar áloe vera.', sayAt: 78, sayLen: 108, // (the line spoken on winning: tools/quotes_tts.py)
-    introSay: 'Tranquilo, la ambulancia ya está avisada.', introLen: 138, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
+    introSay: 'Voy cargadita de áloe vera, cuidado conmigo.', introLen: 150, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
     aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '2', 'b+1'],
-    // a calm, upright guard with open hands, a little lower and wider than a boxer's
-    stance: { rootPos: [0, -0.065, -0.02], rootRot: [0.05, -0.42, 0], spine: [0.1, 0.1, 0], neck: [0.14, 0.18, 0], fistL: 0.25, fistR: 0.25,
-      hgPosL: [0.09, -0.15, 0.32], hgPosR: [0.11, -0.14, 0.14] },
+    // a calm, upright guard, hands loosely closed at chest height, wider than a boxer's: her face stays in view (the
+    // first guard held the open hands at her chin and the rear one by her temple, covering her face from the camera)
+    stance: { rootPos: [0, -0.065, -0.02], rootRot: [0.05, -0.42, 0], spine: [0.1, 0.1, 0], neck: [0.14, 0.18, 0], fistL: 0.7, fistR: 0.7,
+      hgPosL: [0.1, -0.34, 0.3], hgPosR: [0.15, -0.35, 0.17] },
     bob: 0.02,
     rageFinisher: 'defib',
     commands: [['b+1', 'triage'], ['f+4', 'pushKick'], ['1+2', 'defib']],
