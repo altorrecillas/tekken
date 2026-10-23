@@ -89,12 +89,31 @@ const SPINE = ['spine05', 'spine04', 'spine03', 'spine02', 'spine01'];
 const SPINE_W = [0.14, 0.2, 0.24, 0.22, 0.2];
 const NECK = ['neck01', 'neck02', 'neck03', 'head'];
 const NECK_W = [0.22, 0.2, 0.18, 0.4];
+// facial expressions (drawn only, like the eyelids): face bones moved off their rest positions, in millimetres of the
+// figure's own frame (at rest every bone frame is the character's: x to the figure's left, y up, z forward); a '.L'
+// bone's entry is mirrored onto its '.R' twin
+const FACE_EXPR = {
+  // pain (taking a hit): brows pulled in and down, nose wings and upper lip up (the teeth bared), mouth corners out
+  // and down
+  pain: { 'oculi01.L': [-2.5, -4, 1], 'levator06.L': [0.5, 2.5, 0], oris05: [0, 2, 0], 'oris03.L': [0.5, 2, 0],
+    'levator05.L': [3, -1.5, -1.5], 'oris07.L': [1, -1, 0], oris01: [0, -1.2, 0] },
+  // effort (striking): brows down and in, the mouth set hard (corners drawn out, lips pressed together)
+  effort: { 'oculi01.L': [-1.5, -3, 0.5], 'levator06.L': [0, 1, 0], 'levator05.L': [2.5, -0.5, -1], 'oris03.L': [0.5, -0.5, 0],
+    'oris07.L': [0.5, 0.5, 0] },
+  // smile (winning): mouth corners up and back, cheeks up, brows a little up
+  smile: { 'levator05.L': [4, 5, -2], 'risorius03.L': [1.5, 3.5, 1.5], 'oris03.L': [1.5, 1.2, -1], 'oris07.L': [1.5, 1, -1],
+    'oculi01.L': [0, 1.5, 0] },
+};
 
 export class Rig {
   static FINGER_SIGN = 1;
-  static THUMB_OPP = 1.6;
+  // the closed fist's thumb: rolled across the front of the curled fingers and folded over the index and middle
+  // fingers, as a fist is made (fightlab.html?thumb=opp,base,curl2,curl3 tries other values). With 1.6/0.5/0.55/0.8 the
+  // tip hung below the fist, plain to see in a jab now that it lands knuckles up
+  static THUMB_OPP = 1.9;
   static THUMB_SIGN = -1;  // flex direction of the two distal thumb joints (+1 hyperextends them: thumb sticks out of a fist)
-  static THUMB_BASE = 0.5; // curl of the thumb base on top of its opposition roll
+  static THUMB_BASE = 0.65; // curl of the thumb base on top of its opposition roll
+  static THUMB_CURL = [0.75, 1.0]; // curl of the two distal thumb joints in a closed fist
   static LID_UP = 0.38;
   constructor(ch) {
     this.ch = ch;
@@ -288,6 +307,7 @@ export class Rig {
         else blink = Math.sin(t * Math.PI);
       }
       this.setLids(Math.max(blink, this.lidClose || 0));
+      if (this.faceW) this.setFace(this.faceW);
     }
     // legs first: the hands are kept out of the thighs of this very frame
     for (const s of ['L', 'R']) this._leg(s, p);
@@ -297,6 +317,29 @@ export class Rig {
   }
 
   // 0 = open, 1 = shut: upper lids sweep down over the eyeball (bone pivots sit at the eye centres)
+  // facial expression weights {pain, effort, smile} (0..1): the face bones placed off their rest positions
+  setFace(w) {
+    const b = this.b;
+    if (!this._faceRest) {
+      this._faceRest = {};
+      for (const e of Object.values(FACE_EXPR)) for (const n of Object.keys(e)) for (const m of n.endsWith('.L') ? [n, n.slice(0, -2) + '.R'] : [n]) {
+        if (b[m] && !this._faceRest[m]) this._faceRest[m] = b[m].position.clone();
+      }
+      this._faceOff = {};
+      for (const m in this._faceRest) this._faceOff[m] = new THREE.Vector3();
+    }
+    for (const m in this._faceOff) this._faceOff[m].set(0, 0, 0);
+    for (const [e, k] of Object.entries(w)) {
+      if (!(k > 0) || !FACE_EXPR[e]) continue;
+      for (const [n, v] of Object.entries(FACE_EXPR[e])) {
+        const a = k * 0.001;
+        this._faceOff[n]?.add(_hv.set(v[0] * a, v[1] * a, v[2] * a));
+        if (n.endsWith('.L')) this._faceOff[n.slice(0, -2) + '.R']?.add(_hv.set(-v[0] * a, v[1] * a, v[2] * a));
+      }
+    }
+    for (const m in this._faceOff) b[m].position.copy(this._faceRest[m]).add(this._faceOff[m]);
+  }
+
   setLids(c) {
     const b = this.b;
     if (!b['orbicularis03.L']) return;
@@ -459,7 +502,7 @@ export class Rig {
         continue;
       }
       const c = f.thumb ? fist * (1 - th) : f.index ? fist * (1 - pt) : fist;
-      const ang = f.thumb ? c * (f.j === 2 ? 0.55 : 0.8) * Rig.THUMB_SIGN : c * (f.j === 1 ? 1.35 : f.j === 2 ? 1.5 : 1.0) + 0.08 * (f.index ? 1 - pt : 1);
+      const ang = f.thumb ? c * Rig.THUMB_CURL[f.j === 2 ? 0 : 1] * Rig.THUMB_SIGN : c * (f.j === 1 ? 1.35 : f.j === 2 ? 1.5 : 1.0) + 0.08 * (f.index ? 1 - pt : 1);
       bone.quaternion.setFromAxisAngle(f.axis, ang);
       if (f.addAxis) bone.quaternion.premultiply(_q3.setFromAxisAngle(f.addAxis, f.addAng * (0.45 + 0.4 * fist)));
     }

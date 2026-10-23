@@ -165,9 +165,9 @@ export class Accessories {
   }
 
   // a call-centre headset on the head bone: the earpiece over one ear (found on the head mesh), the band over the
-  // top of the head to a pad above the other ear, pressed into the hair (cfg.press: how far out between the scalp
-  // and the hair's outline it rests; 1 = on top of the outline), and the microphone boom curving forward to the
-  // corner of the mouth
+  // top of the head to a pad above the other ear, resting on the hair (cfg.press: how far out between the scalp and
+  // the hair's outline it rests; 1 = on top of the outline: lower, a full head of hair buries it), and the
+  // microphone boom curving forward to the corner of the mouth
   headset(ch, cfg) {
     const head = ch.meshes.head?.geometry?.attributes.position, hair = ch.meshes.hair?.geometry?.attributes.position;
     if (!head) return;
@@ -180,48 +180,80 @@ export class Accessories {
       if (Math.abs(y - eye.y) < 0.035 && z < eye.z - 0.05 && z > eye.z - 0.13 && (!ear || x * sg > ear.x * sg)) ear = new THREE.Vector3(x, y, z);
     }
     if (!ear) return;
-    const earO = ear.clone(); earO.x = -ear.x;
-    // the outlines of the scalp and of the hair in the plane through both ears: highest point per sideways slice
-    const zc = ear.z + 0.012, pts = [];
-    const outline = (src) => {
-      const top = new Map();
-      for (let i = 0; i < src.count; i++) {
-        const z = src.getZ(i); if (Math.abs(z - zc) > 0.03) continue;
-        const x = src.getX(i), y = src.getY(i), k = Math.round(x / 0.012);
-        if (y > ear.y && (!top.has(k) || y > top.get(k))) top.set(k, y);
+    // the earpiece rests on the hair, not on the scalp under it: a curly bob stands 3-5 cm out past the ear and buried
+    // the cup (it showed through the strands only when the hair swung). How far out the hair stands round a point on
+    // the side of the head: most of its strands (85th percentile), a few millimetres sunk in
+    const hairOut = (at, s) => {
+      if (!hair) return 0;
+      const d = [];
+      for (let i = 0; i < hair.count; i++) {
+        if (Math.abs(hair.getY(i) - at.y) < 0.03 && Math.abs(hair.getZ(i) - at.z) < 0.03) d.push((hair.getX(i) - at.x) * s);
       }
-      return top;
+      if (d.length < 20) return 0;
+      d.sort((a, b) => a - b);
+      return THREE.MathUtils.clamp(d[Math.floor(d.length * 0.85)] - 0.004, 0, 0.04);
     };
-    const scalp = outline(head), hairTop = hair ? outline(hair) : scalp, press = cfg.press ?? 0.5;
-    const top = new Map();
-    for (const [k, yh] of hairTop) { const ys = scalp.get(k) ?? yh; top.set(k, ys + Math.max(0, yh - ys) * press); }
-    const n = 16;
+    const earO = ear.clone(); earO.x = -ear.x;
+    const lift = hairOut(ear, sg);
+    const cupAxis = new THREE.Vector3(sg, 0, 0), earC = ear.clone().addScaledVector(cupAxis, lift);
+    // the band, in the plane through both ears: an arc over the head from the top of the earpiece to the pad, resting
+    // between the scalp and the hair's outline (press). The outlines are polar, round the line through the ears (the
+    // farthest point of the scalp and of the hair at each angle), so the arc follows the hair down the sides as well
+    // as over the top: with the earpiece out on the hair, a half ellipse rose straight up from it and kinked where it
+    // met the top of the hair
+    const zc = ear.z + 0.012, cy = ear.y, NB = 33, press = cfg.press ?? 0.95;
+    const polar = (src) => {
+      const r = new Float32Array(NB);
+      for (let i = 0; i < src.count; i++) {
+        if (Math.abs(src.getZ(i) - zc) > 0.03) continue;
+        const u = src.getX(i) * sg, v = src.getY(i) - cy, an = Math.atan2(v, u); // (0: the earpiece's side, PI: the pad's)
+        if (an < -0.15 || an > Math.PI + 0.15) continue;
+        const k = Math.round(THREE.MathUtils.clamp(an / Math.PI, 0, 1) * (NB - 1));
+        r[k] = Math.max(r[k], Math.hypot(u, v));
+      }
+      // (a strand standing out alone does not dent the arc: each angle takes the mean of its neighbours' farthest)
+      return Array.from(r, (_, k) => { let sum = 0, c = 0; for (let d = -2; d <= 2; d++) { const x = r[k + d]; if (x > 0) { sum += x; c++; } } return c ? sum / c : 0; });
+    };
+    const rS = polar(head), rH = hair ? polar(hair) : rS;
+    const rest = (an) => {
+      const f = THREE.MathUtils.clamp(an / Math.PI, 0, 1) * (NB - 1), k = Math.min(NB - 2, Math.floor(f)), t = f - k;
+      const at = (r) => r[k] * (1 - t) + r[k + 1] * t;
+      const s0 = at(rS) || at(rH), h0 = at(rH) || s0;
+      return s0 + Math.max(0, h0 - s0) * press + 0.006;
+    };
+    // the pad above the other ear, on the outline the band follows (the band's own clearance is the pad's half
+    // thickness)
+    const aP = Math.PI - Math.atan2(0.035, Math.abs(earO.x) + 0.005), rP = rest(aP) - 0.004;
+    const padN = new THREE.Vector3(sg * Math.cos(aP), Math.sin(aP), 0), padPos = padN.clone().multiplyScalar(rP).add(new THREE.Vector3(0, cy, zc));
+    // the ends: on top of the earpiece's rim and of the pad
+    const e0 = new THREE.Vector2((earC.x + sg * 0.008) * sg, cy + 0.03 - cy), e1 = new THREE.Vector2(padPos.x * sg, padPos.y + 0.006 - cy);
+    const a0 = Math.atan2(e0.y, e0.x), a1 = Math.atan2(e1.y, e1.x), d0 = e0.length() - rest(a0), d1 = e1.length() - rest(a1);
+    const pts = [], n = 20;
     for (let j = 0; j <= n; j++) {
-      const t = j / n, ang = Math.PI * t;
-      // a half ellipse from ear to ear, lifted onto the outline where the hair stands higher
-      const x = ear.x * Math.cos(ang) * 1.04, yBase = ear.y + 0.02 + Math.sin(ang) * 0.13;
-      const k = Math.round(x / 0.012);
-      const yt = Math.max(yBase, (top.get(k) ?? top.get(k - 1) ?? top.get(k + 1) ?? yBase) + 0.006);
-      pts.push(new THREE.Vector3(x + sg * 0.004, j === 0 || j === n ? ear.y + 0.03 : yt, zc));
+      const t = j / n, an = a0 + (a1 - a0) * t;
+      // (the ends' offsets from the outline fade out over the first and last quarter of the arc)
+      const r = rest(an) + d0 * Math.max(0, 1 - t / 0.25) ** 2 + d1 * Math.max(0, 1 - (1 - t) / 0.25) ** 2;
+      pts.push(new THREE.Vector3(sg * Math.cos(an) * r, cy + Math.sin(an) * r, zc));
     }
     const grp = new THREE.Group();
     const plastic = new THREE.MeshPhysicalMaterial({ color: 0x0c0c0e, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.2 });
     const metal = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, metalness: 0.9, roughness: 0.3 });
     grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.004, 6), plastic));
     // earpiece: a padded cup over the ear, a silver ring on its back
-    const cupAxis = new THREE.Vector3(sg, 0, 0);
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.034, 0.022, 24), plastic);
-    cup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cupAxis); cup.position.copy(ear).addScaledVector(cupAxis, 0.012);
+    cup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cupAxis); cup.position.copy(earC).addScaledVector(cupAxis, 0.012);
     grp.add(cup);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.0025, 6, 24), metal);
-    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cupAxis); ring.position.copy(ear).addScaledVector(cupAxis, 0.024);
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cupAxis); ring.position.copy(earC).addScaledVector(cupAxis, 0.024);
     grp.add(ring);
-    // the other end: a small T-pad resting on the head above the other ear
-    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.05), plastic);
-    pad.position.copy(earO).add(new THREE.Vector3(-sg * 0.005, 0.035, 0.012)); grp.add(pad);
+    // the other end: a small rounded pad lying on the hair above the other ear, tilted with the curve of the head and
+    // sunk a few millimetres among the strands (a flat 5 cm box standing off the hair read as a sticker)
+    const pad = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.02, 4, 12), plastic);
+    pad.geometry.rotateX(Math.PI / 2); pad.geometry.scale(0.6, 1, 1); // (long front to back, flat against the hair)
+    pad.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), padN); pad.position.copy(padPos); grp.add(pad);
     // microphone boom: from the cup forward and down along the cheek to beside the mouth, a foam tip at its end
     const mouth = new THREE.Vector3((eye.x + eyeO.x) / 2 + sg * 0.03, eye.y - 0.075, eye.z + 0.005);
-    const b0 = ear.clone().addScaledVector(cupAxis, 0.022).add(new THREE.Vector3(0, -0.012, 0.012));
+    const b0 = earC.clone().addScaledVector(cupAxis, 0.022).add(new THREE.Vector3(0, -0.012, 0.012));
     const b1 = b0.clone().lerp(mouth, 0.45).add(new THREE.Vector3(sg * 0.03, -0.02, 0.01));
     const b2 = mouth.clone().add(new THREE.Vector3(sg * 0.012, -0.004, 0.02));
     grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([b0, b1, b2]), 20, 0.0022, 6), metal));

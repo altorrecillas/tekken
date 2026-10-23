@@ -2,7 +2,7 @@
 const GUARD_L = [0.02, 0.2, 0.62], GUARD_R = [-0.08, 0.3, 0.44];
 
 const RESET = { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], neck: [0.16, 0.2, 0],
-  handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, twistL: -1.1, twistR: -1.3, clavL: [-0.05, 0.1], clavR: [-0.05, 0.12],
+  handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, twistL: -0.4, twistR: -0.55, clavL: [-0.05, 0.1], clavR: [-0.05, 0.12],
   footL: [0.05, 0.071, 0.24], footR: [0.2, 0.071, -0.2], kneeL: [0.15, 0, 1], kneeR: [0.5, 0, 1], footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], toeL: 0, toeR: 0 };
 
 export const STYLES = {
@@ -20,6 +20,7 @@ export const STYLES = {
     say: '¿Eso era todo? Ni me he despeinado.', sayAt: 78, sayLen: 147, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Calienta bien, que esto va a ser rápido.', introLen: 133, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
+    hairSway: 0.8, // how far the hair swings with the head: the topknot and its tail (js/anim/hairsway.js)
     aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3'], juggle: ['1', '2', '4'],
     bob: 0.022,
     onetwoFinish: 'roundhouse',
@@ -72,8 +73,8 @@ export const STYLES = {
       tattooCombo: {
         name: 'Tattoo rush', total: 50, clip: C([
           [0, {}],
-          [8, { handL: [0.05, 0.05, 0.99], aimL: 1, twistL: -1.7, rootRot: [0.12, -0.6, 0], clavL: [0, 0.4], rootPos: [0, -0.1, 0.06] }, 'snap'],
-          [14, { handL: GUARD_L, aimL: 0, handR: [-0.05, 0.05, 0.99], aimR: 1, twistR: -1.8, rootRot: [0.14, 0.2, 0], spine: [0.1, 0.4, 0], clavR: [0, 0.45] }, 'snap'],
+          [8, { handL: [0.05, 0.05, 0.99], aimL: 1, twistL: 0.75, twistR: 0.0, rootRot: [0.12, -0.6, 0], clavL: [0, 0.4], rootPos: [0, -0.1, 0.06] }, 'snap'],
+          [14, { handL: GUARD_L, aimL: 0, handR: [-0.05, 0.05, 0.99], aimR: 1, twistR: 0.84, rootRot: [0.14, 0.2, 0], spine: [0.1, 0.4, 0], clavR: [0, 0.45] }, 'snap'],
           [22, { handR: [0.25, 0.15, 0.85], aimR: 1, twistR: -0.3, rootRot: [0.1, -0.7, 0], spine: [0.15, -0.3, 0], handL: [0.1, 0.1, 0.95], aimL: 1 }, 'snap'],
           [26, {}, 'lin'],
           [50, null, 'inout'],
@@ -115,6 +116,7 @@ export const STYLES = {
     say: '¡En mi consola esto era más difícil!', sayAt: 78, sayLen: 166, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Partida nueva. Esta la gano yo.', introLen: 117, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.2, weight: 1.12, power: 1.12, speed: 1.04 },
+    hairSway: 0.75, // how far the hair swings with the head: a long fringe (js/anim/hairsway.js)
     aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3'], juggle: ['1', '1', '2', 'b+2'],
     stance: { hgPosL: [0.09, -0.19, 0.28], hgPosR: [0.12, -0.23, 0.2], spine: [0.18, 0.1, 0], rootRot: [0.05, -0.35, 0], neck: [0.12, 0.15, 0] },
     bob: 0.015,
@@ -153,7 +155,7 @@ export const STYLES = {
           [0, {}],
           [8, { rootPos: [0, -0.02, -0.04], rootRot: [-0.2, -0.3, 0], spine: [-0.25, 0.3, 0], handR: [0.1, 0.9, 0.1], aimR: 1, twistR: 0.4, clavR: [0.3, 0.1] }, 'out'],
           // the power comes from dropping the hips; the torso folds only moderately so the head stays behind the fist
-          [18, { rootPos: [0, -0.24, 0.1], rootRot: [0.24, -0.2, 0], spine: [0.26, 0.3, 0], handR: [0.0, 0.02, 0.86], aimR: 1, neck: [-0.1, 0, 0], kneeL: [0.25, 0, 1] }, 'snap'],
+          [18, { rootPos: [0, -0.24, 0.1], rootRot: [0.24, -0.2, 0], spine: [0.26, 0.3, 0], handR: [0.0, 0.02, 0.86], aimR: 1, twistR: -0.14, neck: [-0.1, 0, 0], kneeL: [0.25, 0, 1] }, 'snap'],
           [22, {}, 'lin'],
           [30, { rootPos: [0, -0.16, 0.04], rootRot: [0.14, -0.35, 0], spine: [0.16, 0.2, 0], handR: [-0.08, 0.15, 0.55], aimR: 0.6, neck: [0.05, 0.1, 0] }, 'ret'],
           [44, null, 'inout'],
@@ -194,6 +196,7 @@ export const STYLES = {
     say: 'No molestes, estoy trabajando.', sayAt: 78, sayLen: 127, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Tengo una reunión. Acabemos rápido.', introLen: 141, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 174, walk: 1.4, weight: 0.95, power: 1.02, speed: 1.07 },
+    hairSway: 0.45, // how far the hair swings with the head: short, combed back (js/anim/hairsway.js)
     aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
     stance: { rootPos: [0, -0.06, -0.02], hgPosL: [0.06, -0.13, 0.33], hgPosR: [0.12, -0.16, 0.2] },
     bob: 0.03,
@@ -242,11 +245,12 @@ export const STYLES = {
         name: 'Back fist', total: 30, clip: C([
           [0, {}],
           // the lead fist coils across the chest, then whips out along a flat arc and lands with the back of the
-          // knuckles on the centre line (the old arc swung wide and passed beside the opponent's head)
+          // knuckles on the centre line (the old arc swung wide and passed beside the opponent's head): the fist on
+          // edge, palm in, and the wrist a little flexed so the back of the hand leads (it had landed palm down)
           [4, { rootRot: [0.05, -0.9, 0], handL: [-0.22, 0.16, 0.32], twistL: -0.2 }, 'out'],
-          [11, { rootRot: [0.05, -0.35, 0], handL: [0.04, 0.24, 0.96], aimL: 1, twistL: 0.9, clavL: [0, 0.35] }, 'whip'],
+          [11, { rootRot: [0.05, -0.35, 0], handL: [0.04, 0.24, 0.96], aimL: 1, twistL: -0.47, wristL: [-0.3, 0], clavL: [0, 0.35] }, 'whip'],
           [14, {}, 'lin'],
-          [20, { handL: [0.02, 0.22, 0.7], twistL: 0.2, clavL: [0, 0.15], rootRot: [0.05, -0.45, 0] }, 'ret'],
+          [20, { handL: [0.02, 0.22, 0.7], twistL: -0.3, wristL: [0.05, 0], clavL: [0, 0.15], rootRot: [0.05, -0.45, 0] }, 'ret'],
           [30, null, 'inout'],
         ]),
         hit: { f: [11, 13], limb: 'handL', r: 0.11, dmg: 12, lvl: 'high', react: 'hitHigh', blk: 2, hitAdv: 8, push: 0.2 },
@@ -292,6 +296,7 @@ export const STYLES = {
     say: '¿Ya? Iba a empezar a calentar.', sayAt: 78, sayLen: 138, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Tranquilo, que iré despacito.', introLen: 112, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.05, weight: 1.3, power: 1.08, speed: 0.99 },
+    hairSway: 0.4, // how far the hair swings with the head: short curls (js/anim/hairsway.js)
     aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', '1+2'],
     stance: { rootPos: [0, -0.06, -0.03], rootRot: [0.04, -0.4, 0], hgPosL: [0.1, -0.21, 0.3], hgPosR: [0.13, -0.19, 0.14], footL: [0.1, 0.071, 0.24], footR: [0.24, 0.071, -0.2] },
     bob: 0.012,
@@ -313,9 +318,9 @@ export const STYLES = {
         name: 'Overhand smash', total: 50, clip: C([
           [0, {}],
           [10, { rootPos: [0, 0.0, -0.06], rootRot: [-0.15, -0.8, 0], spine: [-0.2, -0.4, 0], handR: [0.4, 0.75, -0.2], aimR: 1, twistR: 0.8, clavR: [0.3, -0.1] }, 'out'],
-          [18, { rootPos: [0, -0.23, 0.12], rootRot: [0.22, 0.2, 0], spine: [0.26, 0.45, 0], handR: [-0.05, 0.0, 0.98], aimR: 1, twistR: -1.2, clavR: [0.1, 0.5], footL: [0.1, 0.071, 0.36], neck: [-0.08, -0.1, 0], kneeL: [0.25, 0, 1] }, 'snap'],
+          [18, { rootPos: [0, -0.23, 0.12], rootRot: [0.22, 0.2, 0], spine: [0.26, 0.45, 0], handR: [-0.05, 0.0, 0.98], aimR: 1, twistR: 1.0, clavR: [0.1, 0.5], footL: [0.1, 0.071, 0.36], neck: [-0.08, -0.1, 0], kneeL: [0.25, 0, 1] }, 'snap'],
           [22, {}, 'lin'],
-          [31, { rootPos: [0, -0.15, 0.06], rootRot: [0.12, -0.2, 0], spine: [0.16, 0.25, 0], handR: [-0.1, 0.2, 0.6], aimR: 0.6, twistR: -1.3, clavR: [0.0, 0.2] }, 'ret'],
+          [31, { rootPos: [0, -0.15, 0.06], rootRot: [0.12, -0.2, 0], spine: [0.16, 0.25, 0], handR: [-0.1, 0.2, 0.6], aimR: 0.6, twistR: 0.2, clavR: [0.0, 0.2] }, 'ret'],
           [50, null, 'inout'],
         ]),
         hit: { f: [19, 22], limb: 'handR', r: 0.13, dmg: 20, lvl: 'mid', react: 'hitMid', blk: -14, kd: true, push: 0.6 },
@@ -362,6 +367,7 @@ export const STYLES = {
     say: '¡Espectacular, vale!', sayAt: 78, sayLen: 107, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: '¡Esto va a ser espectacular, vale!', introLen: 132, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 196, walk: 1.15, weight: 1.35, power: 1.14, speed: 1.04 },
+    hairSway: 0.7, // how far the hair swings with the head: curls of a medium length (js/anim/hairsway.js)
     aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', 'f+2'],
     stance: { rootPos: [0, -0.1, -0.02], rootRot: [0.12, -0.3, 0], spine: [0.18, 0.1, 0], hgPosL: [0.15, -0.26, 0.4], hgPosR: [0.13, -0.26, 0.3], fistL: 0.92, fistR: 0.92,
       footL: [0.12, 0.071, 0.22], footR: [0.26, 0.071, -0.2] },
@@ -385,7 +391,7 @@ export const STYLES = {
         name: 'Double axe handle', total: 52, clip: C([
           [0, {}],
           [12, { rootPos: [0, 0.02, -0.05], rootRot: [-0.3, -0.2, 0], spine: [-0.3, 0.1, 0], handL: [0.05, 0.95, 0.15], handR: [0.05, 0.95, 0.15], aimL: 1, aimR: 1, fistL: 1, fistR: 1 }, 'out'],
-          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'snap'],
+          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], twistL: -0.19, twistR: -0.19, footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'snap'],
           [25, {}, 'lin'],
           [34, { rootPos: [0, -0.17, 0.05], rootRot: [0.16, -0.3, 0], spine: [0.2, 0.1, 0], handL: [0.0, 0.1, 0.55], handR: [-0.05, 0.12, 0.5], aimL: 0.5, aimR: 0.5, neck: [0.05, 0.05, 0] }, 'ret'],
           [52, null, 'inout'],
@@ -443,6 +449,7 @@ export const STYLES = {
     say: 'Más sabe el zorro por viejo que por zorro.', sayAt: 78, sayLen: 171, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Ponte los guantes, chaval.', introLen: 88, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 176, walk: 1.3, weight: 0.92, power: 1.0, speed: 1.1 },
+    hairSway: 0, // how far the hair swings with the head: bald (js/anim/hairsway.js)
     aiMoves: ['1', '1', '2', 'b+1', '1+2', 'd+2', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '1+2', 'b+1'],
     // old-school boxer: more upright and bladed, chin tucked, both fists high by the face
     stance: { rootPos: [0, -0.07, -0.02], rootRot: [0.07, -0.5, 0], spine: [0.14, 0.12, 0], neck: [0.2, 0.22, 0], hgPosL: [0.07, -0.07, 0.26], hgPosR: [0.1, -0.09, 0.1] },
@@ -477,26 +484,27 @@ export const STYLES = {
           [5, { rootPos: [0, -0.38, -0.06], rootRot: [0.34, -0.55, 0], spine: [0.22, 0.05, 0], kneeL: [0.25, 0, 1], handL: [0.0, 0.15, 0.5], aimL: 1, handR: [0.08, -0.32, 0.32], aimR: 1, twistR: -0.3 }, 'inout'],
           // (a weave to his left on the way in: the head passes outside the opponent's lead hand)
           [10, { rootPos: [0, -0.34, 0.02], rootRot: [0.28, -0.35, -0.04], spine: [0.18, 0.15, -0.26], neck: [0.2, 0.25, 0.08], footL: [0.06, 0.071, 0.46], footRotL: [0, -0.3, 0], handR: [0.02, -0.3, 0.42] }, 'out'],
-          [15, { rootPos: [0, -0.07, 0.1], rootRot: [0.1, 0.25, 0], spine: [0.05, 0.45, -0.06], handR: [-0.12, 0.1, 0.72], poleR: [0.1, -1, 0.2], twistR: 0.5, clavR: [0.25, 0.45],
+          [15, { rootPos: [0, -0.07, 0.1], rootRot: [0.1, 0.25, 0], spine: [0.05, 0.45, -0.06], handR: [-0.12, 0.1, 0.72], poleR: [0.1, -1, 0.2], twistR: -1.1, clavR: [0.25, 0.45],
             footR: [0.18, 0.12, -0.12], toeR: 0.7, footRotR: [0.4, 0.3, 0], kneeL: [0.22, 0, 1], kneeR: [0.4, 0, 1], neck: [-0.1, -0.2, 0], handL: [0.0, 0.2, 0.45] }, 'snap'],
           // (the follow-through stays short and comes back down: a launched body swings its legs through here)
           [18, { handR: [-0.14, 0.32, 0.5], poleR: [0.1, -1, 0.3], rootRot: [-0.02, 0.22, 0], spine: [-0.04, 0.42, 0] }, 'out'],
-          [28, { handR: [-0.12, 0.3, 0.46], poleR: [0.2, -1, -0.2], twistR: -0.4, clavR: [0.1, 0.2], rootPos: [0, -0.08, 0.05], rootRot: [0.05, -0.2, 0], spine: [0.08, 0.3, 0],
+          [28, { handR: [-0.12, 0.3, 0.46], poleR: [0.2, -1, -0.2], twistR: -0.7, clavR: [0.1, 0.2], rootPos: [0, -0.08, 0.05], rootRot: [0.05, -0.2, 0], spine: [0.08, 0.3, 0],
             footR: [0.2, 0.071, -0.2], toeR: 0.1, footRotR: [0.1, 0.5, 0], neck: [0.05, 0, 0], kneeL: [0.18, 0, 1], footL: [0.05, 0.071, 0.3] }, 'ret'],
           [46, null, 'inout'],
         ]),
         hit: { f: [14, 17], limb: 'handR', r: 0.11, dmg: 17, lvl: 'mid', react: 'air', blk: -14, launch: 6.0, push: 0.1 },
         advance: [[0, 0], [5, 0.0], [9, 0.1], [13, 0.28], [46, 0.3]], sfx: 'heavy', lowProfile: [1, 11],
       },
-      // open-hand slap ("guantazo"): the right arm swings out wide at head height and whips across palm first, the
-      // hips turn into it and the rear heel lifts; the hand stays open
+      // open-hand slap ("guantazo"): the right arm swings out wide at head height and whips across palm first (the
+      // palm facing the way it sweeps, thumb up: it had landed palm down), the hips turn into it and the rear heel
+      // lifts; the hand stays open
       slap: {
         name: 'Slap', total: 34, clip: C([
           [0, {}],
           [6, { rootPos: [0, -0.08, -0.02], rootRot: [0.06, -0.75, 0], spine: [0.1, -0.2, 0], neck: [0.16, 0.45, 0],
-            handR: [0.5, 0.18, 0.18], aimR: 1, poleR: [0.6, -0.7, -0.6], twistR: 0.4, fistR: 0.05, clavR: [0.1, -0.1] }, 'out'],
+            handR: [0.5, 0.18, 0.18], aimR: 1, poleR: [0.6, -0.7, -0.6], twistR: -0.6, fistR: 0.05, clavR: [0.1, -0.1] }, 'out'],
           [12, { rootPos: [0, -0.1, 0.07], rootRot: [0.12, 0.2, 0], spine: [0.1, 0.45, 0], neck: [0.05, -0.35, 0],
-            handR: [-0.22, 0.14, 0.86], poleR: [0.8, -0.2, -0.4], twistR: 0.2, clavR: [0.05, 0.35],
+            handR: [-0.22, 0.14, 0.86], poleR: [0.8, -0.2, -0.4], twistR: -1.3, clavR: [0.05, 0.35],
             footR: [0.18, 0.1, -0.2], footRotR: [0.45, 0.2, 0], toeR: 0.6, handL: [-0.2, 0.2, 0.4] }, 'whip'],
           [15, {}, 'lin'],
           [24, { rootPos: [0, -0.09, 0.03], rootRot: [0.1, -0.15, 0], spine: [0.1, 0.3, 0], neck: [0.1, 0, 0],
@@ -535,7 +543,8 @@ export const STYLES = {
       // the right hand out to the side and up to the earpiece (out first: straight up passes through the face)
       [12, { handR: [0.42, -0.3, 0.2], aimR: 1, fistR: 0.3 }, 'out'],
       [20, { hgR: 1, hgPosR: [0.36, 0.04, 0.02], fistR: 0.32, handL: [0.22, -0.84, 0.12] }, 'inout'],
-      [28, { hgR: 1, hgPosR: [0.17, 0.03, -0.06], fistR: 0.35, neck: [0.14, 0.18, -0.14], handL: [0.24, -0.82, 0.14] }, 'inout'],
+      // (the palm on the back of the earpiece, which rests on her hair a few centimetres out from the ear)
+      [28, { hgR: 1, hgPosR: [0.185, 0.03, -0.06], fistR: 0.35, neck: [0.14, 0.18, -0.14], handL: [0.24, -0.82, 0.14] }, 'inout'],
       [40, { neck: [0.24, 0.12, -0.12] }, 'sine'],
       [50, { neck: [0.12, 0.16, -0.1] }, 'sine'],
       [57, { hgPosR: [0.32, -0.16, 0.22], neck: [0.14, 0.08, -0.04] }, 'inout'],
@@ -550,6 +559,7 @@ export const STYLES = {
     say: 'Te falta tomar áloe vera.', sayAt: 78, sayLen: 108, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Voy cargadita de áloe vera, cuidado conmigo.', introLen: 150, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
+    hairSway: 0.9, // how far the hair swings with the head: a bob (js/anim/hairsway.js)
     aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '2', 'b+1'],
     // a calm, upright guard, hands loosely closed at chest height, wider than a boxer's: her face stays in view (the
     // first guard held the open hands at her chin and the rear one by her temple, covering her face from the camera)
@@ -559,15 +569,17 @@ export const STYLES = {
     rageFinisher: 'defib',
     commands: [['b+1', 'triage'], ['f+4', 'pushKick'], ['1+2', 'defib']],
     moves: (C) => ({
-      // TRIAJE: the lead palm drives straight into the sternum with the hips behind it and shoves the opponent away
+      // TRIAJE: the lead palm drives straight into the sternum with the hips behind it and shoves the opponent away.
+      // A palm strike: the hand turned palm down and bent back at the wrist, fingers up, so the heel of the palm leads
+      // (with the wrist straight she struck with her fingertips)
       triage: {
         name: 'Triaje', total: 32, clip: C([
           [0, {}],
-          [4, { rootPos: [0, -0.09, -0.03], rootRot: [0.08, -0.55, 0], handL: [0.04, -0.06, 0.52], aimL: 1, twistL: -0.4, fistL: 0.1 }, 'out'],
-          [10, { rootPos: [0, -0.1, 0.08], rootRot: [0.12, -0.72, 0], spine: [0.14, -0.05, 0], neck: [0.14, 0.3, 0], handL: [0.0, -0.14, 0.98], aimL: 1, twistL: 0.1, fistL: 0.02,
+          [4, { rootPos: [0, -0.09, -0.03], rootRot: [0.08, -0.55, 0], handL: [0.04, -0.06, 0.52], aimL: 1, twistL: 0.5, wristL: [0.6, 0], fistL: 0.1 }, 'out'],
+          [10, { rootPos: [0, -0.1, 0.08], rootRot: [0.12, -0.72, 0], spine: [0.14, -0.05, 0], neck: [0.14, 0.3, 0], handL: [0.0, -0.14, 0.98], aimL: 1, twistL: 1.09, wristL: [1.2, 0], fistL: 0.02,
             clavL: [0.05, 0.45], footL: [0.06, 0.071, 0.34] }, 'snap'],
           [13, {}, 'lin'],
-          [20, { rootPos: [0, -0.085, 0.02], rootRot: [0.08, -0.5, 0], spine: [0.11, 0.08, 0], handL: [0.02, 0.06, 0.66], twistL: -0.7, fistL: 0.2, clavL: [0.0, 0.18] }, 'ret'],
+          [20, { rootPos: [0, -0.085, 0.02], rootRot: [0.08, -0.5, 0], spine: [0.11, 0.08, 0], handL: [0.02, 0.06, 0.66], twistL: 0.2, wristL: [0.4, 0], fistL: 0.2, clavL: [0.0, 0.18] }, 'ret'],
           [32, null, 'inout'],
         ]),
         hit: { f: [9, 12], limb: 'handL', r: 0.12, dmg: 12, lvl: 'mid', react: 'hitMid', blk: -1, hitAdv: 10, push: 0.6 },
@@ -598,13 +610,15 @@ export const STYLES = {
           [16, { hgPosL: [0.08, -0.3, 0.25], hgPosR: [0.08, -0.3, 0.31] }, 'sine'],
           [20, { hgPosL: [0.08, -0.3, 0.3], hgPosR: [0.08, -0.3, 0.26] }, 'sine'],
           // charged: palms apart and drawn back to the chest, weight on the rear leg
-          [25, { rootPos: [0, -0.15, -0.08], rootRot: [0.14, -0.36, 0], spine: [0.1, 0.04, 0], hgPosL: [0.12, -0.3, 0.2], hgPosR: [0.12, -0.3, 0.16] }, 'inout'],
-          // both palms into the chest, the body lunging in behind them
+          [25, { rootPos: [0, -0.15, -0.08], rootRot: [0.14, -0.36, 0], spine: [0.1, 0.04, 0], hgPosL: [0.12, -0.3, 0.2], hgPosR: [0.12, -0.3, 0.16], twistL: 0.75, twistR: 0.75, wristL: [0.8, 0], wristR: [0.8, 0] }, 'inout'],
+          // both palms into the chest, the body lunging in behind them: heels of the palms first (turned down and
+          // bent back at the wrists, fingers up)
           [31, { rootPos: [0, -0.11, 0.14], rootRot: [0.16, -0.14, 0], spine: [0.2, 0.04, 0], neck: [0.05, 0.05, 0],
             hgPosL: [0.06, -0.3, 0.6], hgPosR: [0.06, -0.3, 0.58], clavL: [0.05, 0.4], clavR: [0.05, 0.42],
+            twistL: 1.28, twistR: 1.28, wristL: [1.1, 0], wristR: [1.1, 0],
             footL: [0.06, 0.071, 0.42], footR: [0.22, 0.071, -0.12], footRotR: [0.4, 0.4, 0], toeR: 0.5 }, 'snap'],
           [35, {}, 'lin'],
-          [45, { rootPos: [0, -0.09, 0.06], rootRot: [0.08, -0.36, 0], hgPosL: [0.09, -0.2, 0.38], hgPosR: [0.11, -0.18, 0.2], fistL: 0.25, fistR: 0.25, clavL: [0, 0.15], clavR: [0, 0.15], toeR: 0 }, 'ret'],
+          [45, { rootPos: [0, -0.09, 0.06], rootRot: [0.08, -0.36, 0], hgPosL: [0.09, -0.2, 0.38], hgPosR: [0.11, -0.18, 0.2], fistL: 0.25, fistR: 0.25, twistL: 0, twistR: 0, wristL: [0.3, 0], wristR: [0.3, 0], clavL: [0, 0.15], clavR: [0, 0.15], toeR: 0 }, 'ret'],
           [56, null, 'inout'],
         ]),
         hit: { f: [30, 34], limb: 'handL', r: 0.15, dmg: 21, lvl: 'mid', react: 'air', blk: -16, launch: 5.6, push: 0.15, fx: 'electric' },
@@ -630,7 +644,7 @@ export const STYLES = {
       [124, { handR: [0.26, 0.03, 0.52], wristR: [0, 0] }, 'sine'],
       // (out to the side first: the hand reaches the earpiece from beside the head)
       [140, { hgR: 1, hgPosR: [0.3, -0.04, 0.1], poleR: [0.3, -1, 0.4], fistR: 0.32, ptR: 0, twistR: 0 }, 'inout'],
-      [154, { hgPosR: [0.17, 0.0, -0.05], fistR: 0.35, neck: [0.0, 0.15, -0.12] }, 'inout'],
+      [154, { hgPosR: [0.185, 0.0, -0.05], fistR: 0.35, neck: [0.0, 0.15, -0.12] }, 'inout'],
       [172, { neck: [0.16, 0.12, -0.1] }, 'sine'],
       [186, { neck: [0.0, 0.15, -0.12] }, 'sine'],
       [232, { neck: [-0.04, 0.2, -0.1], spine: [-0.08, 0.05, 0] }, 'sine'],

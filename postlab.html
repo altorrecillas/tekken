@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Post lab</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head><body><script type="module">
+// One fighter in front of a busy wall with the game's post chain (js/engine/post.js): ambient occlusion, depth of
+// field, bloom and the final pass, ready in seconds instead of the minutes a fight takes to boot in software GL.
+// For close-up checks of the hair against a blurred background, halos round the silhouette, hands and accessories.
+//   id=<fighter>  dof=0 (on by default, focused on the head)  back=<m> (the wall behind, 5)  dist=<m> (camera to
+//   the head, 1.5)  rot=<rad> (the fighter turned, 0.35)  fov=<deg> (24)  ty=<m> (the camera raised)  guard=1 (the
+//   arms raised, hands open)  sway=x,y,z (the hair's swing forced, metres in the head's rest frame: the strands,
+//   their shadow and the depth of field's depth must move together)  w=&h= (size)
+// The post chain's own parameters work too: aor, aoi, aot, aodp, noao=1, dofa, bloomth.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { makeFighterMaterial } from './js/materials.js';
+import { Accessories } from './js/fx/accessories.js';
+import { STYLES } from './js/fight/styles.js';
+import { HairSway } from './js/anim/hairsway.js';
+import { PostFX } from './js/engine/post.js';
+const q = new URLSearchParams(location.search);
+const id = q.get('id') || 'rafa';
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const r = new THREE.WebGLRenderer({ antialias: false });
+r.setSize(W, H); r.setPixelRatio(1); r.shadowMap.enabled = true;
+document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0.5, 0.45, 0.4);
+const pm = new THREE.PMREMGenerator(r);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.55;
+const key = new THREE.DirectionalLight(0xfff1e0, 2.6); key.position.set(1.5, 3, 2.5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.camera.left = -0.5; key.shadow.camera.right = 0.5; key.shadow.camera.top = 2.0; key.shadow.camera.bottom = 1.0;
+key.shadow.bias = -0.0002; key.shadow.normalBias = 0.01; scene.add(key);
+const rim = new THREE.DirectionalLight(0xbfd8ff, 1.6); rim.position.set(-2, 2.5, -2.5); scene.add(rim);
+// the wall: bright windows on a dark facade (sharp edges show what the blur and the halos do)
+const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512; const cx = cv.getContext('2d');
+cx.fillStyle = '#3a2f2a'; cx.fillRect(0, 0, 512, 512);
+for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { cx.fillStyle = (x + y) % 3 ? '#e8c890' : '#8aa0b8'; cx.fillRect(x * 64 + 12, y * 64 + 10, 40, 44); }
+const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
+wall.position.set(0, 1.6, -(+(q.get('back') || 5))); scene.add(wall);
+const data = await loadCharacterData(id);
+const ch = buildCharacter(data, makeFighterMaterial);
+new Accessories().attach(ch, STYLES[id], data.meta);
+ch.group.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+scene.add(ch.group);
+const b = ch.bones, e = (n, x, y, z) => b[n] && b[n].rotation.set(x, y, z);
+if (q.get('guard')) { e('upperarm01.L', 0.2, 0, 0.9); e('upperarm01.R', 0.2, 0, -0.9); e('lowerarm01.L', -1.8, 0, 0); e('lowerarm01.R', -1.8, 0, 0); }
+else { e('upperarm01.L', 0, 0, -0.55); e('upperarm01.R', 0, 0, 0.55); }
+ch.group.rotation.y = +(q.get('rot') || 0.35);
+const hb = ch.rest.head.head, ty = +(q.get('ty') || 0);
+const cam = new THREE.PerspectiveCamera(+(q.get('fov') || 24), W / H, 0.05, 100);
+cam.position.set(0.15, hb.y + 0.05 + ty, +(q.get('dist') || 1.5)); cam.lookAt(0, hb.y + ty, 0);
+if (q.get('sway')) { const hs = new HairSway(ch, 1); if (hs.u) hs.u.value.set(...q.get('sway').split(',').map(Number)); }
+await texturesReady();
+const post = new PostFX(r, scene, cam, 'high');
+if (q.get('dof') !== '0' && post.bokeh) {
+  post.bokeh.enabled = true; post.bokeh.uniforms.focus.value = cam.position.distanceTo(new THREE.Vector3(0, hb.y, 0)); post.bokeh.uniforms.aperture.value = 0.0035;
+}
+post.u.grain.value = 0;
+// (a few frames: the AO denoiser and the bloom settle; then the page stops, for tools/shot.mjs)
+for (let i = 0; i < 3; i++) post.render(0.016);
+window.__ready = true; window.__stopped = true;
+</script></body></html>

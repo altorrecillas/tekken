@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
 import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, LOD } from './charloader.js';
-import { makeFighterMaterial, makeFighterKey, applyCostume } from './materials.js';
+import { makeFighterMaterial, makeFighterKey, applyCostume, FIGHTER_KEY } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
 import { StreetStage } from './stage/street.js';
 import { PorcheStage } from './stage/porche.js';
@@ -1494,6 +1494,9 @@ class Game {
       this.stage.followShadow(c, spread);
       this.stage.keyBoost = m.phase === 'intro' || m.phase === 'matchEnd' ? 1.4 : 1; // cinematic close-ups get more face light
       this.stage.followCamera(this.camera, c);
+      // fill light: a share of the key, half way to white, stronger in the cinematic close-ups (js/materials.js)
+      { const kc = FIGHTER_KEY.color.value, l = (kc.r + kc.g + kc.b) / 3;
+        FIGHTER_KEY.fill.value.setRGB((kc.r + l) / 2, (kc.g + l) / 2, (kc.b + l) / 2).multiplyScalar(this.stage.keyBoost > 1 ? 0.36 : 0.15); }
       this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null; this.camCtl.introCut = (m.introCut || 101) / FPS; this.camCtl.introEnd = (m.introEnd || 220) / FPS; this.camCtl.readyT = m.phase === 'ready' ? m.pt / FPS : null;
       // (the title's fighters walking in: the shot stays where they are heading)
       this.camCtl.update(dt, this.entrance?.m === m ? this.titleGhosts : m.fighters);
@@ -1505,6 +1508,7 @@ class Game {
         const fv = _fkv.set(Math.sin(f.yaw), 0, Math.cos(f.yaw)).transformDirection(this.camera.matrixWorldInverse);
         k.dir.value.set(fv.x * 0.55, 0.62 + fv.y * 0.3, 0.55 + Math.max(0, fv.z) * 0.35).normalize();
         k.rimDir.value.set(-fv.x * 0.6, 0.35, -0.75).normalize();
+        k.fillDir?.value.set(-fv.x * 0.35, 0.15, 0.95).normalize();
       }
       this.accessories.update(dt);
     } else if (this.titleGhosts && this.stage) {

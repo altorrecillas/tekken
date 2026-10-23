@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Rig, newPose, lerpPose, POSE } from '../anim/rig.js';
 import { BodyState } from '../anim/body.js';
 import { FootPlanter } from '../anim/feet.js';
+import { HairSway } from '../anim/hairsway.js';
 import { buildClips, buildMoves, commandList } from './moves.js';
 import { STYLES } from './styles.js';
 import { B1, B2, B3, B4 } from './input.js';
@@ -59,6 +60,8 @@ export class Fighter {
     this.style = STYLES[id];
     this.stats = this.style.stats;
     this.rig = new Rig(ch);
+    // the hair swings with the head (drawn only)
+    this.hair = new HairSway(ch, this.style.hairSway ?? 0.6);
     this.clips = buildClips(this.style);
     this.moves = buildMoves(this.style);
     this.commands = commandList(this.style).map(([c, m]) => ({ ...parseCommand(c), move: m })).filter(c => this.moves[c.move]);
@@ -81,6 +84,10 @@ export class Fighter {
     // hit sphere offsets (in rest space) from bone head to the striking surface
     const R = ch.rest;
     const off = (a, b, t) => R[b].head.clone().sub(R[a].head).multiplyScalar(t);
+    // ... but a hand strikes at the knuckles' distance along the forearm (limbWorld), whichever way the hand is turned
+    // or bent: the offset turned with the hand moved the hit point a few centimetres sideways and back once punches
+    // landed knuckles up instead of palm up, and the combos that only just connect (1 1 2, the knee into 1...) dropped
+    this.handReach = { L: R['finger3-1.L'].head.distanceTo(R['wrist.L'].head) * 0.95, R: R['finger3-1.R'].head.distanceTo(R['wrist.R'].head) * 0.95 };
     this.limbOffset = {
       handL: off('wrist.L', 'finger3-1.L', 0.75), handR: off('wrist.R', 'finger3-1.R', 0.75),
       footL: off('foot.L', 'toe3-1.L', 0.55), footR: off('foot.R', 'toe3-1.R', 0.55),
@@ -669,6 +676,10 @@ export class Fighter {
     const bn = LIMB_BONE[limb];
     const w = this.rig.world[bn];
     if (!w) return this.boneWorld(bn, out);
+    if (limb === 'handL' || limb === 'handR') {
+      const e = this.rig.world['lowerarm01.' + limb[4]];
+      if (e) { out.subVectors(w.p, e.p).normalize().multiplyScalar(this.handReach[limb[4]]).add(w.p); return this.charToWorld(out, out); }
+    }
     const off = this.limbOffset[limb] || new THREE.Vector3();
     out.copy(off).applyQuaternion(w.q).add(w.p);
     return this.charToWorld(out, out);
@@ -704,6 +715,20 @@ export class Fighter {
   }
 
   // ------------------------------------------------------------------ render sync
+  // facial expression (drawn only, js/anim/rig.js setFace): a grimace while taking a hit, the face set hard through a
+  // strike's wind-up and impact, a smile on winning; knocked out, the face goes slack. Eased on the fight's own clock
+  updateFace(alpha) {
+    const s = this.state, mv = this.move;
+    const pain = this.ko ? 0 : s === 'hit' || s === 'air' || s === 'thrown' ? 1 : s === 'block' ? 0.45 : s === 'land' || s === 'down' || s === 'getup' ? 0.5 : 0;
+    const effort = (s === 'move' && mv?.hit && this.mf <= mv.hit.f[1] + 6) || s === 'throwing' || s === 'rageArt' ? 1 : 0;
+    const smile = s === 'win' ? 0.85 : 0;
+    const t = ((this.match?.frame || 0) + alpha) / 60;
+    const dt = this._faceT != null ? Math.min(0.1, Math.max(0, t - this._faceT)) : 1;
+    this._faceT = t;
+    const W = this.rig.faceW || (this.rig.faceW = { pain: 0, effort: 0, smile: 0 });
+    for (const [k, v] of [['pain', pain], ['effort', effort], ['smile', smile]]) W[k] += (v - W[k]) * (1 - Math.exp(-(v > W[k] ? 22 : 7) * dt));
+  }
+
   syncRender(alpha) {
     lerpPose(this.renderPose, this.prevPose, this.pose, alpha);
     // a fighter saying his line: the jaw follows its loudness (drawn only, the simulation never sees it)
@@ -714,6 +739,7 @@ export class Fighter {
     if (prop) prop.visible = this.state === 'win' && this.clipName === 'win' && this.cf >= (prop.userData.from || 0);
     // eyes squeeze while taking a hit, shut when knocked out
     this.rig.lidClose = this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : 0;
+    this.updateFace(alpha);
     this.rig.apply(this.renderPose);
     const g = this.ch.group;
     g.position.lerpVectors(this.prevPos, this.pos, alpha);
@@ -721,5 +747,6 @@ export class Fighter {
     while (dy > Math.PI) dy -= 2 * Math.PI;
     while (dy < -Math.PI) dy += 2 * Math.PI;
     g.rotation.y = this.prevYaw + dy * alpha;
+    this.hair.update(((this.match?.frame || 0) + alpha) / 60, this.match?.hitstop > 0);
   }
 }

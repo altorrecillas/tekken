@@ -83,12 +83,16 @@ export const FIGHTER_KEY = {
   dir: { value: new THREE.Vector3(-0.4, 0.6, 0.7).normalize() }, color: { value: new THREE.Color(0, 0, 0) },
   // camera-relative rim (kicker) that separates the silhouette from the set
   rimDir: { value: new THREE.Vector3(0.55, 0.35, -0.75).normalize() }, rim: { value: new THREE.Color(0, 0, 0) },
+  // fill: a soft frontal light from the other side of the lens, diffuse only, that opens up the eye sockets and the
+  // shadow side of a face (set per frame by the game: stronger in the close-ups)
+  fillDir: { value: new THREE.Vector3(0.3, 0.15, 0.94).normalize() }, fill: { value: new THREE.Color(0, 0, 0) },
 };
 // Per-fighter key: its own direction uniforms (a profile face on either side of the screen is lit from the
 // side it faces), sharing the stage-driven colours of FIGHTER_KEY.
 export function makeFighterKey() {
   return { dir: { value: FIGHTER_KEY.dir.value.clone() }, color: FIGHTER_KEY.color,
-    rimDir: { value: FIGHTER_KEY.rimDir.value.clone() }, rim: FIGHTER_KEY.rim };
+    rimDir: { value: FIGHTER_KEY.rimDir.value.clone() }, rim: FIGHTER_KEY.rim,
+    fillDir: { value: FIGHTER_KEY.fillDir.value.clone() }, fill: FIGHTER_KEY.fill };
 }
 
 // costume colour change of a garment (linear colour): 1 = hue turned by uCosA.x (turns), saturation and value scaled
@@ -131,6 +135,24 @@ export function applyCostume(ch, spec) {
   ch.costume = spec || null;
 }
 
+// The hair cards' swing (js/anim/hairsway.js) in a vertex shader: every vertex moves by the strand tips' lag (the
+// uniform sway, {value: Vector3}, in the head's rest frame) times the square of its place along the card (uv.y, 0 at
+// the root and 1 at the tip), so the roots stay on the scalp. For the hair's own material and for every depth pass
+// drawn from it (its shadow, the depth of field's depth), so they all move together.
+export function addHairSway(sh, sway) {
+  sh.uniforms.uHairSway = sway;
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uHairSway;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += uHairSway * ( uv.y * uv.y );');
+}
+
+// a shadow-map depth material for swinging hair (three copies the map and the alpha test onto it per draw)
+export function hairSwayDepth(sway) {
+  const d = new THREE.MeshDepthMaterial();
+  d.onBeforeCompile = (sh) => addHairSway(sh, sway);
+  d.customProgramCacheKey = () => 'hairswayDepth';
+  return d;
+}
+
 export function addFighterKey(mat, key = FIGHTER_KEY) {
   if (!mat || mat.isMeshBasicMaterial || mat.isShaderMaterial || mat.userData.fighterKey) return mat;
   mat.userData.fighterKey = true;
@@ -139,7 +161,8 @@ export function addFighterKey(mat, key = FIGHTER_KEY) {
     if (prev) prev.call(mat, sh, r);
     sh.uniforms.fkDir = key.dir; sh.uniforms.fkColor = key.color;
     sh.uniforms.fkRimDir = key.rimDir; sh.uniforms.fkRim = key.rim;
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 fkDir; uniform vec3 fkColor; uniform vec3 fkRimDir; uniform vec3 fkRim;')
+    sh.uniforms.fkFillDir = key.fillDir || FIGHTER_KEY.fillDir; sh.uniforms.fkFill = key.fill || FIGHTER_KEY.fill;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 fkDir; uniform vec3 fkColor; uniform vec3 fkRimDir; uniform vec3 fkRim; uniform vec3 fkFillDir; uniform vec3 fkFill;')
       .replace('#include <lights_fragment_begin>', `#include <lights_fragment_begin>
         #if defined( RE_Direct )
         {
@@ -147,16 +170,24 @@ export function addFighterKey(mat, key = FIGHTER_KEY) {
           RE_Direct( fk, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
           float rimF = pow( 1.0 - saturate( dot( geometryNormal, geometryViewDir ) ), 3.0 ) * saturate( dot( geometryNormal, fkRimDir ) + 0.25 );
           reflectedLight.directDiffuse += fkRim * rimF * ( material.diffuseContribution * 0.6 + 0.06 ); // floor: black cloth still gets an edge
+          // fill: wrapped (half-Lambert, squared) so it is soft and has no edge, and no highlight of its own
+          float fillF = saturate( dot( geometryNormal, fkFillDir ) * 0.5 + 0.5 );
+          reflectedLight.directDiffuse += fkFill * ( ${(mat.userData.fill ?? 1).toFixed(2)} * fillF * fillF ) * material.diffuseContribution;
         }
         #endif`);
   };
   const pk = mat.customProgramCacheKey && mat.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : null;
-  mat.customProgramCacheKey = () => (pk ? pk() : '') + '|fkey';
+  mat.customProgramCacheKey = () => (pk ? pk() : '') + '|fkey' + (mat.userData.fill ?? 1);
   return mat;
 }
 
+// how much of the fill light each kind of surface takes: it is there to open up faces; a white garment given the
+// whole of it glowed in the close-ups
+const FILL_SHARE = { skin: 1, eye: 1, haircards: 0.7, hair: 0.7, beard: 0.7, cloth: 0.3 };
 export function makeFighterMaterial(def, base, loadTex, partName, key) {
-  return addFighterKey(makeFighterMaterialBase(def, base, loadTex, partName), key);
+  const m = makeFighterMaterialBase(def, base, loadTex, partName);
+  if (m && m.userData) m.userData.fill = FILL_SHARE[def.type] ?? 0.5;
+  return addFighterKey(m, key);
 }
 
 function makeFighterMaterialBase(def, base, loadTex, partName) {
@@ -230,6 +261,11 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
         specularIntensity: 0.22, specularColor: tint.clone().lerp(new THREE.Color(1, 0.92, 0.85), 0.5),
         sheen: 0.08, sheenRoughness: 0.45, sheenColor: tint.clone().multiplyScalar(0.9).addScalar(0.01),
       });
+      // the cards swing with the head (addHairSway). (The soft pass shares this uniform: js/charloader.js gives it the
+      // same onBeforeCompile, and the hair's shadow and the depth of field's depth move with it too)
+      const sway = m.userData.sway = { value: new THREE.Vector3() };
+      m.onBeforeCompile = (sh) => addHairSway(sh, sway);
+      m.customProgramCacheKey = () => 'hairsway';
       return m;
     }
     case 'cloth': {

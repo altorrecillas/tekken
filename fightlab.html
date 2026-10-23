@@ -21,6 +21,7 @@ import { makeFighterMaterial } from './js/materials.js';
 import { Match } from './js/fight/match.js';
 import { B1, B2, B3, B4 } from './js/fight/input.js';
 import { AIController } from './js/fight/ai.js';
+import { Rig } from './js/anim/rig.js';
 
 const q = new URLSearchParams(location.search);
 const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
@@ -107,6 +108,10 @@ const seq = SC[scn] || SC.walk;
 if (scn === 'ai') m.fighters.forEach((f) => { const c = new AIController(+(q.get('lvl') || 4)); c.attach(f, m); f.ctrl = c; });
 else m.fighters.forEach((f, i) => { const s = new Script(seq[i]); s.attach(f, m); f.ctrl = s; });
 m.startRound(); m.phase = 'fight'; m.pt = 0;
+// nosway=1: the hair held rigid on the head, as before js/anim/hairsway.js (to compare)
+if (q.get('nosway')) m.fighters.forEach((f) => { f.hair.u = null; });
+// thumb=opp,base,curl2,curl3: the closed fist's thumb tried with other values (js/anim/rig.js THUMB_*)
+if (q.get('thumb')) { const t = q.get('thumb').split(',').map(Number); Rig.THUMB_OPP = t[0]; Rig.THUMB_BASE = t[1]; Rig.THUMB_CURL = [t[2], t[3]]; }
 // noguard=1: the second fighter never blocks (to see hits land)
 if (q.get('noguard')) m.fighters[1].updateGuard = function () { this.guard = 'none'; };
 if (q.get('dist')) { const d = +q.get('dist'); m.fighters[0].pos.x = -d / 2; m.fighters[1].pos.x = d / 2; for (const f of m.fighters) { f.prevPos.copy(f.pos); f.feet.reset(); } }

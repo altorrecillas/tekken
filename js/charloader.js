@@ -1,5 +1,6 @@
 // Loads a fighter exported by tools/buildchar.py (mesh.json + mesh.bin) into a skinned THREE.Group.
 import * as THREE from 'three';
+import { hairSwayDepth } from './materials.js';
 
 const texLoader = new THREE.TextureLoader();
 const texCache = new Map();
@@ -133,6 +134,8 @@ export function buildCharacter(data, makeMaterial) {
     m.castShadow = true;
     m.receiveShadow = true;
     m.frustumCulled = false;
+    // (swinging hair casts its shadow from where it is drawn)
+    if (mat.userData.sway) m.customDepthMaterial = hairSwayDepth(mat.userData.sway);
     m.bind(skeleton, new THREE.Matrix4());
     group.add(m);
     meshes[p.name] = m;
@@ -142,6 +145,11 @@ export function buildCharacter(data, makeMaterial) {
       const soft = mat.clone();
       soft.alphaTest = 0.04; soft.transparent = true; soft.depthWrite = false; soft.forceSinglePass = true;
       soft.onBeforeCompile = mat.onBeforeCompile; soft.customProgramCacheKey = mat.customProgramCacheKey;
+      // (a clone copies userData by value: the swing uniform must stay the one the shaders read.) depthAlpha: the
+      // depth of field's depth pass counts these strands as solid above it, so the soft tips stay in focus with the
+      // head instead of being blurred as background (a dark smudge round the hair and a stippled edge left)
+      if (mat.userData.sway) soft.userData.sway = mat.userData.sway;
+      soft.userData.depthAlpha = 0.15;
       const sm = new THREE.SkinnedMesh(g, soft);
       sm.name = p.name + '_soft'; sm.renderOrder = 1;
       sm.castShadow = false; sm.receiveShadow = true; sm.frustumCulled = false; sm.userData.noAO = true;

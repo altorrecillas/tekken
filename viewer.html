@@ -58,6 +58,9 @@ for (let i = 0; i < ids.length; i++) {
 }
 if (ids.length > 1) { key.shadow.camera.left = -3; key.shadow.camera.right = 3; key.shadow.camera.updateProjectionMatrix(); }
 if (q.get('lids')) { const a = +q.get('lids'); for (const s of ['L', 'R']) { ch.bones['orbicularis03.' + s].rotation.x = a; ch.bones['orbicularis04.' + s].rotation.x = -a * (+q.get('low') || 0.3); } }
+// face={"bone":[rx,ry,rz,dx,dy,dz],...}: face bones turned (radians) and moved (metres; at rest every bone frame is the
+// character's, so x is the figure's left, y up and z forward), to try out expressions
+if (q.get('face')) { for (const [n, v] of Object.entries(JSON.parse(q.get('face')))) { const bn = ch.bones[n]; if (!bn) continue; bn.rotation.set(v[0] || 0, v[1] || 0, v[2] || 0); bn.position.add(new THREE.Vector3(v[3] || 0, v[4] || 0, v[5] || 0)); } }
 if (q.get('clay')) ch.group.traverse(o => { if (o.isMesh && o.material && o.name === 'head') { o.material = new THREE.MeshStandardMaterial({ color: 0xb8a89a, roughness: 0.6 }); } });
 // hide=hair,beard: parts left out (a quick look at the neck and collar: hair and beard are most of a slow render)
 if (q.get('hide')) { const hide = q.get('hide').split(','); ch.group.traverse(o => { if (o.isMesh && hide.includes(o.name)) o.visible = false; }); }

@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { addHairSway } from '../materials.js';
 
 // Clamp material radiance: a grazing clearcoat/metal highlight facing the sun can exceed the HalfFloat range,
 // and a single Inf pixel poisons bloom and the baked environment (whole surfaces turn black).
@@ -128,8 +129,10 @@ const FinalShader = {
 // Depth of field for the cinematic shots (intro, KO, victory), on three.js's BokehPass with two things of our own:
 // - its depth pass: with the pass's shared override material a head of hair was a solid block in the depth (the cards'
 //   cut-out ignored), the background kept a sharp halo around it, and a spark or a puff of dust punched a hole of
-//   focus in the blur. Here alpha-tested materials (the hair cards) keep their cut-out, and the effects (transparent,
-//   additive, sprites, lines, points) stay out of the depth;
+//   focus in the blur. Here alpha-tested materials (the hair cards) keep their cut-out, the blended pass of the hair's
+//   soft tips counts where it is more than faint (left out, the tips were blurred as part of the street: a dark smudge
+//   round the head and the stipple of the cut-out edge left), and the effects (transparent, additive, sprites, lines,
+//   points) stay out of the depth;
 // - its blur: a gather over a golden-angle spiral where each sample counts only as far as its own blur reaches the
 //   pixel (scatter as gather), so a sharp fighter does not smear a coloured halo over the blurred street behind him;
 //   something behind a pixel never spills over it more than the pixel's own blur. The radius is as three's: 0.4 of
@@ -177,10 +180,18 @@ class CineDOF extends BokehPass {
   }
   setSize(w, h) { super.setSize(w, h); this.uniforms.resolution.value.set(w, h); }
   _depthFor(m) {
-    if (!m || (!m.alphaTest && !m.alphaMap)) return this._materialDepth;
+    // (a blended pass with userData.depthAlpha - the soft tips of the hair - counts as solid above that alpha)
+    const a = m && (m.userData.depthAlpha ? (this.depthAlpha || m.userData.depthAlpha) : m.alphaTest);
+    if (!m || (!a && !m.alphaMap)) return this._materialDepth;
     let d = this._depthMats.get(m);
     if (!d) {
-      d = new THREE.MeshDepthMaterial({ map: m.map, alphaMap: m.alphaMap, alphaTest: m.alphaTest || 0.5, side: m.side, depthPacking: THREE.RGBADepthPacking, blending: THREE.NoBlending });
+      d = new THREE.MeshDepthMaterial({ map: m.map, alphaMap: m.alphaMap, alphaTest: a || 0.5, side: m.side, depthPacking: THREE.RGBADepthPacking, blending: THREE.NoBlending });
+      // the hair cards' swing (js/anim/hairsway.js, the same uniform): the depth moves with the strands it is drawn for
+      const sway = m.userData.sway;
+      if (sway && sway.value && sway.value.isVector3) {
+        d.onBeforeCompile = (sh) => addHairSway(sh, sway);
+        d.customProgramCacheKey = () => 'dofHairSway';
+      }
       this._depthMats.set(m, d);
     }
     return d;
@@ -189,10 +200,11 @@ class CineDOF extends BokehPass {
     const hide = this._hide, swap = this._swap;
     hide.length = 0; swap.length = 0;
     this.scene.traverseVisible((o) => {
-      if (o.isPoints || o.isLine || o.isSprite || o.userData.noAO) { hide.push(o); return; }
-      if (!o.isMesh) return;
+      if (o.isPoints || o.isLine || o.isSprite) { hide.push(o); return; }
+      if (!o.isMesh) { if (o.userData.noAO) hide.push(o); return; }
       const m = Array.isArray(o.material) ? o.material[0] : o.material;
-      if (!m || m.transparent || m.blending === THREE.AdditiveBlending) { hide.push(o); return; }
+      // (the hair's soft pass is kept out of the AO, not out of this depth)
+      if (!m || m.blending === THREE.AdditiveBlending || (!m.userData.depthAlpha && (m.transparent || o.userData.noAO))) { hide.push(o); return; }
       swap.push(o, o.material);
     });
     for (const o of hide) o.visible = false;
@@ -234,12 +246,28 @@ export class PostFX {
     const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: this.q.msaa });
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    if (this.q.gtao) {
+    // (?aor=&aoi=&noao=1: the AO radius and strength overridden, or AO off, to compare captures)
+    const dq = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+    if (this.q.gtao && !dq.get('noao')) {
       this.gtao = new GTAOPass(this.scene, this.camera, size.x, size.y);
       this.gtao.output = GTAOPass.OUTPUT.Default;
-      this.gtao.blendIntensity = 0.85;
-      this.gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1.4, thickness: 1.2, scale: 1.0, samples: 12 });
-      this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+      // (a 35 cm radius at 0.85 muddied the close-ups: the hands in front of a face shaded it, the eye sockets went
+      // black; AO here darkens the direct light too, not only the ambient)
+      this.gtao.blendIntensity = +(dq.get('aoi') || 0.75);
+      // thickness: how far in depth an occluder may stand from the surface it shades. At 1.2 m a fighter shaded a
+      // wall a metre behind him as if he stood against it (a dark aura round the figure, worst round a white coat);
+      // here it is a little more than the radius, and the occlusion fades out over its second half instead of
+      // stopping dead (an arm leaving the torso does not switch its shadow off in a frame)
+      this.gtao.updateGtaoMaterial({ radius: +(dq.get('aor') || 0.25), distanceExponent: 1.4, thickness: +(dq.get('aot') || 0.4), scale: 1.0, samples: 12 });
+      const gm = this.gtao.gtaoMaterial, gfs = gm.fragmentShader;
+      gm.fragmentShader = gfs
+        .replace(/if \(abs\(viewDelta\.z\) < thickness\) \{(\s*float sampleCosHorizon = dot\(viewDir, normalize\(viewDelta\)\);\s*cosHorizons\.([xy]) \+= max\(0\., \(sampleCosHorizon - cosHorizons\.\2\) \* mix\(1\., 2\. \/ float\(j \+ 2\), distanceFallOff\))\);/g,
+          (m, body, c) => `float tw${c} = 1. - smoothstep(0.5 * thickness, thickness, abs(viewDelta.z));\n\t\t\t\t\tif (tw${c} > 0.) {${body} * tw${c});`);
+      if (gm.fragmentShader === gfs || (gm.fragmentShader.match(/ \* tw[xy]\);/g) || []).length !== 2) console.warn('gtao thickness falloff: pattern not found');
+      gm.needsUpdate = true;
+      // (the denoiser's depth tolerance, measured along the surface normal: at 2 m it blurred the figure's AO onto
+      // the set a few pixels round it)
+      this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: +(dq.get('aodp') || 0.5), normalPhi: 3, radius: 6, rings: 2, samples: 12 });
       // the G-buffer pass draws everything with one normal material (no alpha test), so cards, sprites and
       // transparent FX would occlude as solid quads: dark halos around hair, trails casting AO on the set
       const gtao = this.gtao;
@@ -260,10 +288,14 @@ export class PostFX {
       // of maxblur: 0.016 is a background a hundredth of the screen soft, the look of a long lens)
       this.bokeh = new CineDOF(this.scene, this.camera, { focus: 2.0, aperture: 0.0035, maxblur: 0.016 });
       this.bokeh.enabled = false;
+      // (?dofa=: the alpha above which the hair's soft tips count as solid in the depth, to compare captures)
+      this.bokeh.depthAlpha = +dq.get('dofa') || 0;
       this.composer.addPass(this.bokeh);
     }
     if (this.q.bloom) {
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.22, 0.6, 1.1);
+      // (the threshold sits above what a white garment reaches in full sun and a cinematic key: at 1.1 a white coat
+      // glowed in the close-ups; lamps, screens and sparks are far brighter. ?bloomth= overrides it, to compare)
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.22, 0.6, +(dq.get('bloomth') || 1.7));
       // clamp what feeds the bloom: specular sparkles become soft glows instead of giant discs, NaN never spreads
       const hp = this.bloom.materialHighPassFilter;
       hp.fragmentShader = hp.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );',
