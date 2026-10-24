@@ -1,12 +1,23 @@
 // CPU opponent: produces controller input frames (screen space) from a plan queue.
 import { B1, B2, B3, B4 } from './input.js';
 
+// Per level: react (frames; a move seen with less than half of this left before it lands is not guarded, bar a snap
+// guess), block (chance to guard a move seen in time), lowRead (to guard a low one low), aggr, punish (a blocked
+// unsafe move), juggle, think (frames a pause lasts), side (sidestep), throwBreak (also the tech roll), and
+//   open:    share of the pauses in neutral spent stepping in instead of waiting. Standing still guards highs and mids
+//            by itself (js/fight/fighter.js), so a CPU that mostly waited blocked nearly everything, the easy one most
+//   recover: chance to have the guard up when a hit stun or a block stun ends (otherwise it steps in or hits back)
+//   snap:    chance to guard a move seen too late anyway
+//   rage:    chance per decision within reach to fire the rage art once it is ready
+//   string:  chance to carry a jab on into a string
+// Every roll is made once per thing seen (a stun, a move of the opponent, a launch): rolled again at every decision
+// while it lasted, a 15 % punish was nearer 50 %.
 const LEVELS = {
-  1: { react: 24, block: 0.22, lowRead: 0.15, aggr: 0.3, punish: 0.15, juggle: 0.1, think: 14, side: 0.03, throwBreak: 0.05 },
-  2: { react: 18, block: 0.4, lowRead: 0.3, aggr: 0.42, punish: 0.35, juggle: 0.35, think: 11, side: 0.06, throwBreak: 0.2 },
-  3: { react: 14, block: 0.58, lowRead: 0.45, aggr: 0.52, punish: 0.55, juggle: 0.6, think: 9, side: 0.1, throwBreak: 0.4 },
-  4: { react: 11, block: 0.72, lowRead: 0.6, aggr: 0.6, punish: 0.75, juggle: 0.8, think: 7, side: 0.14, throwBreak: 0.6 },
-  5: { react: 8, block: 0.85, lowRead: 0.75, aggr: 0.66, punish: 0.9, juggle: 0.95, think: 5, side: 0.18, throwBreak: 0.8 },
+  1: { react: 28, block: 0.15, lowRead: 0.1, aggr: 0.3, punish: 0.08, juggle: 0.08, think: 16, side: 0.02, throwBreak: 0.03, open: 0.6, recover: 0.3, snap: 0.03, rage: 0.015, string: 0.3 },
+  2: { react: 22, block: 0.3, lowRead: 0.22, aggr: 0.38, punish: 0.2, juggle: 0.25, think: 13, side: 0.04, throwBreak: 0.12, open: 0.45, recover: 0.5, snap: 0.08, rage: 0.03, string: 0.45 },
+  3: { react: 20, block: 0.38, lowRead: 0.3, aggr: 0.42, punish: 0.28, juggle: 0.38, think: 12, side: 0.06, throwBreak: 0.22, open: 0.4, recover: 0.56, snap: 0.08, rage: 0.035, string: 0.48 },
+  4: { react: 16, block: 0.5, lowRead: 0.42, aggr: 0.47, punish: 0.42, juggle: 0.52, think: 10, side: 0.09, throwBreak: 0.35, open: 0.3, recover: 0.68, snap: 0.12, rage: 0.05, string: 0.52 },
+  5: { react: 12, block: 0.62, lowRead: 0.55, aggr: 0.54, punish: 0.6, juggle: 0.72, think: 8, side: 0.12, throwBreak: 0.5, open: 0.2, recover: 0.8, snap: 0.18, rage: 0.08, string: 0.58 },
 };
 
 const BTN = { 1: B1, 2: B2, 3: B3, 4: B4 };
@@ -38,7 +49,7 @@ export class AIController {
     this.plan = [];
     this.cool = 0;
     this.prevHeld = 0;
-    this.seen = null;
+    this.marks = {};
   }
   setLevel(l) { this.level = l; this.P = LEVELS[Math.max(1, Math.min(5, l))]; }
   attach(f, match) { this.f = f; this.match = match; }
@@ -68,6 +79,19 @@ export class AIController {
   }
 
   has(move) { return !!this.f.moves[move]; }
+  // true the first time a decision sees this instance of something whose frames count up from 0 (a move of the
+  // opponent, a stun, a launch): the same move used again starts its count over
+  once(tag, obj, t) {
+    const s = this.marks[tag] || (this.marks[tag] = { obj: null, t: 0 });
+    const fresh = s.obj !== obj || t < s.t;
+    s.obj = obj; s.t = t;
+    return fresh;
+  }
+  // a pause in neutral: guarded where it stands (crouched now and then), or stepping in with the guard down
+  pause(n, crouch = 0) {
+    if (Math.random() < this.P.open) this.hold(1, 0, n);
+    else this.hold(0, Math.random() < crouch ? -1 : 0, n);
+  }
 
   decide() {
     const f = this.f, o = f.opp, P = this.P, m = this.match;
@@ -81,20 +105,27 @@ export class AIController {
     // --- hitting the floor: tech roll back up (reaction skill shared with throw breaks)
     if (f.state === 'land' && f.sf <= 8 && f.hp > 0) { if (r < (P.throwBreak ?? 0.4)) this.plan.push({ fwd: 0, up: 0, press: B1, n: 2 }); this.wait(12); return; }
     if (['air', 'land', 'getup', 'tech', 'throwing'].includes(f.state)) { this.wait(4); return; }
-    // --- in block/hit stun: prepare a punish
-    if (f.state === 'block') {
-      const am = o.move;
-      if (am && am.hit && am.hit.blk <= -10 && Math.random() < P.punish) {
-        this.wait(Math.max(1, f.stun - 1));
-        this.push(am.hit.blk <= -13 && this.has('uppercut') ? 'df+2' : '1');
-        if (Math.random() < 0.6) { this.wait(10); this.push('2'); }
-        return;
+    // --- in block or hit stun: once per stun, a punish if the blocked move left a gap, and whether the guard is up
+    // when the stun ends; if not, it steps in (or hits back) the moment it can
+    if (f.state === 'block' || f.state === 'hit') {
+      if (this.once('stun', f.state, f.sf)) {
+        const am = o.move;
+        if (f.state === 'block' && am && am.hit && am.hit.blk <= -10 && Math.random() < P.punish) {
+          this.wait(Math.max(1, f.stun - 1));
+          this.push(am.hit.blk <= -13 && this.has('uppercut') ? 'df+2' : '1');
+          if (Math.random() < 0.6) { this.wait(10); this.push('2'); }
+          return;
+        }
+        if (Math.random() >= P.recover) {
+          this.hold(0, f.crouching ? -1 : 0, Math.max(1, f.stun));
+          if (Math.random() < P.aggr * 0.5) this.push('1'); else this.hold(1, 0, 8 + Math.floor(Math.random() * 8));
+          return;
+        }
       }
-      this.hold(-1, f.crouching ? -1 : 0, 4); return;
+      this.hold(f.state === 'block' ? -1 : 0, f.crouching ? -1 : 0, 4); return;
     }
-    if (f.state === 'hit') { this.hold(-1, 0, 4); return; }
     // --- opponent juggled: follow up
-    if (o.state === 'air' && o.pos.y > 0.2 && d < 2.2 && Math.random() < P.juggle) {
+    if (o.state === 'air' && o.pos.y > 0.2 && d < 2.2 && this.once('air', o, o.sf) && Math.random() < P.juggle) {
       if (d > 1.3) this.push('f,f');
       // let the body come down into reach before swinging: the first hit meets it falling through ~0.7 m
       // (swinging at once, the first strikes of the juggle went under a body still a metre and more up)
@@ -118,10 +149,9 @@ export class AIController {
     if (o.state === 'move' && o.move && o.move.hit && o.mf < o.move.hit.f[0]) {
       const lvl = o.move.hit.lvl;
       const inRange = d < 1.9;
-      if (inRange && this.seen !== o.move) {
-        this.seen = o.move;
+      if (inRange && this.once('seen', o.move, o.mf)) {
         const timeLeft = o.move.hit.f[0] - o.mf;
-        if (timeLeft * 1.0 > P.react * 0.5 || Math.random() < 0.25) {
+        if (timeLeft > P.react * 0.5 || Math.random() < P.snap) {
           if (Math.random() < P.side && lvl !== 'low') { this.push(Math.random() < 0.5 ? 'u' : 'd'); this.wait(6); return; }
           if (Math.random() < P.block) {
             const low = lvl === 'low' ? Math.random() < P.lowRead + 0.2 : Math.random() < 0.08;
@@ -133,12 +163,12 @@ export class AIController {
       }
     }
     // --- whiff punish: opponent in recovery
-    if (o.state === 'move' && o.move && o.move.hit && o.mf > o.move.hit.f[1] + 2 && d < 1.6 && Math.random() < P.punish * 0.7) {
+    if (o.state === 'move' && o.move && o.move.hit && o.mf > o.move.hit.f[1] + 2 && d < 1.6 && this.once('whiff', o.move, o.mf) && Math.random() < P.punish * 0.7) {
       this.push(Math.random() < 0.5 && this.has('uppercut') ? 'df+2' : '1'); this.wait(10); this.push('2');
       return;
     }
     // --- rage art when available and in range
-    if (f.rage && !f.rageUsed && d < 1.35 && Math.random() < 0.08 + 0.05 * this.level) { this.push('1+2+3+4'); this.wait(20); return; }
+    if (f.rage && !f.rageUsed && d < 1.35 && Math.random() < P.rage) { this.push('1+2+3+4'); this.wait(20); return; }
     // --- neutral game
     const aggr = P.aggr;
     if (d > 2.4) {
@@ -150,7 +180,7 @@ export class AIController {
       if (x < aggr * 0.35) { this.push(this.pick(['f,f+2', ...(this.f.style.longRange || [])])); return; }
       if (x < aggr) { this.hold(1, 0, 8 + Math.floor(Math.random() * 10)); return; }
       if (x < aggr + 0.1) { this.push('b,b'.replace('b,b', 'b')); this.hold(-1, 0, 10); return; }
-      this.hold(0, 0, P.think);
+      this.pause(P.think);
       return;
     }
     // close range
@@ -160,14 +190,14 @@ export class AIController {
       const cmd = this.pick(opts);
       this.push(cmd);
       // natural strings
-      if (cmd === '1' && Math.random() < 0.6) { this.wait(10); this.push('2'); if (Math.random() < 0.4 && this.f.style.onetwoFinish) { this.wait(12); this.push('4'); } }
+      if (cmd === '1' && Math.random() < P.string) { this.wait(10); this.push('2'); if (Math.random() < P.string * 0.7 && this.f.style.onetwoFinish) { this.wait(12); this.push('4'); } }
       this.wait(4 + Math.floor(Math.random() * P.think));
     } else if (x < aggr + 0.2) {
       this.hold(-1, 0, 10 + Math.floor(Math.random() * 12)); // guard / back off
     } else if (x < aggr + 0.27) {
       this.push(Math.random() < 0.5 ? 'u' : 'd'); this.wait(8);
     } else {
-      this.hold(0, Math.random() < 0.25 ? -1 : 0, P.think + 4);
+      this.pause(P.think + 4, 0.25);
     }
   }
 

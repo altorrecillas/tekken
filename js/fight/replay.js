@@ -24,7 +24,7 @@ export class FightRecorder {
   // a fighter's controls, recorded as they are read
   wrap(ctrl, i) {
     const self = this, m = this.m;
-    return { poll() { const r = ctrl ? ctrl.poll() : NONE; self.put(m.frame - 1, i, r); return r; } };
+    return { poll() { const r = ctrl ? ctrl.poll() : NONE; self.put(m.frame - 1, i, r); return r; }, get level() { return ctrl?.level; } };
   }
   put(f, i, r) {
     if (f < 0) return;

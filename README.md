@@ -49,10 +49,20 @@ Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, C
 
 Los dos versus están en el submenú **VERSUS** del menú principal.
 
-**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.71»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
+**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.72»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
 | Entrenamiento | Sparring configurable, grabación del rival, historial de entradas y pruebas de combo. Ver [Entrenamiento](#entrenamiento). |
 
-**Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU en cada uno de los seis combates del arcade.
+**Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU (de 1 a 5) en cada uno de los seis combates del arcade:
+
+| Dificultad | Niveles de la CPU, combate a combate |
+|---|---|
+| Fácil | 1 · 1 · 2 · 2 · 3 · 3 |
+| Normal | 2 · 2 · 3 · 3 · 4 · 4 |
+| Difícil | 3 · 4 · 4 · 5 · 5 · 5 |
+
+- En los niveles bajos la CPU se cubre poco: a menudo avanza con la guardia bajada en vez de esperar quieta (quedarse quieto ya bloquea los golpes altos y medios), deja entrar las series de golpes, apenas castiga y casi no hace combos aéreos ni Rage Arts. En los altos se cubre, castiga los golpes bloqueados y remata en el aire.
+- Medido con `tools/diffbench.mjs` (un jugador novato simulado contra la CPU): gana ocho de cada diez asaltos contra el nivel 1, siete contra el 2, casi seis contra el 3, algo más de tres contra el 4 y menos de dos contra el 5. Antes ganaba cuatro de cada diez contra el nivel 1 y poco más de uno contra el 3.
+- El nivel del compañero de **Entrenamiento** (acción CPU) usa la misma escala.
 
 **Resultados y JUGADA DEL COMBATE:** al acabar cada combate (arcade, versus y online) sale una pantalla con los datos de los dos: golpes, daño, mejor combo, contraataques, lanzamientos, agarres, bloqueos y Rage Arts, y la jugada del combate (por ejemplo «COMBO DE 5 GOLPES · 78 DE DAÑO · K.O.»).
 - **▶ VER JUGADA** la repite a cámara lenta, con letterbox, sus efectos y sus sonidos. Es exactamente lo que pasó: el combate es determinista, así que se vuelve a simular desde una instantánea guardada justo antes, con las mismas pulsaciones.
@@ -348,7 +358,7 @@ Son los scripts usados para generar los personajes y probar el juego. Se incluye
 - `tools/ambience_build.py <escenario> <grabación>`: prepara el ambiente de un escenario (`assets/sfx/amb_<escenario>.mp3`): filtra, suaviza los momentos fuertes y hace un bucle sin cortes.
 - `tools/music_build.py <carpeta con los originales>`: prepara la música (`assets/music/*.mp3`) desde los MP3 originales de incompetech y su catálogo `pieces.json`: recorta introducciones y finales largos, filtra los graves, iguala el volumen a −16 LUFS, codifica a 128 kbps y mide el tempo y el primer pulso de cada pista (imprime la tabla `BEATS` de `js/audio/audio.js`). La lista de pistas por escenario está en su tabla `TRACKS`.
 - `tools/quotes_tts.py <carpeta de voces> [--intro] [luchadores]`: genera con Piper las frases de victoria o, con `--intro`, las de presentación, e imprime en qué fotograma acaba cada una.
-- `tools/*.mjs`: capturas headless con Playwright (`shot.mjs`), pruebas de flujo de menús (`flow.mjs`, `flow2.mjs`), simulación de combates sin gráficos para equilibrar (`simtest.mjs` y `rr.sh`) y horneado del público (`crowdbake.mjs`). Las herramientas localizan el juego a partir de su propia carpeta; la variable `GAME_ROOT` permite apuntar a otra copia.
+- `tools/*.mjs`: capturas headless con Playwright (`shot.mjs`), pruebas de flujo de menús (`flow.mjs`, `flow2.mjs`), simulación de combates sin gráficos para equilibrar (`simtest.mjs` y `rr.sh`), banco de dificultad (`diffbench.mjs`: un jugador novato o medio simulado contra cada nivel de la CPU, muchos combates; da el porcentaje de combates y asaltos ganados) y horneado del público (`crowdbake.mjs`). Las herramientas localizan el juego a partir de su propia carpeta; la variable `GAME_ROOT` permite apuntar a otra copia.
 - Móvil:
   - `tools/mshot.mjs`: capturas con perfiles de móvil y tablet (844×390 @3x, 667×375 @2x, vertical, 1180×820 @2x).
   - `tools/mtouch.mjs`: prueba los controles táctiles con toques multitáctiles reales (menús, joystick, botones, pulsaciones dobles, deslizamientos, pausa, opciones); son 20 comprobaciones.

@@ -52,11 +52,12 @@ const STAGES = {
 const STAGE_KEYS = Object.keys(STAGES);
 const MAIN_STAGE = STAGE_KEYS[0];
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-// arcade difficulty: the CPU level (1..5, see fight/ai.js) of each fight in the ladder (one per rival)
+// arcade difficulty: the CPU level (1..5, see fight/ai.js) of each fight in the ladder (one per rival). Measured with
+// tools/diffbench.mjs: a novice wins 8 rounds in 10 against level 1, 7 against 2, 6 against 3, 3.5 against 4, 2 against 5
 const DIFFICULTY = {
-  easy: { name: 'FÁCIL', ai: [1, 2, 2, 3, 3, 3] },
-  normal: { name: 'NORMAL', ai: [2, 3, 3, 4, 4, 4] },
-  hard: { name: 'DIFÍCIL', ai: [3, 4, 5, 5, 5, 5] },
+  easy: { name: 'FÁCIL', ai: [1, 1, 2, 2, 3, 3] },
+  normal: { name: 'NORMAL', ai: [2, 2, 3, 3, 4, 4] },
+  hard: { name: 'DIFÍCIL', ai: [3, 4, 4, 5, 5, 5] },
 };
 const DIFF_KEYS = Object.keys(DIFFICULTY);
 // the arcade run kept on the device for CONTINUAR (see saveArcade)

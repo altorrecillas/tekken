@@ -50,6 +50,7 @@ for (let k = 0; k < RIVALS; k++) {
   const info = await g(() => { const G = window.__game; let n = 0; G.scene.traverse(o => { if (o.userData?.fighter && o.parent === G.scene) n++; }); return { opp: G.match.fighters[1].id, stage: G.arcade.stage, n, ai: G.match.fighters[1].ctrl?.level }; });
   seen.push(info.opp);
   ok(info.n === 2, `fight ${k + 1}: ${info.n} fighter models in the scene (vs ${info.opp}, CPU level ${info.ai}, arcade step ${info.stage + 1})`);
+  ok(info.ai === [2, 2, 3, 3, 4, 4][k], `fight ${k + 1}: CPU level ${info.ai} (NORMAL: 2 2 3 3 4 4)`);
   card = (await g(() => window.__cards.slice(-1)[0])) || '';
   // (the card only appears when loading takes over 120 ms: a fighter already in memory loads without it)
   ok(card === '' || new RegExp(`COMBATE \\d DE ${RIVALS}`).test(card), `fight ${k + 1}: loading card "${card || 'none, instant load'}"`);
