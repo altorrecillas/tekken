@@ -364,48 +364,56 @@ export function buildMoves(style) {
   };
   M.onetwo = { ...M.straight, name: '1,2', total: 28, hit: { ...M.straight.hit, f: [9, 11], dmg: 10 },
     clip: C(straightKeys.map(([f, p, e]) => [Math.max(0, Math.round(f * 0.85)), p, e])) };
-  // --- 3: front kick (mid)
+  // --- 3: front kick (mid). The lead knee comes up with the foot tucked under it, then the leg drives out almost
+  // straight at stomach height, the hips pushed through and the trunk leaning back a little over the support leg, the
+  // ball of the foot first; the shin folds back in under the raised knee before the foot comes down. (The foot used to
+  // stop a third of a metre short of a straight leg, at hip height: the shin hung down from a raised knee, a knee lift
+  // more than a kick.) The reach is the same as before: the body no longer steps in behind the kick. The guard stays
+  // at the face (the hands used to drop to the chest and open out, elbows wide) and the eyes on the target as the trunk
+  // leans back; the rear fist a little further out than the guard, or the chin met it
   M.frontKick = {
     name: 'Front kick', total: 34, clip: C([
       [0, {}],
-      [5, { footL: [0.05, 0.3, 0.3], kneeL: [0.1, 0.4, 1], rootPos: [0, -0.06, -0.04], rootRot: [-0.05, -0.4, 0] }, 'inout'],
-      [13, { footL: [0.04, 0.72, 0.72], kneeL: [0.1, 0.6, 1], footRotL: [-0.9, -0.2, 0], toeL: -0.5, rootRot: [-0.28, -0.35, 0], spine: [0.15, 0.1, 0], rootPos: [0, -0.05, 0.02],
-        handL: [0.1, 0.0, 0.5], handR: [0.15, 0.0, 0.3] }, 'drive'],
+      [5, { footL: [0.05, 0.34, 0.26], kneeL: [0.1, 0.5, 1], footRotL: [-0.25, -0.3, 0], rootPos: [0, -0.06, -0.05], rootRot: [-0.08, -0.4, 0], spine: [0.12, 0.1, 0] }, 'inout'],
+      [13, { footL: [0.04, 0.8, 0.9], kneeL: [0.1, 0.8, 0.6], footRotL: [-1.25, -0.2, 0], toeL: -0.6, rootRot: [-0.3, -0.35, 0], spine: [0.1, 0.1, 0], rootPos: [0, -0.05, -0.02],
+        handR: [-0.06, 0.24, 0.52], neck: [0.3, 0.15, 0] }, 'drive'],
       [16, {}, 'lin'],
-      [24, { footL: [0.05, 0.35, 0.35], footRotL: [0, -0.35, 0], toeL: 0, rootRot: [0.02, -0.45, 0] }, 'inout'],
-      [34, { footL: [0.05, 0.071, 0.24], kneeL: [0.15, 0, 1], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], rootPos: [0, -0.075, -0.02], handL: [0.02, 0.2, 0.62], handR: [-0.08, 0.3, 0.44] }, 'inout'],
+      [24, { footL: [0.05, 0.42, 0.36], kneeL: [0.1, 0.5, 1], footRotL: [-0.15, -0.35, 0], toeL: 0, rootRot: [-0.04, -0.45, 0], rootPos: [0, -0.06, -0.03], neck: [0.24, 0.2, 0], handR: GUARD_HAND.R }, 'inout'],
+      [34, null, 'inout'],
     ]),
     hit: { f: [13, 15], limb: 'footL', r: 0.11, dmg: 13, lvl: 'mid', react: 'hitMid', blk: -6, hitAdv: 4, push: 0.3 },
-    advance: [[0, 0], [13, 0.12], [34, 0.12]], sfx: 'kick',
+    advance: [[0, 0], [13, 0.03], [34, 0.03]], sfx: 'kick',
   };
   // --- 4: high roundhouse (rear leg). The hips turn TOWARDS the target (positive yaw) so the kicking leg opens
   // sideways from the pelvis (abduction), the support foot pivots out on its ball with the knee over the toes,
   // the knee chambers across before the shin whips round at head height, the torso leans away as counterweight
-  // and the same-side arm swings down and back; the lead fist stays on the chin.
+  // and the same-side arm swings down along the body and back past the hip (it used to go to the hip and stay bent
+  // behind like a wing); the lead fist stays on the chin and the eyes on the target (the head went back with the trunk
+  // and looked at the sky).
   M.roundhouse = {
     name: 'High kick', total: 40, clip: C([
       [0, {}],
       // weight onto the lead leg, rear heel peels off the floor, hips start to open
       [4, { rootPos: [0, -0.085, 0.03], rootRot: [0.05, -0.2, -0.02], spine: [0.1, 0.02, 0], neck: [0.12, 0.05, 0],
-        footRotR: [0.55, 0.65, 0], footRotL: [0.05, 0.15, 0], handR: [0.05, -0.05, 0.36] }, 'inout'],
+        footRotR: [0.55, 0.65, 0], footRotL: [0.05, 0.15, 0], handR: [0.2, -0.2, 0.26] }, 'inout'],
       // chamber: knee up and across, foot tucked, hips half turned and already tilting, chest still towards the
       // opponent
-      [9, { rootPos: [0, -0.06, 0.02], rootRot: [-0.1, 0.55, -0.3], spine: [0.06, -0.35, 0], neck: [0.1, -0.45, 0],
+      [9, { rootPos: [0, -0.06, 0.02], rootRot: [-0.1, 0.55, -0.3], spine: [0.06, -0.35, 0], neck: [0.22, -0.45, 0.08],
         footR: [0.3, 0.5, 0.2], kneeR: [0.25, 0.15, 1], footRotR: [-0.2, 0.3, 0.6], toeR: -0.3,
         footL: [0.05, 0.071, 0.25], footRotL: [0.18, 0.85, 0],
-        handR: [0.28, -0.68, -0.26], aimR: 1, poleR: [0.3, 0.1, -1], twistR: -0.2 }, 'inout'],
+        handR: [0.14, -0.88, 0.1], poleR: [0.2, 0, -1], twistR: -0.2 }, 'inout'],
       // extension: hips fully over (right hip up), leg straight at head height, torso leaning away. The hips tilt
       // over a good way and the spine straightens against them: tilted 25 degrees, the leg was raised 20 degrees
       // further out from the pelvis than a hip opens
-      [15, { rootPos: [0, -0.04, -0.02], rootRot: [-0.34, 1.3, -0.62], spine: [0.1, -0.6, 0.06], neck: [0.14, -0.8, 0],
-        footR: [0.0, 1.14, 0.82], kneeR: [0.35, 1, 0.15], footRotR: [-0.25, 0.1, 1.2], toeR: -0.4,
+      [15, { rootPos: [0, -0.04, -0.02], rootRot: [-0.34, 1.3, -0.7], spine: [0.1, -0.6, 0.12], neck: [0.55, -0.8, 0.22],
+        footR: [0.0, 1.2, 0.88], kneeR: [0.35, 1, 0.15], footRotR: [-0.25, 0.1, 1.2], toeR: -0.4,
         footRotL: [0.25, 1.2, 0],
-        handR: [0.36, -0.72, -0.38], aimR: 1 }, 'drive'],
+        handR: [0.16, -0.8, -0.4] }, 'drive'],
       [18, {}, 'lin'],
       // recovery: the knee re-chambers on the way back, hips unwind
-      [24, { rootPos: [0, -0.06, 0.0], rootRot: [-0.12, 0.6, -0.15], spine: [0.08, -0.3, -0.05], neck: [0.12, -0.4, 0],
+      [24, { rootPos: [0, -0.06, 0.0], rootRot: [-0.12, 0.6, -0.15], spine: [0.08, -0.3, -0.05], neck: [0.3, -0.4, 0.06],
         footR: [0.3, 0.44, 0.14], kneeR: [0.25, 0.15, 1], footRotR: [-0.1, 0.4, 0.4], toeR: -0.1,
-        footRotL: [0.1, 0.8, 0], handR: [0.15, -0.35, 0.2], aimR: 0.6, poleR: [0.25, -1, -0.25] }, 'inout'],
+        footRotL: [0.1, 0.8, 0], handR: [0.22, -0.5, 0.06], poleR: [0.25, -1, -0.25] }, 'inout'],
       // the foot lands behind on its ball, the guard comes back
       [31, { rootPos: [0, -0.085, -0.02], rootRot: [0.04, -0.25, -0.02], spine: [0.1, 0.05, 0], neck: [0.16, 0.15, 0],
         footR: [0.2, 0.071, -0.19], kneeR: [0.5, 0, 1], footRotR: [0.3, 0.65, 0], toeR: 0,
@@ -413,20 +421,20 @@ export function buildMoves(style) {
       [40, null, 'inout'],
     ]),
     hit: { f: [15, 17], limb: 'footR', r: 0.12, dmg: 18, lvl: 'high', react: 'hitHigh', blk: -9, hitAdv: 3, push: 0.35, ch: { kd: true } },
-    advance: [[0, 0], [15, 0.1], [40, 0.08]], sfx: 'heavy',
+    advance: [[0, 0], [15, 0.06], [40, 0.04]], sfx: 'heavy',
   };
-  // --- d+3: low kick
+  // --- d+3: low kick (the knee kept a little bent at full reach: locked straight, it read stiff)
   M.lowKick = { name: 'Low kick', total: 32 };
   M.lowKick.clip = C([
     [0, {}],
     [5, { rootPos: [0, -0.14, -0.05], rootRot: [0.1, -0.6, 0], footL: [0.1, 0.15, 0.2] }, 'inout'],
-    [13, { rootPos: [0, -0.18, -0.06], rootRot: [-0.1, -0.7, -0.1], spine: [0.2, 0.2, 0.1], footL: [0.02, 0.1, 0.78], kneeL: [0.3, 0.3, 1], footRotL: [-0.3, -0.6, 0.4], neck: [0.2, 0.3, 0] }, 'drive'],
+    [13, { rootPos: [0, -0.18, -0.06], rootRot: [-0.1, -0.7, -0.1], spine: [0.2, 0.2, 0.1], footL: [0.02, 0.16, 0.72], kneeL: [0.3, 0.4, 1], footRotL: [-0.3, -0.6, 0.4], neck: [0.2, 0.3, 0] }, 'drive'],
     [16, {}, 'lin'],
     [21, { rootPos: [0, -0.14, -0.04], rootRot: [0.02, -0.6, -0.04], spine: [0.15, 0.15, 0.05], footL: [0.06, 0.16, 0.36], kneeL: [0.25, 0.3, 1], footRotL: [-0.1, -0.5, 0.2] }, 'inout'],
     [32, { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], footL: [0.05, 0.071, 0.24], kneeL: [0.15, 0, 1], footRotL: [0, -0.35, 0], neck: [0.16, 0.2, 0] }, 'inout'],
   ]);
   Object.assign(M.lowKick, { hit: { f: [13, 14], limb: 'footL', r: 0.11, dmg: 9, lvl: 'low', react: 'hitLow', blk: -12, hitAdv: -2, push: 0.15 },
-    advance: [[0, 0], [13, 0.06], [32, 0.06]], sfx: 'kick' });
+    advance: [[0, 0], [13, 0.1], [32, 0.1]], sfx: 'kick' });
   // --- d+4: sweep (from crouch). A low spin on the ball of the lead foot: the lead hand posts on the floor beside
   // it, the hips turn towards the target (positive yaw) so the extended rear leg sweeps round from behind at ankle
   // height, abducted from the pelvis (never across it); the rear arm opens for balance and the chest faces the
@@ -442,32 +450,32 @@ export function buildMoves(style) {
       [7, { rootPos: [0, -0.44, -0.06], rootRot: [0.38, -0.35, 0.04], spine: [0.38, 0.05, 0], neck: [-0.04, 0.2, 0],
         footL: [0.2, 0.071, 0.2], footRotL: [0.45, 0.05, 0], kneeL: [0.45, 0.1, 1],
         footR: [0.45, 0.1, -0.32], kneeR: [0.6, 0.3, 0.2], footRotR: [0.1, 0.9, 0.3],
-        hgPosL: [0.1, -0.2, 0.24], handR: [0.28, 0.05, 0.3], aimR: 1 }, 'inout'],
+        hgPosL: [0.1, -0.2, 0.24], handR: [0.08, 0.08, 0.5], aimR: 0 }, 'inout'],
       // the hips turn round the planted lead foot (they swing out to the right as they turn: turned about their own
       // centre, the lead foot ended up across the body and the hip folded past its limit) and the straight rear leg
       // swings out to the side, skimming the floor just above where a planted foot is held flat
       [13, { rootPos: [-0.055, -0.44, -0.04], rootRot: [0.3, 0.4, -0.06], spine: [0.5, -0.35, 0], neck: [-0.06, -0.35, 0],
         footL: [0.2, 0.071, 0.2], footRotL: [0.5, 0.6, 0],
         footR: [0.78, 0.135, 0.3], kneeR: [0.2, 1, 0.3], footRotR: [0, 1.0, 1.2],
-        handR: [0.45, -0.1, -0.1] }, 'inout'],
+        handR: [0.1, 0.0, 0.5] }, 'inout'],
       // impact: the leg sweeps through the front at ankle height, the rear arm swung back against it (the hips
       // dip a little lower for it: the leg reaches as far as it used to)
       [18, { rootPos: [-0.13, -0.47, -0.005], rootRot: [0.3, 0.9, -0.08], spine: [0.5, -0.55, 0], neck: [-0.04, -0.7, 0],
         footL: [0.2, 0.071, 0.2], footRotL: [0.5, 0.9, 0],
         footR: [0.1, 0.135, 0.98], kneeR: [0.1, 1, 0.2], footRotR: [0, 0.5, 1.3],
-        handR: [0.5, -0.05, -0.25] }, 'drive'],
+        handR: [0.12, -0.04, 0.48] }, 'drive'],
       [21, {}, 'lin'],
       // the hips start back up and round; the sweeping foot rolls back flat while it is still off the floor and the
       // rear hand comes round outside the hip
       [25, { rootPos: [-0.12, -0.42, -0.03], rootRot: [0.28, 0.8, -0.06], spine: [0.45, -0.5, 0],
-        footR: [0.22, 0.14, 0.72], footRotR: [0.1, 0.6, 0.55], handR: [0.55, -0.1, 0.05] }, 'inout'],
+        footR: [0.22, 0.14, 0.72], footRotR: [0.1, 0.6, 0.55], handR: [0.1, 0.0, 0.48] }, 'inout'],
       // the leg folds back in under the hips, the foot still just off the floor so that it lands slowly where the
       // stance wants it (set down here in full flight, it was pinned to the floor mid-swing); the lead foot turns
       // back in under its knee
       [30, { rootPos: [-0.12, -0.38, -0.05], rootRot: [0.3, 0.55, -0.04], spine: [0.2, -0.4, 0], neck: [0.14, -0.4, 0],
         footL: [0.14, 0.071, 0.22], kneeL: [0.3, 0.05, 1], footRotL: [0.3, 0.6, 0],
         footR: [0.3, 0.09, 0.15], kneeR: [0.4, 0.4, 1], footRotR: [0.2, 0.7, 0],
-        handR: [0.35, -0.2, 0.15] }, 'inout'],
+        handR: [0.04, 0.08, 0.46] }, 'inout'],
       [38, { rootPos: [0, -0.3, -0.06], rootRot: [0.3, -0.2, 0], spine: [0.2, 0.05, 0], neck: [0.14, 0.1, 0],
         footL: [0.08, 0.071, 0.24], footRotL: [0.1, -0.2, 0], kneeL: [0.2, 0, 1],
         footR: [0.22, 0.071, -0.18], kneeR: [0.5, 0, 1], footRotR: [0.25, 0.65, 0],
@@ -538,17 +546,20 @@ export function buildMoves(style) {
     advance: [[0, 0], [8, 0.2], [16, 0.55], [42, 0.55]], sfx: 'heavy',
   };
   // --- uf+4: jumping kick. Arms swing down then up to drive the jump, the lead knee rises first, the rear leg
-  // chambers and snaps out at chest height while the lead leg tucks under; the landing is absorbed by both knees.
+  // chambers and drives out almost straight at chest height while the lead leg tucks under, the hips tilted back so
+  // that the hip is not folded past its limit; the landing is absorbed by both knees. (The kicking leg used to stop well
+  // short of straight, the shin hanging from a raised knee, and the lead leg hung straight down.) The arms swing up with
+  // the take-off and come back into the guard for the kick (they stayed up and wide, as if celebrating)
   M.jumpKick = {
     name: 'Jump kick', total: 50, airborne: [6, 30], clip: C([
       [0, {}],
       [5, { rootPos: [0, -0.18, 0], rootRot: [0.22, -0.4, 0], spine: [0.18, 0.05, 0], handL: [0.3, -0.35, 0.2], handR: [0.32, -0.4, 0.05], aimL: 1, aimR: 1 }, 'inout'],
       [11, { rootPos: [0, 0.25, 0.1], rootRot: [-0.05, -0.35, 0], spine: [0.05, 0.05, 0], footL: [0.08, 0.55, 0.25], kneeL: [0.1, 0.4, 1], footRotL: [0.4, -0.2, 0],
-        footR: [0.2, 0.3, -0.12], kneeR: [0.3, 0, 1], footRotR: [0.5, 0.4, 0], handL: [0.18, 0.25, 0.45], handR: [0.3, 0.15, 0.2] }, 'out'],
-      [16, { rootPos: [0, 0.38, 0.18], rootRot: [-0.12, -0.3, 0], footL: [0.1, 0.5, 0.02], kneeL: [0.2, 0.5, 1], footR: [0.14, 0.72, 0.35], kneeR: [0.1, 0.5, 1],
-        footRotR: [-0.4, 0, 0], toeR: -0.3, handL: [0.14, 0.15, 0.5], handR: [0.38, -0.1, -0.12] }, 'inout'],
-      [19, { rootPos: [0, 0.4, 0.25], rootRot: [-0.25, -0.3, 0], spine: [0.1, 0.05, 0], footR: [0.04, 1.05, 0.86], kneeR: [0.1, 1, 0.25], footRotR: [-0.55, 0, 0], toeR: -0.4,
-        footL: [0.12, 0.45, -0.1], kneeL: [0.2, 0.3, 1], handL: [0.1, 0.1, 0.5], handR: [0.42, -0.22, -0.26] }, 'drive'],
+        footR: [0.2, 0.3, -0.12], kneeR: [0.3, 0, 1], footRotR: [0.5, 0.4, 0], handL: [0.08, 0.2, 0.55], handR: [0.14, 0.1, 0.45] }, 'out'],
+      [16, { rootPos: [0, 0.38, 0.18], rootRot: [-0.12, -0.3, 0], footL: [0.1, 0.7, 0.06], kneeL: [0.2, 0.5, 1], footR: [0.14, 0.72, 0.35], kneeR: [0.1, 0.5, 1],
+        footRotR: [-0.4, 0, 0], toeR: -0.3, handL: GUARD_HAND.L, handR: [-0.06, 0.24, 0.52], aimL: 0, aimR: 0, neck: [0.3, 0.2, 0] }, 'inout'],
+      [19, { rootPos: [0, 0.4, 0.25], rootRot: [-0.32, -0.3, 0], spine: [0.14, 0.05, 0], footR: [0.04, 1.08, 1.04], kneeR: [0.1, 1, 0.4], footRotR: [-1.1, 0, 0], toeR: -0.5,
+        footL: [0.12, 0.74, -0.04], kneeL: [0.2, 0.3, 1] }, 'drive'],
       [22, {}, 'lin'],
       // on the way down the knee re-chambers, then the feet level out for the landing (the leg came back from head
       // height in three frames; it now draws back in two stages, so that it does not snap back from the hold). The
@@ -560,13 +571,13 @@ export function buildMoves(style) {
       // touch-down (at the stance's height: with the hips any higher the spread feet only reached the floor on
       // tiptoe), still moving down, so that the knees take the landing up before rising into the guard
       [30, { rootPos: [0, -0.06, 0.1], rootRot: [0.15, -0.45, 0], spine: [0.12, 0.1, 0], footL: [0.05, 0.071, 0.3], footR: [0.2, 0.071, -0.15], kneeL: [0.3, 0, 1], kneeR: [0.5, 0, 1],
-        footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], toeR: 0, handL: [0.05, 0.1, 0.55], handR: [0.1, 0.05, 0.4], aimL: 0.5, aimR: 0.5 }, 'inout'],
+        footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], toeR: 0, handR: GUARD_HAND.R, neck: [0.2, 0.2, 0] }, 'inout'],
       [35, { rootPos: [0, -0.19, 0.1], rootRot: [0.28, -0.45, 0], spine: [0.18, 0.1, 0] }, 'inout'],
       [42, { rootPos: [0, -0.1, 0.05], rootRot: [0.12, -0.45, 0], spine: [0.12, 0.12, 0], handL: [0.02, 0.2, 0.62], handR: [-0.08, 0.3, 0.44], aimL: 0, aimR: 0 }, 'inout'],
       [50, null, 'inout'],
     ]),
     hit: { f: [17, 22], limb: 'footR', r: 0.13, dmg: 20, lvl: 'mid', react: 'hitMid', blk: -10, kd: true, push: 0.4 },
-    advance: [[0, 0], [6, 0], [24, 0.5], [50, 0.5]], sfx: 'heavy',
+    advance: [[0, 0], [6, 0], [24, 0.25], [50, 0.25]], sfx: 'heavy',
   };
   // --- throw (1+3)
   M.throw = {

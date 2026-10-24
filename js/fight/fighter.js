@@ -278,9 +278,12 @@ export class Fighter {
     }
     // new attacks
     if (this.pending && this.pendingT === 0) {
-      if (this.canAct()) {
+      // (a jump that has only just started takes the jumping moves, u+4 and uf+4: the up that comes with their press
+      // starts the jump in the same frame, before the press is read, and the press was dropped: they never came out)
+      if (this.canAct() || s === 'prejump') {
         let cmd = this.matchCommand(this.pending, inp.d);
         if (cmd && cmd.move === 'rageArt' && !(this.rage && !this.rageUsed)) cmd = this.matchCommand(B1 | B2, inp.d);
+        if (cmd && s === 'prejump' && ![7, 8, 9].includes(cmd.dir)) cmd = null;
         this.pending = 0;
         if (cmd) {
           if (cmd.move === 'rageArt') { this.rageUsed = true; this.match.onRageStart?.(this); }

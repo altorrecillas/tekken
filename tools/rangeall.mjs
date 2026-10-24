@@ -1,4 +1,5 @@
 // every strike of every fighter from standing, at increasing distance: max range at which it connects (hit or block)
+// STEP=0.02 measures every 2 cm instead of 10 (to check that a clip change keeps a move's reach)
 import fs from 'fs';
 const GAME = process.env.GAME_ROOT || decodeURIComponent(new URL('..', import.meta.url).pathname).replace(/\/$/, '');
 globalThis.window = globalThis; globalThis.addEventListener = () => {}; globalThis.document = { createElement: () => ({ getContext: () => null }) };
@@ -35,7 +36,8 @@ for (const id of ids) {
   const row = [];
   for (const cmd of cmds) {
     let maxD = 0, used = '', crouchDef = false;
-    for (let d = +(process.env.D0 || 0.8); d <= 2.21; d += 0.1) {
+    const STEP = +(process.env.STEP || 0.1);
+    for (let d = +(process.env.D0 || 0.8); d <= 2.31; d += STEP) {
       const m = new Match(game, chars, [id, opp === id ? 'camilo' : opp], { rounds: 99, time: 99 });
       m.fighters.forEach((f, i) => { const s = new Script(i ? [{ n: 200 }] : seqFor(cmd)); s.attach(f, m); f.ctrl = s; });
       m.startRound(); m.phase = 'fight'; m.pt = 0;
@@ -45,7 +47,7 @@ for (const id of ids) {
       used = used || mv;
       if (hit) maxD = d;
     }
-    row.push(`${cmd}=${used || '?'}:${maxD ? maxD.toFixed(1) : 'MISS'}`);
+    row.push(`${cmd}=${used || '?'}:${maxD ? maxD.toFixed(STEP < 0.1 ? 2 : 1) : 'MISS'}`);
   }
   console.log(id.padEnd(10), row.join('  '));
 }
