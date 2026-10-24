@@ -267,12 +267,14 @@ export class FX {
     }
   }
 
-  hitSpark(p, heavy, ch, victim, attacker) {
+  hitSpark(p, heavy, ch, victim, attacker, dir = null) {
     const col = ch ? new THREE.Color(1.0, 0.35, 0.12) : heavy ? new THREE.Color(1.0, 0.72, 0.35) : new THREE.Color(1.0, 0.9, 0.7);
-    // fewer, thinner needles sprayed in a cone through the victim (a uniform sphere of flat quads reads as clip art)
+    // fewer, thinner needles sprayed in a cone through the victim (a uniform sphere of flat quads reads as clip art),
+    // along the blow (a kick that swings round sprays them across, the way the foot was going)
     const n = heavy ? 16 : 10;
     const hd = new THREE.Vector3();
-    if (attacker && victim) { hd.subVectors(victim.pos, attacker.pos).setY(0); if (hd.lengthSq() > 1e-6) hd.normalize(); }
+    if (dir) hd.copy(dir);
+    else if (attacker && victim) { hd.subVectors(victim.pos, attacker.pos).setY(0); if (hd.lengthSq() > 1e-6) hd.normalize(); }
     for (let i = 0; i < n; i++) {
       const d = new THREE.Vector3().randomDirection().multiplyScalar(0.6).addScaledVector(hd, 0.8).normalize();
       const sp = (heavy ? 7 : 5) * (0.5 + Math.random());

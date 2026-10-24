@@ -63,7 +63,7 @@ class IO {
 const POSES = ['pose', 'prevPose', 'blendFrom', 'base', 'basePrev', 'offX', 'offV'];
 const NUMS = ['yaw', 'prevYaw', 'inertH', 'sf', 'mf', 'cf', 'cfRate', 'blendT', 'blendDur', 'ubc', 'yawRate', 'stun', 'juggles',
   'comboHits', 'comboDmg', 'slide', 'pending', 'pendingT', 'downT', 'invuln', 'downHold', 'upHold', 'lastDy', 'sideDir', 'hp', 'maxHp',
-  'jumpFwd', 'advPrev', 'throwDmg', 'throwBreak', 'voiceT', 'shakeT', 'breath', 'hitFlash', 'counterFlash'];
+  'jumpFwd', 'advPrev', 'throwDmg', 'throwBreak', 'voiceT', 'shakeT', 'breath', 'hitFlash', 'counterFlash', 'spin'];
 const BOOLS = ['snapPose', 'snapSmooth', 'moveHit', 'moveConnected', 'crouching', 'airborne', 'ko', 'rage', 'rageUsed'];
 // (ragdoll: the knocked-out body, which for the simulation is only a flag)
 const REFS = ['state', 'move', 'moveName', 'clip', 'clipName', 'guard', 'throwPartner', 'throwMove', 'stateHold', 'gripFn', 'ragdoll'];

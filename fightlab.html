@@ -95,9 +95,11 @@ const SC = {
   fly: [[idle(6), ...tap(B3 | B4), idle(70)], [idle(300)]],
   jumpk: [[idle(6), ...tap(B4, 1, 1), idle(70)], [idle(300)]],
 };
-// scn=cmd&cmd=<command as the move lists write it> (3, df+4, f+3, f,f+4, 3+4...): that command once, then idle
-if (scn === 'cmd') {
-  let c = q.get('cmd') || '3', pre = [];
+// scn=cmd&cmd=<command as the move lists write it> (3, df+4, f+3, f,f+4, 3+4...): that command once, then idle.
+// cmd2=<command>&at2=<frame>: the second fighter does one too, starting that many frames in (a hit on a fighter
+// caught in the middle of his own move: a low kick on the standing leg of a front kick...)
+const cmdSeq = (c0) => {
+  let c = c0, pre = [];
   if (c.startsWith('f,f')) { pre = [{ n: 2, fwd: 1 }, { n: 2 }]; c = 'f' + c.slice(3); }
   let fwd = 0, up = 0, press = 0;
   for (const t of c.split('+')) {
@@ -105,7 +107,11 @@ if (scn === 'cmd') {
     else if (t === 'df') { fwd = 1; up = -1; } else if (t === 'db') { fwd = -1; up = -1; } else if (t === 'uf') { fwd = 1; up = 1; }
     else press |= { 1: B1, 2: B2, 3: B3, 4: B4 }[t] || 0;
   }
-  SC.cmd = [[idle(6), ...pre, ...(up < 0 ? [{ n: 4, fwd, up }] : []), ...tap(press, fwd, up), idle(80)], [idle(300)]];
+  return [...pre, ...(up < 0 ? [{ n: 4, fwd, up }] : []), ...tap(press, fwd, up)];
+};
+if (scn === 'cmd') {
+  const p2 = q.get('cmd2') ? [idle(+(q.get('at2') || 6)), ...cmdSeq(q.get('cmd2')), idle(300)] : [idle(300)];
+  SC.cmd = [[idle(6), ...cmdSeq(q.get('cmd') || '3'), idle(80)], p2];
 }
 const game = {
   fx: { hitSpark() {}, blockSpark() {}, dust() {}, koFlash() {}, sweat() {}, trail() {} },

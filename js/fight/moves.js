@@ -115,6 +115,24 @@ export function buildClips(style) {
     [14, { rootPos: [0, -0.1, -0.12], spine: [-0.1, -0.1, 0.05], neck: [-0.2, -0.1, 0.1], jaw: 0.1, look: 0.5 }, 'inout'],
     [26, null, 'inout'],
   ]);
+  // blow to the side of the head that travels towards his right (a right roundhouse, a slap, a back fist): the head
+  // whips round and over to the right instead of snapping back and looking at the sky, the trunk is pushed over to
+  // the right and back without turning (turned after the head, it brought the lead shoulder and arm forward into the
+  // kicking leg, still at the head), the fists drop from the face, down and in close (knocked out sideways, the lead
+  // one went into the leg too) and the weight sinks onto the rear leg as the lead heel peels round; the head comes back first, the
+  // eyes finding the opponent, then the guard closes. Measured at its widest: head turned 60 degrees and tilted 30,
+  // level (the impact springs, js/fight/fighter.js impulse, add their share of the turn)
+  clips.hitHighSide = C([
+    [0, {}],
+    [3, { rootPos: [-0.05, -0.1, -0.07], rootRot: [0.03, -0.43, 0.08], spine: [0.04, -0.02, 0.2], neck: [-0.26, -0.5, 0.45],
+      handL: [0.16, -0.34, 0.22], handR: [0.12, -0.22, 0.18], aimL: 0, aimR: 0, fistL: 0.5, fistR: 0.6,
+      footRotL: [0.3, -0.1, 0], jaw: 0.35, look: 0 }, 'snap'],
+    [9, { rootPos: [-0.07, -0.13, -0.08], rootRot: [0.05, -0.5, 0.07], spine: [0.08, -0.06, 0.16], neck: [-0.1, -0.3, 0.32],
+      handL: [0.14, -0.28, 0.3], jaw: 0.2 }, 'inout'],
+    [17, { rootPos: [-0.03, -0.11, -0.06], rootRot: [0.06, -0.48, 0.02], spine: [0.12, 0.06, 0.03], neck: [0.16, 0.1, 0.05],
+      handL: [0.1, 0.05, 0.5], handR: [0.04, 0.1, 0.34], fistL: 0.85, fistR: 0.85, footRotL: [0, -0.3, 0], jaw: 0.08, look: 0.6 }, 'inout'],
+    [28, null, 'inout'],
+  ]);
   // body blow: the torso folds over the impact, hips pushed back and knees giving, both forearms close over the
   // stomach (elbows in, fists at the centre line without crossing it), then a short slump and a gradual rise into
   // the guard
@@ -128,11 +146,57 @@ export function buildClips(style) {
       handL: [0.03, -0.1, 0.52], handR: [0.0, -0.04, 0.46], fistL: 0.9, fistR: 0.9, jaw: 0.12, look: 0.5 }, 'inout'],
     [30, null, 'inout'],
   ]);
-  clips.hitLow = C([
+  // a quick poke from the crouch (the crouch jab, into the stomach): a small dip on the lead leg, what every low hit
+  // used to play
+  clips.hitPoke = C([
     [0, {}],
     [3, { rootPos: [0, -0.18, -0.05], rootRot: [0.15, -0.3, -0.2], spine: [0.3, 0, -0.2], footL: [0.1, 0.12, 0.12], kneeL: [0.6, 0, 1], jaw: 0.2, look: 0.3 }, 'snap'],
     [16, { rootPos: [0, -0.12, -0.04], footL: [0.05, 0.071, 0.22] }, 'inout'],
     [26, null, 'inout'],
+  ]);
+  // kicked on the leg (Match picks the leg the blow lands on: the lead one as a rule, the standing one of a fighter
+  // caught on one leg). The foot is knocked out from under him, swept out and back off the floor, the knee giving;
+  // the hip on that side drops as the weight falls onto the other leg, the arm on that side flies out for balance and
+  // the head goes down to the leg; then the foot is put back down, still tender, and he rises into the guard
+  clips.hitLow = C([
+    [0, {}],
+    [3, { rootPos: [-0.05, -0.18, -0.07], rootRot: [0.18, -0.36, -0.18], spine: [0.3, 0.02, 0.12], neck: [0.4, 0.14, 0],
+      footL: [0.2, 0.17, 0.02], kneeL: [0.3, 0, 1], footRotL: [0.45, -0.35, 0.1],
+      handL: [0.36, -0.2, 0.26], aimL: 0, fistL: 0.55, jaw: 0.3, look: 0 }, 'snap'],
+    [8, { rootPos: [-0.06, -0.21, -0.08], rootRot: [0.2, -0.38, -0.2], spine: [0.34, 0.02, 0.14], footL: [0.18, 0.14, 0.04] }, 'inout'],
+    [15, { rootPos: [-0.02, -0.15, -0.05], rootRot: [0.12, -0.4, -0.06], spine: [0.2, 0.06, 0.03], neck: [0.24, 0.16, 0],
+      footL: [0.08, 0.071, 0.18], kneeL: [0.25, 0, 1], footRotL: [0, -0.4, 0], handL: [0.12, 0.0, 0.48], fistL: 0.85, jaw: 0.12, look: 0.5 }, 'inout'],
+    [26, null, 'inout'],
+  ]);
+  // the same, the rear leg kicked out (swept out to his right and back, the right hip dropping)
+  clips.hitLowR = C([
+    [0, {}],
+    [3, { rootPos: [0.05, -0.18, -0.02], rootRot: [0.16, -0.5, 0.18], spine: [0.28, 0.16, -0.12], neck: [0.36, 0.3, 0],
+      footR: [0.34, 0.17, -0.38], kneeR: [0.5, 0, 1], footRotR: [0.5, 0.65, 0.1],
+      handR: [0.34, -0.2, 0.18], aimR: 0, fistR: 0.55, jaw: 0.3, look: 0 }, 'snap'],
+    [8, { rootPos: [0.06, -0.21, -0.03], rootRot: [0.18, -0.52, 0.2], spine: [0.32, 0.16, -0.14], footR: [0.32, 0.14, -0.36] }, 'inout'],
+    [15, { rootPos: [0.02, -0.15, -0.03], rootRot: [0.1, -0.48, 0.06], spine: [0.2, 0.14, -0.03], neck: [0.24, 0.26, 0],
+      footR: [0.24, 0.071, -0.24], kneeR: [0.5, 0, 1], footRotR: [0.1, 0.7, 0], handR: [0.02, 0.1, 0.36], fistR: 0.85, jaw: 0.12, look: 0.5 }, 'inout'],
+    [26, null, 'inout'],
+  ]);
+  // hooked in the liver (the right side, under the ribs): he folds over it, the right elbow clamping down on it and
+  // the hand covering the flank, the trunk crunching forward and over to the right (bent sideways, not turned: turned
+  // away, the flank slid out from under the attacker's fist as it came back and jerked his wrist) as the right knee
+  // gives; a short sag as the pain arrives late, a liver shot's way, then he straightens up slowly into the guard
+  clips.hitLiver = C([
+    [0, {}],
+    [3, { rootPos: [0.02, -0.15, -0.13], rootRot: [0.26, -0.42, 0.1], spine: [0.46, 0.1, 0.2], neck: [0.28, 0.16, -0.06],
+      handR: [0.12, -0.44, 0.0], aimR: 0, poleR: [0.2, -1, -0.3], fistR: 0.35, twistR: -0.9,
+      handL: [0.1, -0.12, 0.2], aimL: 0, fistL: 0.6, jaw: 0.45, look: 0 }, 'snap'],
+    // (the hand only comes round onto the liver once the hook has gone: clamped there at once, it shoved the
+    // attacker's fist out of the way on its way back, a jolt in his wrist)
+    [10, { rootPos: [0.02, -0.18, -0.12], rootRot: [0.3, -0.44, 0.12], spine: [0.54, 0.08, 0.24], neck: [0.32, 0.16, -0.06],
+      handR: [-0.08, -0.32, 0.22], handL: [0.04, -0.26, 0.3], jaw: 0.35 }, 'inout'],
+    [17, { rootPos: [0.01, -0.15, -0.09], rootRot: [0.24, -0.44, 0.08], spine: [0.42, 0.1, 0.16], neck: [0.26, 0.16, -0.04], jaw: 0.3 }, 'inout'],
+    [23, { rootPos: [0.02, -0.19, -0.1], rootRot: [0.3, -0.44, 0.12], spine: [0.52, 0.08, 0.22], neck: [0.32, 0.14, -0.06], jaw: 0.42 }, 'inout'],
+    [31, { rootPos: [0, -0.12, -0.06], rootRot: [0.16, -0.46, 0.04], spine: [0.26, 0.1, 0.06], neck: [0.2, 0.2, 0],
+      handR: [-0.04, -0.2, 0.36], handL: [0.04, 0.0, 0.5], fistL: 0.85, fistR: 0.7, jaw: 0.15, look: 0.6 }, 'inout'],
+    [40, null, 'inout'],
   ]);
   // airborne (launched/juggled): body arched, limbs trailing
   clips.air = C([
@@ -168,6 +232,24 @@ export function buildClips(style) {
     // = the landing clip's first key
     [18, { rootPos: [0, -0.4, -0.2], rootRot: [-1.2, -0.2, 0.1], spine: [-0.2, 0, 0], neck: [0.1, 0, 0], footL: [0.2, 0.4, 0.5], footR: [0.25, 0.35, 0.45],
       handL: [0.4, 0.0, -0.8], handR: [0.45, 0.0, 0.5], fistL: 0.1, fistR: 0.1, footRotL: [-1.0, 0.2, 0], footRotR: [-1.2, 0.4, 0] }, 'inout'],
+  ], { loop: false });
+  // spun round by a blow to the side of the head (a counter-hit head kick or slap): Fighter turns the whole body a
+  // full circle on the way down (fast at first, slowing); the pose goes with it, upright at first so that the spin
+  // reads, the arms flung out wide by it and the head lolling over to the side it was knocked to, then tipping back as
+  // the spin dies, to land flat on the back (the last key is the landing clip's first)
+  clips.spinOut = C([
+    // (the legs stay straight on from the body as it tips, the feet going out in front as far as the hips lean back:
+    // feet tucked in under a leaning body bent the knees, and it read as sitting on a chair in mid-air; the arms go
+    // out square to the leaning body, the way a spin flings them, not up)
+    [0, { rootRot: [-0.1, -0.45, 0.14], spine: [0.08, -0.1, 0.16], neck: [0.12, -0.4, 0.42], handL: [0.6, -0.12, 0.25], handR: [0.58, -0.14, 0.2],
+      aimL: 1, aimR: 1, fistL: 0.3, fistR: 0.3, footL: [0.1, 0.08, 0.14], footR: [0.2, 0.075, -0.06], kneeL: [0.2, 0.2, 1], kneeR: [0.2, 0.1, 1], jaw: 0.4, look: 0 }],
+    [7, { rootRot: [-0.3, -0.45, 0.2], spine: [0.04, -0.06, 0.12], neck: [0.06, -0.3, 0.34], handL: [0.7, -0.2, 0.05], handR: [0.68, -0.18, -0.02],
+      footL: [0.12, 0.11, 0.3], footR: [0.21, 0.09, 0.16] }, 'out'],
+    [14, { rootPos: [0, -0.1, -0.08], rootRot: [-0.75, -0.35, 0.16], spine: [0.08, 0, 0.04], neck: [0.16, -0.12, 0.12], handL: [0.55, -0.15, -0.35], handR: [0.55, -0.1, 0.25],
+      footL: [0.2, 0.38, 0.52], footR: [0.25, 0.33, 0.42], fistL: 0.15, fistR: 0.15 }, 'inout'],
+    // = the landing clip's first key
+    [22, { rootPos: [0, -0.4, -0.2], rootRot: [-1.2, -0.2, 0.1], spine: [-0.2, 0, 0], neck: [0.1, 0, 0], footL: [0.2, 0.4, 0.5], footR: [0.25, 0.35, 0.45],
+      handL: [0.4, 0.0, -0.8], handR: [0.45, 0.0, 0.5], fistL: 0.1, fistR: 0.1, footRotL: [-1.0, 0.2, 0], footRotR: [-1.2, 0.4, 0], jaw: 0.3 }, 'inout'],
   ], { loop: false });
   // lying on the back
   // (the elbow hints are the stance's, spelled out so that the throws, which turn the victim's elbows out over the
@@ -293,6 +375,8 @@ export function buildClips(style) {
 
 // ------------------------------------------------------------------ attack definitions
 // hit: { f: [first, last] active frames, limb, r, dmg, lvl: 'high'|'mid'|'low'|'smid', react, blk, hit (frame adv),
+//        swing: +1/-1 a limb that comes round towards the attacker's left/right (the blow, the sparks and the head go across),
+//        spin: a knockdown spins him round a full turn the way the blow goes (Fighter.think 'air'),
 //        push, launch: vy, kd: knockdown, ch: counter-hit extras }
 // cancel: { from, to, next: {'1': 'name'} } string follow-ups
 // advance: [[frame, metres]] physical forward motion curve
@@ -420,7 +504,7 @@ export function buildMoves(style) {
         footRotL: [0, -0.2, 0], handR: [-0.08, 0.3, 0.44], aimR: 0, twistR: TG.R }, 'inout'],
       [40, null, 'inout'],
     ]),
-    hit: { f: [15, 17], limb: 'footR', r: 0.12, dmg: 18, lvl: 'high', react: 'hitHigh', blk: -9, hitAdv: 3, push: 0.35, ch: { kd: true } },
+    hit: { f: [15, 17], limb: 'footR', r: 0.12, dmg: 18, lvl: 'high', react: 'hitHighSide', swing: 1, spin: 1, blk: -9, hitAdv: 3, push: 0.35, ch: { kd: true } },
     advance: [[0, 0], [15, 0.06], [40, 0.04]], sfx: 'heavy',
   };
   // --- d+3: low kick (the knee kept a little bent at full reach: locked straight, it read stiff)
@@ -483,7 +567,7 @@ export function buildMoves(style) {
       [46, { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], neck: [0.16, 0.2, 0],
         footL: [0.05, 0.071, 0.24], kneeL: [0.15, 0, 1], footRotL: [0, -0.35, 0], footR: [0.2, 0.071, -0.2], footRotR: [0, 0.65, 0] }, 'inout'],
     ]),
-    hit: { f: [18, 20], limb: 'footR', r: 0.13, dmg: 14, lvl: 'low', react: 'hitLow', blk: -18, kd: true, push: 0.2 },
+    hit: { f: [18, 20], limb: 'footR', r: 0.13, dmg: 14, lvl: 'low', react: 'hitLow', swing: 1, blk: -18, kd: true, push: 0.2 },
     advance: [[0, 0], [18, 0.16], [46, 0.16]], sfx: 'kick', crouchStart: true,
   };
   // --- df+1: mid punch to the body
@@ -527,7 +611,7 @@ export function buildMoves(style) {
       [16, { handL: [-0.03, 0.1, 0.68], twistL: 0.0, clavL: [0, 0.2] }, 'ret'],
       [24, { handL: [-0.05, 0.22, 0.55], aimL: 0, twistL: TG.L, wristL: WR, clavL: [-0.05, 0.1], rootRot: [0.32, -0.45, 0] }, 'inout'],
     ]),
-    hit: { f: [9, 11], limb: 'handL', r: 0.09, dmg: 5, lvl: 'smid', react: 'hitLow', blk: 0, hitAdv: 6, push: 0.1 },
+    hit: { f: [9, 11], limb: 'handL', r: 0.09, dmg: 5, lvl: 'smid', react: 'hitPoke', blk: 0, hitAdv: 6, push: 0.1 },
     advance: [[0, 0], [9, 0.04], [24, 0.04]], sfx: 'light',
   };
   // --- f,f+2: lunging punch

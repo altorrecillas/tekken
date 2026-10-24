@@ -71,7 +71,7 @@ export class Fighter {
     this.pos = new THREE.Vector3();
     this.prevPos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
-    this.yaw = 0; this.prevYaw = 0;
+    this.yaw = 0; this.prevYaw = 0; this.spin = 0;
     this.pose = newPose(); this.prevPose = newPose(); this.renderPose = newPose(); this.blendFrom = newPose();
     this.tmpPose = newPose();
     // inertialized transitions: the clip pose before secondary layers, its previous frame, and the decaying offset
@@ -108,14 +108,18 @@ export class Fighter {
   }
 
   // impact impulse in character space: dir = world direction of the blow, amt ~ 0..1
-  impulse(dirWorld, amt, high = true) {
+  impulse(dirWorld, amt, high = true, head = high) {
     const d = this.worldToChar(dirWorld.clone().add(this.pos), new THREE.Vector3());
     const k = amt * 9;
-    // pushed backwards -> pitch back (negative), sideways -> roll/yaw
+    // pushed backwards -> pitch back (negative), sideways -> roll/yaw. A blow to the head that comes round from one
+    // side (a head kick, a slap) turns the face away from it and tilts the head over to the far side, the way it is
+    // being pushed (d.x < 0: towards his right, roll +). Only the head, and only for blows to it (head): kicked trunks
+    // turned and tilted away from the blow at once swung the lead arm up and forward into the kicking leg, still at
+    // the head (the reaction clip leans the trunk over once the leg has gone), and a hook to the body does not throw
+    // the head round
     this.spring.sv.x += -d.z * k * (high ? 0.6 : 1.0);
-    this.spring.sv.z += d.x * k * 0.5;
-    this.spring.sv.y += d.x * k * 0.4;
-    if (high) { this.spring.nv.x += -d.z * k * 1.4; this.spring.nv.y += d.x * k * 1.2; this.spring.nv.z += d.x * k * 0.6; }
+    if (high) this.spring.nv.x += -d.z * k * 1.4;
+    if (head) { this.spring.nv.y += d.x * k * 1.2; this.spring.nv.z += -d.x * k * 0.6; }
     this.shakeT = 1;
   }
 
@@ -133,7 +137,7 @@ export class Fighter {
     this.move = null; this.mf = 0; this.moveHit = false; this.moveConnected = false;
     this.clip = this.clips.idle; this.cf = 0; this.blendT = 1; this.blendDur = 1;
     this.feet?.reset(); this.ubc = 0; this.snapSmooth = true; this.yawRate = 0;
-    this.stun = 0; this.juggles = 0; this.comboHits = 0; this.comboDmg = 0;
+    this.stun = 0; this.juggles = 0; this.comboHits = 0; this.comboDmg = 0; this.spin = 0;
     this.slide = 0; this.vel.set(0, 0, 0); this.pos.y = 0;
     this.pending = 0; this.pendingT = 0; this.downT = 0; this.invuln = 0;
     this.crouching = false; this.airborne = false; this.guard = 'none';
@@ -357,8 +361,17 @@ export class Fighter {
         }
         break;
       case 'air':
+        // spun round by a blow to the side of the head (Match: hit.spin): the body turns a full circle on the way
+        // down, fast at first and slowing, and finishes facing the way it started (the turn is done well before the
+        // floor; the facing is then wrapped back into the circle)
+        if (this.spin) {
+          const N = 20, e = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t) / N), 2);
+          this.yaw += this.spin * (e(this.sf) - e(this.sf - 1));
+          if (this.sf >= N) { const w = Math.round(this.yaw / (2 * Math.PI)) * 2 * Math.PI; this.yaw -= w; this.prevYaw -= w; this.spin = 0; }
+        }
         if (this.pos.y <= 0 && this.vel.y <= 0 && this.sf > 2) {
           this.pos.y = 0; this.vel.y = 0; this.airborne = false;
+          if (this.spin) { this.yaw -= Math.round(this.yaw / (2 * Math.PI)) * 2 * Math.PI; this.spin = 0; }
           if (this.hp <= 0) { this.setState('ko'); this.match.onLand(this, true); break; }
           this.setState('land'); this.play('land', 4);
           this.match.onLand(this, false);

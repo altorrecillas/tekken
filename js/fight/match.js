@@ -447,6 +447,7 @@ export class Match {
     this.notePlay(att, dmg, (ch ? PF.CH : 0) | (h.launch && !inAir ? PF.LAUNCH : 0), this.frame - att.mf);
     def.move = null;
     def.crouching = false;
+    def.spin = 0;
     const heavy = h.dmg >= 16 || h.launch || h.kd;
     const ko = def.hp <= 0;
     const dirBack = 1;
@@ -454,7 +455,11 @@ export class Match {
     if (ch) stop += 3;
     if (ko) stop = 18;
     this.hitstop = stop;
-    this.fx.hitSpark(p, heavy || ch, ch, def, att);
+    // the blow's direction: straight through him, or for a limb that swings round (hit.swing: +1 towards the
+    // attacker's left, -1 towards his right) half sideways, so a head kick throws the head and the sparks across
+    const blowDir = new THREE.Vector3().subVectors(def.pos, att.pos).setY(0).normalize();
+    if (h.swing) blowDir.add(_h1.set(blowDir.z, 0, -blowDir.x).multiplyScalar(h.swing)).normalize();
+    this.fx.hitSpark(p, heavy || ch, ch, def, att, blowDir);
     if (h.fx === 'electric') { this.fx.electric?.(p, def); this.sfx('zap', def); }
     this.camera.shake(heavy ? 0.42 : 0.2);
     this.camera.punch(att, heavy ? 1 : 0.4);
@@ -463,8 +468,7 @@ export class Match {
     else if (this.crand() < (heavy ? 0.8 : 0.4)) this.audio?.voice(def, heavy ? 'hurtBig' : 'hurt');
     if (ch) { this.hud.popup(att.index, 'COUNTER HIT', 'ch'); }
     def.hitFlash = 1;
-    const blowDir = new THREE.Vector3().subVectors(def.pos, att.pos).setY(0).normalize();
-    def.impulse(blowDir, (heavy ? 0.9 : 0.5) * (ch ? 1.3 : 1), h.lvl !== 'low');
+    def.impulse(blowDir, (heavy ? 0.9 : 0.5) * (ch ? 1.3 : 1), h.lvl !== 'low', h.lvl === 'high');
     const kd = h.kd || (ch && h.ch && h.ch.kd);
     if (ko) {
       if (ch) this.stats[att.index].chKOs++;
@@ -490,14 +494,18 @@ export class Match {
       def.setState('air'); def.airborne = true; def.play('swept', 2);
       def.vel.y = 2.2; def.slide = 1.4 + (h.push || 0.3) * 2; def.juggles = 3;
     } else if (kd) {
-      def.setState('air'); def.airborne = true; def.play('air', 2);
+      def.setState('air'); def.airborne = true;
+      // knocked down by a blow to the side of the head (hit.spin: a counter-hit head kick or slap): spun round a full
+      // turn the way the blow was going (Fighter.think, 'air') instead of falling straight back
+      if (h.spin) { def.play('spinOut', 2); def.spin = -2 * Math.PI * (h.swing || 1); } else def.play('air', 2);
       def.vel.y = 3.2; def.slide = 3.6 + (h.push || 0.3) * 3; def.juggles = 3;
     } else {
       const remaining = m.total - att.mf;
       def.stun = Math.max(10, remaining + (h.hitAdv ?? 4) + (ch ? 6 : 0));
       def.setState('hit');
       const zone = vol[3];
-      const react = h.react || (zone === 'head' || zone === 'high' ? 'hitHigh' : zone === 'low' ? 'hitLow' : 'hitMid');
+      let react = h.react || (zone === 'head' || zone === 'high' ? 'hitHigh' : zone === 'low' ? 'hitLow' : 'hitMid');
+      if (react === 'hitLow' && this.legStruck(def, p) === 'R') react = 'hitLowR';
       def.play(react, 2);
       def.slide = (h.push || 0.2) * 9 + 0.5;
     }
@@ -508,6 +516,14 @@ export class Match {
     const adv = def.state === 'hit' ? def.stun - (m.total - att.mf) : null;
     this.lastEvent = `${m.name}: ${ch ? 'COUNTER ' : ''}golpe ${dmg} dmg` +
       (adv === null ? ` · <b style="color:#ffd34d">${h.launch ? 'LANZADO' : 'DERRIBO'}</b>` : ` · <b style="color:${adv >= 0 ? '#7dff9a' : '#ff8a7a'}">${adv >= 0 ? '+' : ''}${adv}</b> frames`);
+  }
+
+  // the leg a low blow lands on, the one nearer the point of impact: the lead leg as a rule, but the standing leg of
+  // a fighter caught on one leg (in the middle of a kick of his own) or the rear leg of one turned round
+  legStruck(def, p) {
+    const leg = (s) => Math.min(segPointDist(def.boneWorld('upperleg01.' + s, _h1), def.boneWorld('lowerleg01.' + s, _h2), p),
+      segPointDist(_h2, def.boneWorld('foot.' + s, _h1), p));
+    return leg('R') < leg('L') ? 'R' : 'L';
   }
 
   // horizontal distance between two fighters' hips (spine05), which is where their bodies actually are
