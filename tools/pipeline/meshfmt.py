@@ -7,9 +7,12 @@
      dropped, triangle indices uint16 where the part has under 65536 vertices, the hair's bone indices and weights a
      constant. Decoded to the format-1 types on load (js/charloader.js): nothing downstream changes, the download is a
      third (positions to 1/65535 of the figure, about 0.03 mm; normals to 0.002 rad).
+  Since 2026-10-23 an attribute may also carry e: 'd' (stored as differences from the previous row of the same
+     component, integer wrap-round), 's' (bytes grouped by significance) or 'ds', whichever gzips smallest, and two
+     parts with the same bytes share them (the head part repeats the body's vertices): a quarter to a third less.
 load(dir) -> (meta, parts) with numpy arrays whichever the format; save(dir, meta, parts, quantized=True).
 usage: python3 meshfmt.py <char dir>...   (converts a fighter's files to format 2 in place, checking the result)"""
-import gzip, json, os, shutil, sys
+import gzip, json, os, shutil, sys, zlib
 
 import numpy as np
 
@@ -27,8 +30,8 @@ def _decode(bin_, d, name):
         return np.frombuffer(bin_, F1[name], n, o).reshape(-1, k).copy()
     if 'c' in d:
         return np.tile(np.array(d['c'], F1[name]), (d['n'] // len(d['c']), 1)).reshape(-1, k)
-    a = np.frombuffer(bin_, TYPES[d['t']], d['n'], d['o']).astype(np.float64)
     kk = d.get('k', k)  # components stored (a tangent's w is dropped)
+    a = _unpack(bin_, d, kk).astype(np.float64)
     a = a.reshape(-1, kk)
     if 'q' in d:
         q = np.array(d['q'], np.float64)
@@ -50,18 +53,60 @@ def load(dirpath):
 
 class _Writer:
     def __init__(self):
-        self.blobs, self.off = [], 0
+        self.blobs, self.off, self.seen = [], 0, {}
 
     def add(self, a):
-        b = np.ascontiguousarray(a).tobytes()
+        b = a if isinstance(a, bytes) else np.ascontiguousarray(a).tobytes()
+        # the same bytes twice (the head part repeats the body's vertices) are stored once, both parts pointing there
+        if b in self.seen:
+            return self.seen[b]
         pad = (-len(b)) % 4
         o = self.off
         self.blobs.append(b + b'\0' * pad)
         self.off += len(b) + pad
+        self.seen[b] = o
         return o
 
     def data(self):
         return b''.join(self.blobs)
+
+
+def _shuffle(a):
+    """the bytes of every element grouped by significance (all low bytes, then the next...): gzip finds the slowly
+    changing high bytes as long runs"""
+    return a.view(np.uint8).reshape(-1, a.itemsize).T.tobytes()
+
+
+def _pack(ints, k):
+    """an attribute's integers as stored: as they are, byte-shuffled ('s'), as differences from the previous row of
+    the same component ('d', integer wrap-round), or both: whichever gzips smallest. (bytes, code or None)"""
+    a = np.ascontiguousarray(ints)
+    if a.size < 2048:
+        return a.tobytes(), None
+    A = a.reshape(-1, k)
+    D = np.concatenate([A[:1], (A[1:].astype(np.int64) - A[:-1].astype(np.int64))]).astype(a.dtype).reshape(-1)
+    cands = {None: a.tobytes(), 'd': D.tobytes()}
+    if a.itemsize > 1:
+        cands['s'] = _shuffle(a); cands['ds'] = _shuffle(D)
+    size = {c: len(zlib.compress(b, 6)) for c, b in cands.items()}
+    best = min(size, key=size.get)
+    return cands[best], best
+
+
+def _unpack(bin_, d, k):
+    """the stored integers back (see _pack)"""
+    t = TYPES[d['t']]
+    e = d.get('e')
+    if not e:
+        return np.frombuffer(bin_, t, d['n'], d['o'])
+    it = np.dtype(t).itemsize
+    raw = np.frombuffer(bin_, np.uint8, d['n'] * it, d['o'])
+    if 's' in e and it > 1:
+        raw = raw.reshape(it, -1).T
+    a = np.ascontiguousarray(raw).view(t).reshape(-1)
+    if 'd' in e:
+        a = np.cumsum(a.reshape(-1, k).astype(np.int64), axis=0).astype(t).reshape(-1)
+    return a
 
 
 def _quant(a, t, lo=None, hi=None):
@@ -78,37 +123,43 @@ def _quant(a, t, lo=None, hi=None):
 
 def _encode(w, name, a, hair):
     n = int(a.size)
+
+    def put(ints, t, rowk, **more):
+        data, e = _pack(ints.astype(TYPES[t]), rowk)
+        d = dict(o=w.add(data), n=more.pop('n', n), t=t, **more)
+        if e:
+            d['e'] = e
+        return d
     if name == 'index':
-        t = 'u16' if a.max() < 65536 else 'u32'
-        return dict(o=w.add(a.astype(TYPES[t])), n=n, t=t)
+        return put(a, 'u16' if a.max() < 65536 else 'u32', 1)
     if name in ('skinIndex', 'skinWeight') and len(a) and (a == a[0]).all():
         return dict(c=[float(x) if name == 'skinWeight' else int(x) for x in a[0]], n=n)
     if name == 'skinIndex':
         assert a.max() < 256
-        return dict(o=w.add(a.astype(np.uint8)), n=n, t='u8')
+        return put(a, 'u8', 4)
     if name == 'skinWeight':
         # rows of four bytes summing exactly 255 (the largest weight takes the rounding)
         s = a.sum(1, keepdims=True); s[s == 0] = 1
         b = np.round(a / s * 255).astype(np.int32)
         b[np.arange(len(b)), b.argmax(1)] += 255 - b.sum(1)
-        return dict(o=w.add(b.astype(np.uint8)), n=n, t='u8', q=[0, 0, 0, 0] + [1 / 255] * 4)
+        return put(b, 'u8', 4, q=[0, 0, 0, 0] + [1 / 255] * 4)
     if name == 'position':
         ints, q = _quant(a.astype(np.float64), 'i16')
-        return dict(o=w.add(ints), n=n, t='i16', q=q)
+        return put(ints, 'i16', 3, q=q)
     if name == 'normal':
         t = 'i8' if hair else 'i16'
         ints, q = _quant(a.astype(np.float64), t, lo=[-1, -1, -1], hi=[1, 1, 1])
-        return dict(o=w.add(ints), n=n, t=t, q=q)
+        return put(ints, t, 3, q=q)
     if name == 'uv':
         ints, q = _quant(a.astype(np.float64), 'u16')
-        return dict(o=w.add(ints), n=n, t='u16', q=q)
+        return put(ints, 'u16', 2, q=q)
     if name == 'color':
         ints, q = _quant(a.astype(np.float64), 'u8', lo=[0, 0, 0])
-        return dict(o=w.add(ints), n=n, t='u8', q=q)
+        return put(ints, 'u8', 3, q=q)
     if name == 'tangent':
         assert np.allclose(a[:, 3], 1)
         ints, q = _quant(a[:, :3].astype(np.float64), 'i8', lo=[-1, -1, -1], hi=[1, 1, 1])
-        return dict(o=w.add(ints), n=int(ints.size), t='i8', q=q, k=3)  # (n: the values stored)
+        return put(ints, 'i8', 3, q=q, k=3, n=int(ints.size))  # (n: the values stored)
     raise ValueError(name)
 
 

@@ -110,6 +110,8 @@ else m.fighters.forEach((f, i) => { const s = new Script(seq[i]); s.attach(f, m)
 m.startRound(); m.phase = 'fight'; m.pt = 0;
 // nosway=1: the hair held rigid on the head, as before js/anim/hairsway.js (to compare)
 if (q.get('nosway')) m.fighters.forEach((f) => { f.hair.u = null; });
+// nocloth=1: the hems held to the hips, as before js/anim/clothsway.js (to compare)
+if (q.get('nocloth')) m.fighters.forEach((f) => { f.cloth.parts.forEach((p) => { p.u.value.set(0, 0, 0); p.u.flare.value = 0; }); f.cloth.parts = []; });
 // thumb=opp,base,curl2,curl3: the closed fist's thumb tried with other values (js/anim/rig.js THUMB_*)
 if (q.get('thumb')) { const t = q.get('thumb').split(',').map(Number); Rig.THUMB_OPP = t[0]; Rig.THUMB_BASE = t[1]; Rig.THUMB_CURL = [t[2], t[3]]; }
 // noguard=1: the second fighter never blocks (to see hits land)

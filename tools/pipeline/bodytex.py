@@ -203,7 +203,10 @@ def build_body_skin(ctx, P, skin_src, st_src_face, tgt, outdir):
     if mouth_label is not None:
         sel = tl == mouth_label
         skin[ys[sel], xs[sel]] *= np.array([0.28, 0.25, 0.35])
-    skin = dilate_fill(np.clip(skin, 0, 255), valid, 8)
+    # the whole background filled from the islands (uvpad.py): no light line along the seams in the mipmaps, no ridge
+    # round the islands in the relief below, and a much smaller file
+    from uvpad import pushpull_fill
+    skin = pushpull_fill(np.clip(skin, 0, 255).astype(np.float32), valid)
     L = cv2.cvtColor(skin.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float32) / 255
     L = cv2.GaussianBlur(L, (0, 0), 0.8)
     nb = normal_from_height(L - cv2.GaussianBlur(L, (0, 0), 3.0), strength=1.2)

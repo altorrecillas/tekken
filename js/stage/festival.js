@@ -141,7 +141,7 @@ export class FestivalStage {
     this.group = new THREE.Group(); this.group.name = 'stage-festival';
     scene.add(this.group);
     this.arenaRadius = 6.5;
-    this.t = 0;
+    this.t = 0; this.beat = 0;
     this.animated = [];
     this.koView = new THREE.Vector3(0, 0, -1); // KO shots look at the stage
     // low sun behind the camera on the left (as in the photo: the stage front and the wooden platform are lit gold,
@@ -262,8 +262,8 @@ export class FestivalStage {
     const gm = new THREE.MeshBasicMaterial({ map: glow, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
     const gl = new THREE.Mesh(new THREE.PlaneGeometry(SHW, SHH), gm);
     gl.position.copy(shell.position).add(new THREE.Vector3(0, 0, 0.02)); gl.renderOrder = 2; this.group.add(gl);
-    // ~124 bpm: a pulse on every beat, a brighter one on the bar
-    this.animated.push(() => { const b = (this.t * 124 / 60) % 4, k = Math.exp(-(b % 1) * 5) * (b < 1 ? 1 : 0.55); gm.opacity = 0.25 + k * 0.6; });
+    // a pulse on every beat of the music playing (js/audio/audio.js musicBeat; 124 bpm when none), a brighter one on the bar
+    this.animated.push(() => { const b = ((this.beat % 4) + 4) % 4, k = Math.exp(-(b % 1) * 5) * (b < 1 ? 1 : 0.55); gm.opacity = 0.25 + k * 0.6; });
   }
 
   // the DJ booth: black, the festival's letters on its front, the decks on top
@@ -599,14 +599,14 @@ export class FestivalStage {
     });
     geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(cell, 2));
     geo.setAttribute('aBob', new THREE.InstancedBufferAttribute(ph, 3));
-    const uni = { uTime: { value: 0 }, uExcite: { value: 0 } };
+    const uni = { uBeat: { value: 0 }, uExcite: { value: 0 } };
     const mat = new THREE.MeshStandardMaterial({ map: atlas, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.85 });
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
-      // bounce on the beat (124 bpm), everyone a little out of step
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aCell; attribute vec3 aBob; uniform float uTime, uExcite; varying float vShade;')
+      // bounce on the music's beat (uBeat, in beats), everyone a little out of step
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aCell; attribute vec3 aBob; uniform float uBeat, uExcite; varying float vShade;')
         .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv = ( uv + aCell ) / vec2( 16.0, 4.0 ); vShade = aBob.z;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed.y += max( 0.0, sin( uTime * 12.98 + aBob.x * 0.6 ) ) * aBob.y * ( 1.0 + uExcite * 2.5 );');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed.y += max( 0.0, sin( uBeat * 6.2832 + aBob.x * 0.6 ) ) * aBob.y * ( 1.0 + uExcite * 2.5 );');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vShade;')
         .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb = mix( vec3( dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) ), diffuseColor.rgb, 0.85 ) * vShade;');
     };
@@ -616,7 +616,7 @@ export class FestivalStage {
     this.excite = 0;
     this.animated.push((dt) => {
       this.excite = Math.max(0, this.excite - dt * 0.4);
-      uni.uTime.value = this.t; uni.uExcite.value = this.excite;
+      uni.uBeat.value = this.beat; uni.uExcite.value = this.excite;
     });
   }
   cheer() { this.excite = 1; }
@@ -636,6 +636,9 @@ export class FestivalStage {
 
   update(dt, camera) {
     this.t += dt; this.cameraPos = camera.position;
+    // the music's beat (main.js sets beatClock to the audio's), or 124 bpm of the stage's own clock
+    const mb = this.beatClock?.();
+    this.beat = mb ?? this.t * 124 / 60;
     for (const f of this.animated) f(dt);
   }
 

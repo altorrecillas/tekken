@@ -1,6 +1,8 @@
 // Loads a fighter exported by tools/buildchar.py (mesh.json + mesh.bin) into a skinned THREE.Group.
 import * as THREE from 'three';
 import { hairSwayDepth } from './materials.js';
+import { addSkinCor } from './anim/corskin.js';
+import { setupClothSway } from './anim/clothsway.js';
 
 const texLoader = new THREE.TextureLoader();
 const texCache = new Map();
@@ -54,15 +56,30 @@ export async function loadCharacterData(id) {
 }
 
 // mesh attributes, either format (tools/pipeline/meshfmt.py): 1, raw typed arrays [offset, count]; 2, quantized
-// {o, n, t, q, k, c}, decoded here to the same types as format 1 (nothing downstream changes, the download is a third)
+// {o, n, t, q, k, c, e}, decoded here to the same types as format 1 (nothing downstream changes, the download is a third)
 const TYPES = { f32: Float32Array, i16: Int16Array, i8: Int8Array, u16: Uint16Array, u8: Uint8Array, u32: Uint32Array };
 const COMP = { position: 3, normal: 3, uv: 2, skinIndex: 4, skinWeight: 4, index: 1, color: 3, tangent: 4 };
 const F1 = { position: Float32Array, normal: Float32Array, uv: Float32Array, skinIndex: Uint16Array, skinWeight: Float32Array, index: Uint32Array, color: Float32Array, tangent: Float32Array };
+// The stored integers: as they are, or (d.e) with the bytes of every element grouped by significance ('s') and/or as
+// differences from the previous row of the same component ('d'; the typed arrays wrap round as the writer did)
+function ints(bin, d, k) {
+  const T = TYPES[d.t];
+  if (!d.e) return new T(bin, d.o, d.n);
+  const bs = T.BYTES_PER_ELEMENT, n = d.n;
+  let a;
+  if (d.e.includes('s') && bs > 1) {
+    const src = new Uint8Array(bin, d.o, n * bs), dst = new Uint8Array(n * bs);
+    for (let b = 0; b < bs; b++) for (let i = 0, o = b * n; i < n; i++) dst[i * bs + b] = src[o + i];
+    a = new T(dst.buffer);
+  } else a = new T(bin.slice(d.o, d.o + n * bs));
+  if (d.e.includes('d')) for (let i = k; i < n; i++) a[i] += a[i - k];
+  return a;
+}
 function attr(bin, d, name) {
   if (Array.isArray(d)) return new F1[name](bin, d[0], d[1]);
   const k = COMP[name];
   if (d.c) { const rows = d.n / d.c.length, out = new F1[name](rows * k); for (let i = 0; i < rows; i++) out.set(d.c, i * k); return out; }
-  const src = new TYPES[d.t](bin, d.o, d.n);
+  const src = ints(bin, d, name === 'index' ? 1 : (d.k || k));
   if (name === 'index') return src; // (uint16 or uint32: three takes either)
   if (name === 'skinIndex') return Uint16Array.from(src);
   const kk = d.k || k, q = d.q, rows = d.n / kk, out = new Float32Array(rows * k);
@@ -100,16 +117,26 @@ export function buildCharacter(data, makeMaterial) {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
   const meshes = {};
+  // parts whose vertices are the same bytes (the head and the body) share one buffer each, on the GPU too
+  const shared = new Map();
+  const vattr = (d, name, k) => {
+    const key = Array.isArray(d) || d.c ? null : name + JSON.stringify(d);
+    if (key && shared.has(key)) return shared.get(key);
+    const a = new THREE.BufferAttribute(attr(bin, d, name), k);
+    if (key) shared.set(key, a);
+    return a;
+  };
   for (const p of meta.parts) {
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(attr(bin, p.position, 'position'), 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(attr(bin, p.normal, 'normal'), 3));
-    g.setAttribute('uv', new THREE.BufferAttribute(attr(bin, p.uv, 'uv'), 2));
-    g.setAttribute('skinIndex', new THREE.BufferAttribute(attr(bin, p.skinIndex, 'skinIndex'), 4));
-    g.setAttribute('skinWeight', new THREE.BufferAttribute(attr(bin, p.skinWeight, 'skinWeight'), 4));
+    g.setAttribute('position', vattr(p.position, 'position', 3));
+    g.setAttribute('normal', vattr(p.normal, 'normal', 3));
+    g.setAttribute('uv', vattr(p.uv, 'uv', 2));
+    g.setAttribute('skinIndex', vattr(p.skinIndex, 'skinIndex', 4));
+    g.setAttribute('skinWeight', vattr(p.skinWeight, 'skinWeight', 4));
     g.setIndex(new THREE.BufferAttribute(attr(bin, p.index, 'index'), 1));
     if (p.color) g.setAttribute('color', new THREE.BufferAttribute(attr(bin, p.color, 'color'), 3));
     if (p.tangent) g.setAttribute('tangent', new THREE.BufferAttribute(attr(bin, p.tangent, 'tangent'), 4));
+    addSkinCor(g, meta.bones); // the hands turn about their joints (js/anim/corskin.js)
     g.computeBoundingSphere();
     if (p.mat.lod && LOD.hair < 1) {
       const n = g.index.count;
@@ -163,5 +190,7 @@ export function buildCharacter(data, makeMaterial) {
   // rest-pose world positions (character local space) for rigging helpers
   const rest = {};
   meta.bones.forEach(b => (rest[b.name] = { head: new THREE.Vector3(...b.head), tail: new THREE.Vector3(...b.tail) }));
-  return { group, skeleton, bones: boneMap, meshes, meta, rest };
+  // the hems of coats, jackets and shirts swing (js/anim/clothsway.js; driven by the fighter)
+  const clothSway = setupClothSway(meshes, meta);
+  return { group, skeleton, bones: boneMap, meshes, meta, rest, clothSway };
 }

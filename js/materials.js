@@ -1,5 +1,6 @@
 // Physically based materials for fighters: skin with subsurface wrap lighting, eyes, hair, cloth.
 import * as THREE from 'three';
+import { addClothSway } from './anim/clothsway.js';
 
 const SSS_WRAP = new THREE.Vector3(0.55, 0.26, 0.14);
 
@@ -39,6 +40,15 @@ function addSkinSSS(mat, strength = 1, detail = null) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 sssWrap;')
       .replace('#include <lights_physical_pars_fragment>', patched);
+    // the hands are drier than the face: rougher, with less of the oil layer (the closed fist's thumb base no longer
+    // catches the light as a grey sheen). js/anim/corskin.js marks the hands' points in skinCor.w
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vSkinHand;')
+      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n\tvSkinHand = 0.0;\n\t#ifdef USE_SKINNING\n\t\tvSkinHand = 1.0 - skinCor.w;\n\t#endif');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vSkinHand;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix( roughnessFactor, min( 1.0, roughnessFactor + 0.16 ), vSkinHand );')
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n\t#ifdef USE_CLEARCOAT\n\t\tmaterial.clearcoat *= 1.0 - 0.75 * vSkinHand;\n\t#endif');
   };
   mat.customProgramCacheKey = () => 'skinSSS' + strength + (detail ? 'd' : '');
 }
@@ -293,10 +303,12 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
       m.userData.cloth = true;
       m.onBeforeCompile = (sh) => {
         sh.uniforms.uCosMode = cos.mode; sh.uniforms.uCosA = cos.a; sh.uniforms.uCosB = cos.b;
+        // a hem that swings (js/anim/clothsway.js, set up on the garments that hang below the waist)
+        if (m.userData.clothSway) addClothSway(sh, m.userData.clothSway);
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + COSTUME_GLSL)
           .replace('#include <color_fragment>', `#include <color_fragment>\n\tif ( uCosMode > 0.5 ) diffuseColor.rgb = pdbCostume( diffuseColor.rgb );\n\tif ( ! gl_FrontFacing ) diffuseColor.rgb *= ${inside};`);
       };
-      m.customProgramCacheKey = () => 'clothCos' + inside;
+      m.customProgramCacheKey = () => 'clothCos' + inside + (m.userData.clothSway ? 'Sway' : '');
       if (def.normalMap) {
         m.normalMap = loadTex(url(def.normalMap), false);
         const ns = 0.55 * (def.normalScale ?? 1);

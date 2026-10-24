@@ -4,6 +4,7 @@ import { Rig, newPose, lerpPose, POSE } from '../anim/rig.js';
 import { BodyState } from '../anim/body.js';
 import { FootPlanter } from '../anim/feet.js';
 import { HairSway } from '../anim/hairsway.js';
+import { ClothSway } from '../anim/clothsway.js';
 import { buildClips, buildMoves, commandList } from './moves.js';
 import { STYLES } from './styles.js';
 import { B1, B2, B3, B4 } from './input.js';
@@ -62,6 +63,8 @@ export class Fighter {
     this.rig = new Rig(ch);
     // the hair swings with the head (drawn only)
     this.hair = new HairSway(ch, this.style.hairSway ?? 0.6);
+    // and the hems of coats and shirts swing with the hips
+    this.cloth = new ClothSway(ch, this.style.clothSway ?? 1);
     this.clips = buildClips(this.style);
     this.moves = buildMoves(this.style);
     this.commands = commandList(this.style).map(([c, m]) => ({ ...parseCommand(c), move: m })).filter(c => this.moves[c.move]);
@@ -747,6 +750,8 @@ export class Fighter {
     while (dy > Math.PI) dy -= 2 * Math.PI;
     while (dy < -Math.PI) dy += 2 * Math.PI;
     g.rotation.y = this.prevYaw + dy * alpha;
-    this.hair.update(((this.match?.frame || 0) + alpha) / 60, this.match?.hitstop > 0);
+    const now = ((this.match?.frame || 0) + alpha) / 60, frozen = this.match?.hitstop > 0;
+    this.hair.update(now, frozen);
+    this.cloth.update(now, frozen);
   }
 }

@@ -8,6 +8,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { addHairSway } from '../materials.js';
+import { clothSwayDepth } from '../anim/clothsway.js';
 
 // Clamp material radiance: a grazing clearcoat/metal highlight facing the sun can exceed the HalfFloat range,
 // and a single Inf pixel poisons bloom and the baked environment (whole surfaces turn black).
@@ -182,6 +183,12 @@ class CineDOF extends BokehPass {
   _depthFor(m) {
     // (a blended pass with userData.depthAlpha - the soft tips of the hair - counts as solid above that alpha)
     const a = m && (m.userData.depthAlpha ? (this.depthAlpha || m.userData.depthAlpha) : m.alphaTest);
+    // (a swinging hem, js/anim/clothsway.js: its depth moves with it)
+    if (m && m.userData.clothSway && !a) {
+      let d = this._depthMats.get(m);
+      if (!d) { d = clothSwayDepth(m.userData.clothSway); d.side = m.side; d.blending = THREE.NoBlending; this._depthMats.set(m, d); }
+      return d;
+    }
     if (!m || (!a && !m.alphaMap)) return this._materialDepth;
     let d = this._depthMats.get(m);
     if (!d) {

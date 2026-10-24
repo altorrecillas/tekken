@@ -9,8 +9,21 @@ const ANN_TEXT = {
   win_dani: '¡Gana Dani!', win_noemi: '¡Gana Noemí!',
 };
 
-// background music: Kevin MacLeod (incompetech.com), CC BY 4.0 (see README)
-const MUSIC = { menu: 'assets/music/menu.mp3', terrace: 'assets/music/terrace.mp3', street: 'assets/music/street.mp3', porche: 'assets/music/porche.mp3', festival: 'assets/music/festival.mp3' };
+// background music: Kevin MacLeod (incompetech.com), CC BY 4.0 (see README; made by tools/music_build.py). Each stage
+// has a style of its own and several tracks that follow each other (a new fight starts on the next one), and an
+// angrier track for the final round: El Porche urban funk and hip hop, the rooftop Latin disco and salsa, the 10K
+// finish line rock, the festival club and dance
+const M = (n) => `assets/music/${n}.mp3`;
+const MUSIC = {
+  menu: [M('menu')], training: [M('training')], ending: [M('ending')],
+  porche: [M('porche_a'), M('porche_b'), M('porche_c')],
+  terrace: [M('terrace_a'), M('terrace_b'), M('terrace_c')],
+  street: [M('street_a'), M('street_b'), M('street_c')],
+  festival: [M('festival_a'), M('festival_b'), M('festival_c'), M('festival_d')],
+};
+const FINAL = { porche: M('porche_final'), terrace: M('terrace_final'), street: M('street_final'), festival: M('festival_final') };
+// each track's tempo and first beat (s), measured by tools/music_build.py: the festival's lights and dancers keep time
+const BEATS = { menu: [122, 0.441], training: [101, 0.546], ending: [110, 0.499], porche_a: [95, 0.61], porche_b: [121.32, 0.203], porche_c: [120, 0.128], porche_final: [116, 0.476], terrace_a: [117, 0.464], terrace_b: [100, 0.418], terrace_c: [115, 0.464], terrace_final: [117.82, 0.476], street_a: [124, 0.337], street_b: [85, 0.308], street_c: [128, 0.238], street_final: [104.5, 0.255], festival_a: [94, 0.43], festival_b: [88, 0.284], festival_c: [117, 0.464], festival_d: [140, 0.819], festival_final: [106.98, 0.505] };
 
 // each stage's background loop (see ambience) and its level under the music; a crowd cheers on a knockout
 const AMBIENCE = {
@@ -18,6 +31,14 @@ const AMBIENCE = {
   festival: { file: 'assets/sfx/crowd_loop.mp3', gain: 0.2, crowd: true },
   porche: { file: 'assets/sfx/amb_porche.mp3', gain: 0.32 },
   terrace: { file: 'assets/sfx/amb_terrace.mp3', gain: 0.3 },
+};
+// each stage's acoustics (setSpace): reverb tail length (s), how bright it stays (1 = like the dry sound), how much
+// of a blow goes in, and the early reflections [ms, level] of what stands around
+const SPACES = {
+  porche: { tail: 1.1, bright: 0.85, send: 0.26, early: [[11, 0.5], [23, 0.35], [37, 0.3], [58, 0.22], [81, 0.15]] },
+  terrace: { tail: 0.55, bright: 0.7, send: 0.12, early: [[9, 0.3], [27, 0.12]] },
+  street: { tail: 1.35, bright: 0.75, send: 0.2, early: [[18, 0.25], [64, 0.2], [128, 0.32], [170, 0.12]] },
+  festival: { tail: 1.6, bright: 0.5, send: 0.23, early: [[26, 0.3], [44, 0.22], [95, 0.14]] },
 };
 
 // fighters' shouts: recorded voices (assets/voice/fx, see voices.json) and a pitch per fighter
@@ -50,12 +71,17 @@ export class Audio {
     // the music and the stage's background go through one low-pass filter, open but for slow motion (slowmo)
     this.worldLP = c.createBiquadFilter(); this.worldLP.type = 'lowpass'; this.worldLP.frequency.value = 20000; this.worldLP.Q.value = 0.5;
     this.worldLP.connect(this.master);
-    this.musicBus = c.createGain(); this.musicBus.gain.value = this.vol.music; this.musicBus.connect(this.worldLP);
+    this.musicBus = c.createGain(); this.musicBus.gain.value = this.vol.music;
+    // (the music steps back for an instant under a big blow, as a mixing desk's side-chain would: hitDuck)
+    this.musicHit = c.createGain(); this.musicHit.gain.value = 1;
+    this.musicBus.connect(this.musicHit).connect(this.worldLP);
     this.voiceBus = c.createGain(); this.voiceBus.gain.value = this.vol.voice; this.voiceBus.connect(this.master);
-    // reverb send (outdoor slap + short tail)
+    // reverb send: the stage's own space (setSpace), an outdoor slap and short tail until one is set
     this.rev = c.createConvolver(); this.rev.buffer = this.impulse(1.6, 3.2);
     this.revSend = c.createGain(); this.revSend.gain.value = 0.22;
     this.revSend.connect(this.rev).connect(this.master);
+    if (this.wantSpace) this.setSpace(this.wantSpace);
+    this.loadUI();
     this.noiseBuf = this.makeNoise(2);
     this.shaper = c.createWaveShaper(); this.shaper.curve = this.distCurve(18);
     this.loadVoice();
@@ -329,6 +355,10 @@ export class Audio {
       this.take('thudH', t + 0.01, { out, gain: 1.0, rate: 0.78, vary: 0.02, rev: 0.7 });
       this.tone(t, 0.95, { f0: 72, f1: 22, gain: 0.7, out, dist: true, rev: 0.6 });
     }
+    // the big ones are felt: the music dips under them and the crowd reacts
+    if (o.ko) this.hitDuck(0.55, 1.1);
+    else if (o.ch || kind === 'heavy' || kind === 'kickHeavy' || kind === 'slam') this.hitDuck(o.ch ? 0.4 : 0.3, 0.3);
+    if (!o.ko && (o.ch || kind === 'slam' || ((kind === 'heavy' || kind === 'kickHeavy') && p > 1))) this.crowdReact(o.ch || kind === 'slam');
   }
   // the synthesized blows (until the recorded ones have loaded)
   hitSynth(kind, p, out, t) {
@@ -409,8 +439,13 @@ export class Audio {
       for (let k = 0; k < 7; k++) this.noise(t + k * 0.028 + Math.random() * 0.012, 0.035, { type: 'bandpass', f0: 2500 + Math.random() * 3500, q: 1.6, gain: 0.42, out, rev: 0.15 });
     }
     else if (name === 'block') this.hit('block', 1, pos);
-    else if (name === 'ui') this.tone(t, 0.06, { type: 'triangle', f0: 880, f1: 660, gain: 0.15, out, rev: 0 });
-    else if (name === 'uiok') { this.tone(t, 0.09, { type: 'triangle', f0: 660, f1: 990, gain: 0.2, out, rev: 0.1 }); this.tone(t + 0.07, 0.12, { type: 'triangle', f0: 990, f1: 1320, gain: 0.18, out }); }
+    else if (name === 'ui') { if (!this.uiSound('ui_move', 0.42)) this.tone(t, 0.06, { type: 'triangle', f0: 880, f1: 660, gain: 0.15, out, rev: 0 }); }
+    else if (name === 'uiok') {
+      // a chime with a soft thump under it: a choice in a fighting game lands with some weight
+      if (this.uiSound('ui_ok', 0.5)) { if (rec) this.take('thudM', t, { out, gain: 0.28, rate: 1.2, vary: 0.02 }); }
+      else { this.tone(t, 0.09, { type: 'triangle', f0: 660, f1: 990, gain: 0.2, out, rev: 0.1 }); this.tone(t + 0.07, 0.12, { type: 'triangle', f0: 990, f1: 1320, gain: 0.18, out }); }
+    }
+    else if (name === 'uiback') { if (!this.uiSound('ui_back', 0.45)) this.tone(t, 0.07, { type: 'triangle', f0: 660, f1: 440, gain: 0.15, out, rev: 0 }); }
   }
   // fighters' shouts (recorded): kind 'attack' (effort), 'hurt', 'hurtBig', 'ko', 'win'. Each fighter has a voice of
   // his own and a pitch; a clip is never repeated twice running, and a new shout cuts that fighter's previous one.
@@ -481,6 +516,82 @@ export class Audio {
       .catch(() => null));
   }
   // ------------------------------------------------------------------ ambience
+  // Each stage's acoustics: the blows, falls and steps ring in the stage's own space. A reverb tail of filtered noise
+  // (its length, how bright it stays, how much of every sound goes in) with the early reflections of what is around:
+  // El Porche's facades and the car park's arches answer soon and often, the open rooftop barely, the finish line's
+  // tall buildings give a late slap back, the festival's stage shell a warm, longer tail.
+  setSpace(key) {
+    this.wantSpace = key;
+    if (!this.ctx) return;
+    const S = SPACES[key] || SPACES.porche;
+    if (this.space === key) return;
+    this.space = key;
+    this.rev.buffer = this.spaceImpulse(S);
+    const t = this.ctx.currentTime;
+    this.revSend.gain.cancelScheduledValues(t); this.revSend.gain.setValueAtTime(S.send, t);
+  }
+  spaceImpulse({ tail, bright, early }) {
+    const c = this.ctx, sr = c.sampleRate, n = Math.floor(sr * tail);
+    const b = c.createBuffer(2, n, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      // a tail that darkens as it dies: white noise for the first part, then a running low-pass of it
+      let lp = 0;
+      const k = Math.exp(-2 * Math.PI * 2200 * bright / sr);
+      for (let i = 0; i < n; i++) {
+        const x = Math.random() * 2 - 1, u = i / n;
+        lp = lp * k + x * (1 - k);
+        const mix = Math.min(1, u * 2.5);
+        d[i] = (x * (1 - mix) + lp * 2.2 * mix) * Math.pow(1 - u, 2.6) * (i < sr * 0.008 ? i / (sr * 0.008) : 1) * 0.7;
+      }
+      // the early reflections: short bursts at their delays, a little apart in the two ears
+      for (const [ms, g] of early) {
+        const at = Math.floor(sr * (ms + (ch ? 1.7 : 0)) / 1000);
+        for (let j = 0; j < 90 && at + j < n; j++) d[at + j] += (Math.random() * 2 - 1) * g * Math.exp(-j / 22);
+      }
+    }
+    return b;
+  }
+  // the menus' sounds: recorded (Kenney Interface Sounds, CC0)
+  loadUI() {
+    this.ui = {};
+    for (const k of ['ui_move', 'ui_ok', 'ui_back']) this.loadBuffer(`assets/sfx/${k}.mp3`).then(b => { if (b) this.ui[k] = b; });
+  }
+  uiSound(k, gain) {
+    const b = this.ui?.[k];
+    if (!b) return false;
+    const src = this.ctx.createBufferSource(); src.buffer = b;
+    const g = this.ctx.createGain(); g.gain.value = gain;
+    src.connect(g).connect(this.sfxBus); src.start();
+    return true;
+  }
+  // a big blow: the music dips for an instant (a knockout: further and longer)
+  hitDuck(depth = 0.35, back = 0.35) {
+    const g = this.musicHit?.gain;
+    if (!g) return;
+    const t = this.ctx.currentTime;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(1 - depth, t + 0.012); g.linearRampToValueAtTime(1, t + 0.012 + back);
+  }
+  // the crowd (the street's and the festival's) reacts to a big blow: a short swell, and a cheer for a counter hit
+  crowdReact(big) {
+    const amb = this.amb;
+    if (!this.ctx || !amb?.swell || !amb.crowd) return;
+    const t = this.ctx.currentTime;
+    if (t < (this.crowdT || 0)) return;
+    this.crowdT = t + (big ? 4 : 2.5);
+    const g = amb.swell.gain;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(big ? 1.6 : 1.3, t + 0.25); g.linearRampToValueAtTime(1, t + (big ? 2.5 : 1.6));
+    if (big) this.loadBuffer('assets/sfx/cheer.mp3').then(buf => {
+      if (!buf || this.amb !== amb) return;
+      const src = this.ctx.createBufferSource(); src.buffer = buf;
+      const cg = this.ctx.createGain(); cg.gain.value = 0.22;
+      src.playbackRate.value = 0.95 + Math.random() * 0.1;
+      src.connect(cg).connect(this.sfxBus); src.start(this.ctx.currentTime, 0.2);
+      cg.gain.setValueAtTime(0.22, this.ctx.currentTime + 1.2); cg.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 2.4);
+    });
+  }
   // Each stage's recorded background in a seamless loop, under the music: the race-day crowd on the street (and, further
   // off, at the festival), a city street at El Porche, an evening outdoors on the rooftop (tools/ambience_build.py).
   // (The old synthesized beds, filtered noise for cicadas and murmur, read as a strange hiss on phone speakers.)
@@ -528,22 +639,63 @@ export class Audio {
     this.amb = null;
   }
   // ------------------------------------------------------------------ music
-  // Recorded tracks (assets/music: menu, one per stage) streamed by a single media element into the music bus: no big
+  // Recorded tracks (assets/music: the menus', each stage's) streamed by a single media element into the music bus: no big
   // decoded buffers on phones, and once the first touch has started it, iOS lets the game switch tracks later without
   // another touch. (The old music was synthesized note by note from a main-thread timer: it stuttered on phones.)
-  music(track = 'menu') {
+  // fresh: a new fight (it starts on the stage's next track even if that stage's music is already playing)
+  music(track = 'menu', { fresh = false } = {}) {
     this.wantMusic = track;
     if (!this.ctx || !this.musicOn) return;
     const el = this.musicElement();
-    if (this.musicTrack === track && !el.paused) return;
+    // the same music asked again (a replay, a highlight) carries on, the final round's track included
+    if (this.musicTrack === track && !el.paused && !(fresh && (MUSIC[track]?.length > 1 || this.musicFinal))) return;
     this.musicTrack = track;
+    this.musicFinal = false;
+    const list = MUSIC[track] || MUSIC.menu;
+    // a new fight starts on the stage's next track (the first one at random)
+    this.musicNext = this.musicNext || {};
+    if (this.musicNext[track] === undefined) this.musicNext[track] = Math.floor(Math.random() * list.length);
+    const k = this.musicNext[track] % list.length;
+    this.musicNext[track] = k + 1;
+    this.musicPlay(list[k]);
+  }
+  // the final round: the stage's angrier track takes over (and plays on until the fight ends)
+  finalRound() {
+    const fin = FINAL[this.musicTrack];
+    if (!fin || this.musicFinal || !this.ctx || !this.musicOn) return;
+    this.musicFinal = true;
+    this.musicPlay(fin, 0.8);
+  }
+  // one file into the element: the playing one fades out first
+  musicPlay(src, out = 0.5) {
+    const el = this.musicElement();
     clearTimeout(this.musicSwap);
     const start = () => {
-      el.src = MUSIC[track] || MUSIC.menu;
+      el.src = src; this.musicKey = src.split('/').pop().replace('.mp3', '');
       el.play()?.catch?.(() => { /* blocked until a touch: init() starts it again */ });
       this.musicFade(1, 1.2);
     };
-    if (!el.paused) { this.musicFade(0, 0.5); this.musicSwap = setTimeout(start, 550); } else start();
+    if (!el.paused) { this.musicFade(0, out); this.musicSwap = setTimeout(start, out * 1000 + 50); } else start();
+  }
+  // a track that ends (they all end on a short fade of their own) gives way to the next of its stage; the menus, the
+  // training and the final round play theirs again
+  musicEnded() {
+    const el = this.musicEl, list = MUSIC[this.musicTrack];
+    if (!el || !this.musicTrack) return;
+    if (this.musicFinal || !list || list.length < 2) { el.currentTime = 0; el.play()?.catch?.(() => {}); return; }
+    const k = this.musicNext[this.musicTrack] % list.length;
+    this.musicNext[this.musicTrack] = k + 1;
+    el.src = list[k]; this.musicKey = list[k].split('/').pop().replace('.mp3', '');
+    el.play()?.catch?.(() => {});
+    this.musicFade(1, 0.6);
+  }
+  // the music's beat: beats since the playing track's first one, as heard (the output's delay taken off), for the
+  // stage's lights and dancers; null when nothing plays
+  musicBeat() {
+    const el = this.musicEl, b = BEATS[this.musicKey];
+    if (!el || el.paused || !b || !this.ctx) return null;
+    const late = (this.ctx.baseLatency || 0) + (this.ctx.outputLatency || 0.03);
+    return (el.currentTime - late - b[1]) * b[0] / 60;
   }
   stopMusic() {
     this.wantMusic = null; this.musicTrack = null;
@@ -556,7 +708,8 @@ export class Audio {
   musicElement() {
     if (this.musicEl) return this.musicEl;
     const el = this.musicEl = new window.Audio();
-    el.loop = true; el.preload = 'auto';
+    el.loop = false; el.preload = 'auto';
+    el.addEventListener('ended', () => this.musicEnded());
     try {
       this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0;
       this.ctx.createMediaElementSource(el).connect(this.musicGain).connect(this.musicBus);

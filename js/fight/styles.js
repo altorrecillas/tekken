@@ -117,6 +117,7 @@ export const STYLES = {
     introSay: 'Partida nueva. Esta la gano yo.', introLen: 117, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.2, weight: 1.12, power: 1.12, speed: 1.04 },
     hairSway: 0.75, // how far the hair swings with the head: a long fringe (js/anim/hairsway.js)
+    clothSway: 0.45, // how far the hem swings with the hips: a track jacket, its elastic waist holds it (js/anim/clothsway.js)
     aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3'], juggle: ['1', '1', '2', 'b+2'],
     stance: { hgPosL: [0.09, -0.19, 0.28], hgPosR: [0.12, -0.23, 0.2], spine: [0.18, 0.1, 0], rootRot: [0.05, -0.35, 0], neck: [0.12, 0.15, 0] },
     bob: 0.015,
@@ -560,6 +561,7 @@ export const STYLES = {
     introSay: 'Voy cargadita de áloe vera, cuidado conmigo.', introLen: 150, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
     hairSway: 0.9, // how far the hair swings with the head: a bob (js/anim/hairsway.js)
+    clothSway: 1, // how far the hem swings with the hips: the long, light doctor's coat (js/anim/clothsway.js)
     aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '2', 'b+1'],
     // a calm, upright guard, hands loosely closed at chest height, wider than a boxer's: her face stays in view (the
     // first guard held the open hands at her chin and the rear one by her temple, covering her face from the camera)

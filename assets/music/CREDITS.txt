@@ -1,10 +1,31 @@
-Background music (re-encoded: 32 Hz high-pass, loudness normalized to -16 LUFS, 112 kbps MP3)
-
-menu.mp3     "Latin Industries"   Kevin MacLeod (incompetech.com)
-terrace.mp3  "Exit the Premises"  Kevin MacLeod (incompetech.com)
-street.mp3   "Club Diver"         Kevin MacLeod (incompetech.com)
-porche.mp3   "MTA"                Kevin MacLeod (incompetech.com)
-festival.mp3 "Pamgaea"            Kevin MacLeod (incompetech.com)
-
+Background music by Kevin MacLeod (incompetech.com)
 Licensed under Creative Commons: By Attribution 4.0 License
 http://creativecommons.org/licenses/by/4.0/
+
+Re-encoded by tools/music_build.py: long quiet intros cut to their last 4 s, faded endings shortened, 32 Hz high-pass,
+loudness normalized to -16 LUFS, 128 kbps MP3.
+
+menu.mp3            "Latin Industries"
+training.mp3        "Funkorama"
+ending.mp3          "Super Power Cool Dude"
+El Porche (urban funk / hip hop)
+  porche_a.mp3      "MTA"
+  porche_b.mp3      "Rocket Power"
+  porche_c.mp3      "Wepa"
+  porche_final.mp3  "Urban Gauntlet"
+La azotea (Latin disco / salsa)
+  terrace_a.mp3     "Electro Cabello"
+  terrace_b.mp3     "Arroz Con Pollo"
+  terrace_c.mp3     "Disco con Tutti"
+  terrace_final.mp3 "El Magicia"
+La meta 10K (rock)
+  street_a.mp3      "Hotrock"
+  street_b.mp3      "Exhilarate"
+  street_c.mp3      "Exit the Premises"
+  street_final.mp3  "Summon the Rawk"
+El Festival (club / dance)
+  festival_a.mp3    "Pamgaea"
+  festival_b.mp3    "District Four"
+  festival_c.mp3    "Who Likes to Party"
+  festival_d.mp3    "Club Diver"
+  festival_final.mp3 "Cut and Run"

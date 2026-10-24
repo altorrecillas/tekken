@@ -213,7 +213,13 @@ export class Match {
     }
     if (this.phase === 'ready') {
       for (const f of this.fighters) { f.readInput(); f.physics(); f.animate(); f.inp.pressed = 0; f.pending = 0; }
-      if (this.pt === 1) { this.hud.announce(this.round === 3 ? 'RONDA FINAL' : `RONDA ${this.round}`, 'round'); this.audio?.announce(this.round === 3 ? 'final' : 'round' + Math.min(5, this.round)); }
+      if (this.pt === 1) {
+        this.hud.announce(this.round === 3 ? 'RONDA FINAL' : `RONDA ${this.round}`, 'round'); this.audio?.announce(this.round === 3 ? 'final' : 'round' + Math.min(5, this.round));
+        // (both fighters a round from winning: the stage's angrier track comes in; heard only, the simulation never
+        // depends on it)
+        const need = this.opts.rounds;
+        if (!this.training && need > 1 && this.wins[0] >= need - 1 && this.wins[1] >= need - 1) this.audio?.finalRound?.();
+      }
       if (this.pt === 80) { this.hud.announce('¡A LUCHAR!', 'fight'); this.audio?.announce('fight'); }
       if (this.pt >= 100) { this.phase = 'fight'; this.pt = 0; }
       return;

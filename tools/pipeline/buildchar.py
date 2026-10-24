@@ -372,8 +372,10 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
     tz = smoothstep(18, 4, np.abs(az)) * smoothstep(-25, -5, el) * smoothstep(40, 20, el)
     rough = rough * (1 - tz * 0.28)
     head = np.clip(head, 0, 255)
-    head = dilate_fill(head, valid, 16)
-    rough = dilate_fill(rough, valid, 16)
+    # (the whole background filled from the islands: uvpad.py)
+    from uvpad import pushpull_fill
+    head = pushpull_fill(head.astype(np.float32), valid)
+    rough = pushpull_fill(rough.astype(np.float32), valid)
     # pore / detail normal map from high-pass luminance
     L = cv2.cvtColor(head.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float32) / 255
     hp_ = L - cv2.GaussianBlur(L, (0, 0), 2.5)
@@ -902,6 +904,10 @@ def build(pid, quick=False):
     meta_, parts_ = meshfmt.load(outdir)
     meshfmt.save(outdir, meta_, parts_, quantized=True)
     print('  exported', raw // 1024, 'KB raw ->', os.path.getsize(os.path.join(outdir, 'mesh.bin.gz')) // 1024, 'KB quantized and gzipped; height', round(extra['height'], 3))
+    if P.get('shoes_nb'):
+        # New Balance trainers painted from the shoe's shape, the N on both sides (nbshoes.py)
+        import nbshoes
+        nbshoes.build(outdir, P['shoes_nb'])
 
 
 def shared_assets():

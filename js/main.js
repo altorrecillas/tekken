@@ -320,6 +320,8 @@ class Game {
     this.stage = new def.cls(this.renderer, this.scene, this.quality);
     this.stageKey = key;
     this.audio.surface = def.surface || 'concrete';
+    this.audio.setSpace(key); // (the blows ring in the stage's own space)
+    this.stage.beatClock = () => this.audio.musicBeat(); // (the festival's lights and dancers keep the music's time)
     this.fx.dustColor = new THREE.Color(...def.dust);
     this.fx.dustLight = def.dustLight ?? 0.8;
     this.camCtl.koView = this.stage.koView || null;
@@ -738,12 +740,12 @@ class Game {
     }
     for (let i = 0; i < 2; i++) {
       if (i === 1 && this.mode !== 'versus') break;
-      if (s.done[i]) { if (P[i].back) { s.done[i] = false; this.refreshSel(); } continue; }
+      if (s.done[i]) { if (P[i].back) { s.done[i] = false; this.audio.play('uiback'); this.refreshSel(); } continue; }
       if (P[i].l) { s.i[i] = (s.i[i] + ROSTER.length - 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); }
       if (P[i].r) { s.i[i] = (s.i[i] + 1) % ROSTER.length; this.audio.play('ui'); this.refreshSel(); }
       if (P[i].ok) { this.audio.play('uiok'); this.confirmSel(i); }
     }
-    if (P[0].back && !s.done[0]) this.toTitle();
+    if (P[0].back && !s.done[0]) { this.audio.play('uiback'); this.toTitle(); }
   }
   confirmSel(i) {
     this.audio.preloadVoices([ROSTER[this.sel.i[i]]]);
@@ -839,7 +841,8 @@ class Game {
       this.resumeT = 3; this._resumeShown = null;
     } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
-    this.audio.music(STAGES[this.stageKey].music);
+    // (a new fight starts on the stage's next track; training has a calmer one of its own)
+    this.audio.music(opts.training && !opts.demo ? 'training' : STAGES[this.stageKey].music, { fresh: true });
     this.fade(false);
     this.saveT = 3;
     if (this.mode === 'arcade') { this.arcadeLive = true; this.saveArcade(); }
@@ -1122,7 +1125,7 @@ class Game {
     this.hud.show(false);
     this.camCtl.setMode('ending', true, a);
     this.state = 'ending';
-    this.audio.music('menu');
+    this.audio.music('ending');
     const el = $('#ending');
     el.querySelector('.ttl').textContent = E.title;
     el.querySelector('.who').textContent = `FINAL DE ${this.meta[id].display}`;
@@ -1401,7 +1404,7 @@ class Game {
     const M = menuKeys(keys), A = M.any;
     const pads = this.padMenuState();
     if (this.controlsUI.open) this.controlsUI.input(keys, M, pads);
-    else if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (A.back || pads[0].back)) { this.audio.play('ui'); this.showTitleMenu('main'); } else this.menuInput(A, pads[0]); }
+    else if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (A.back || pads[0].back)) { this.audio.play('uiback'); this.showTitleMenu('main'); } else this.menuInput(A, pads[0]); }
     else if (this.state === 'ending') { if (keys.size || pads[0].ok || pads[0].back || pads[0].start) this.endingTap(); }
     else if (this.state === 'select') this.selectInput(keys, M, pads);
     else if (this.state === 'pause') { this.menuInput(A, pads[0]); if (A.back || pads[0].start || pads[0].back || pads[1].start) this.pause(false); }
