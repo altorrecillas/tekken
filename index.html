@@ -172,6 +172,45 @@ button { touch-action: manipulation; }
 #winner .sub { font-family: 'Teko'; font-size: 28px; letter-spacing: .4em; color: var(--gold); }
 #winner .quote { font-family: 'Rajdhani'; font-size: 22px; color: #eee; margin-top: 8px; text-shadow: 0 2px 0 #000; font-style: italic; opacity: 0; transform: translateY(8px); transition: opacity .35s, transform .35s; }
 #winner .quote.on { opacity: 1; transform: none; }
+/* PUÑETALITY (js/fight/fatality.js): the button on the win screen, the line said in it, its name dripping blood, and
+   drops on the camera's lens */
+#fatalBtn { position: fixed; right: max(4%, env(safe-area-inset-right)); bottom: 15%; z-index: 14; transform: scale(.55); transform-origin: 100% 100%; opacity: 0; pointer-events: none;
+  font-family: 'Bebas'; font-size: min(6.5vw, 58px); line-height: 1; letter-spacing: .06em; color: #fff; padding: .16em .75em .1em; border: 0; cursor: pointer;
+  border-radius: 6px; background: radial-gradient(120% 150% at 50% 0%, #c0160e 0%, #620505 52%, #1d0000 100%);
+  box-shadow: 0 0 0 3px #050000, 0 0 0 5px #8f0d07, 0 12px 30px rgba(0,0,0,.7), 0 0 40px rgba(255,30,10,.4);
+  text-shadow: 0 3px 0 #000, 0 0 18px rgba(255,60,30,.85); -webkit-tap-highlight-color: transparent;
+  transition: opacity .25s, transform .4s cubic-bezier(.2,1.5,.3,1); }
+#fatalBtn.on { opacity: 1; transform: scale(1); pointer-events: auto; animation: fatalPulse 1.05s ease-in-out infinite; }
+#fatalBtn .h { display: block; font-family: 'Teko'; font-size: .3em; letter-spacing: .32em; color: #ffd0c8; margin-top: .05em; text-shadow: 0 2px 0 #000; }
+body.touchui #fatalBtn .h { display: none; }
+#fatalBtn .bar { position: absolute; left: 7%; right: 7%; bottom: 5px; height: 4px; background: rgba(0,0,0,.55); border-radius: 2px; overflow: hidden; }
+#fatalBtn .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff3b2f, #ffb4a0); transform-origin: left; }
+/* (blood dripping off the button's bottom edge) */
+#fatalBtn .dr { position: absolute; top: 100%; width: 7px; border-radius: 0 0 4px 4px; background: linear-gradient(#5d0404, #9a0a06); animation: fatalDrip 2.4s ease-in infinite; }
+#fatalBtn .dr::after { content: ''; position: absolute; left: 50%; bottom: -5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: #9a0a06; }
+@keyframes fatalDrip { 0% { height: 0; opacity: 1; } 70% { height: var(--h, 22px); opacity: 1; } 100% { height: var(--h, 22px); opacity: 0; } }
+@keyframes fatalPulse { 0%, 100% { box-shadow: 0 0 0 3px #050000, 0 0 0 5px #8f0d07, 0 12px 30px rgba(0,0,0,.7), 0 0 34px rgba(255,30,10,.35); }
+  50% { box-shadow: 0 0 0 3px #050000, 0 0 0 5px #c41208, 0 12px 30px rgba(0,0,0,.7), 0 0 70px rgba(255,45,20,.85); } }
+#fatalSub { position: absolute; bottom: 14%; width: 100%; text-align: center; font-family: 'Rajdhani'; font-size: 26px; font-style: italic; color: #f2ece4;
+  text-shadow: 0 2px 0 #000, 0 0 14px rgba(0,0,0,.9); opacity: 0; transform: translateY(8px); transition: opacity .35s, transform .35s; }
+#fatalSub.on { opacity: 1; transform: none; }
+#fatalTitle { position: absolute; top: 26%; width: 100%; text-align: center; opacity: 0; pointer-events: none; }
+#fatalTitle.on { opacity: 1; }
+#fatalTitle b { display: inline-block; position: relative; font-family: 'Bebas'; font-weight: 400; font-size: min(18vw, 200px); line-height: 1; letter-spacing: .03em;
+  background: linear-gradient(180deg, #ff7a62 0%, #e0140a 42%, #7d0201 78%, #3b0000 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 0 #000) drop-shadow(0 0 34px rgba(210,0,0,.65)); }
+#fatalTitle.on b { animation: fatalSlam .75s cubic-bezier(.2,1.3,.3,1) both; }
+@keyframes fatalSlam { 0% { transform: scale(2.8) rotate(-4deg); opacity: 0; } 16% { transform: scale(.93) rotate(0); opacity: 1; } 30% { transform: scale(1.04); } 100% { transform: scale(1); opacity: 1; } }
+#fatalTitle .drips { position: absolute; left: 3%; right: 3%; top: 80%; height: 90%; }
+/* (each drip running from the letters, a heavy drop at its end) */
+#fatalTitle .drips i { position: absolute; top: -4%; height: 0; border-radius: 40% 40% 50% 50% / 8% 8% 6% 6%; background: linear-gradient(90deg, #4e0202, #a30d07 45%, #6d0202);
+  animation: fatalRun 3.4s cubic-bezier(.3,.6,.4,1) var(--d, 0s) forwards; }
+#fatalTitle .drips i::after { content: ''; position: absolute; left: 50%; bottom: 0; width: 60%; aspect-ratio: .8; transform: translate(-50%, 55%); border-radius: 50% 50% 50% 50% / 40% 40% 62% 62%;
+  background: radial-gradient(circle at 35% 35%, #d22a20, #8e0905 60%, #4e0202); }
+#fatalTitle.on .drips i { animation-play-state: running; }
+@keyframes fatalRun { from { height: 0; } to { height: var(--h, 40%); } }
+#lensBlood { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9; pointer-events: none; display: none; }
+#lensBlood.on { display: block; }
 .movelist-hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 13px; color: rgba(255,255,255,.6); letter-spacing: .08em; text-shadow: 0 1px 2px #000; white-space: nowrap; transition: opacity 1.2s; }
 .movelist-hint.fade { opacity: 0; }
 #trainingInfo { position: absolute; top: 14%; left: 2.5%; font-family: 'Rajdhani'; font-size: 16px; background: var(--glass); padding: 10px 14px; border-left: 3px solid var(--gold); display: none; line-height: 1.35; }
@@ -712,6 +751,7 @@ button { touch-action: manipulation; }
 </head>
 <body>
 <canvas id="game"></canvas>
+<canvas id="lensBlood"></canvas>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#07070a;color:#eee;font:18px sans-serif;text-align:center;padding:20px;z-index:99">Puños de Barrio necesita JavaScript activado.</div></noscript>
 
 <div id="loading" class="screen on">
@@ -776,6 +816,8 @@ button { touch-action: manipulation; }
   <div id="introNames"></div>
   <div id="stageName"></div>
   <div id="winner"></div>
+  <div id="fatalSub"></div>
+  <div id="fatalTitle"><b>PUÑETALITY<span class="drips"></span></b></div>
   <div id="trainingInfo"></div>
   <div id="inputHist"></div>
   <div id="trialPanel"></div>
@@ -809,6 +851,7 @@ button { touch-action: manipulation; }
 <div id="achToast"></div>
 
 <div id="touch"></div>
+<button id="fatalBtn" type="button"><span class="t">PUÑETALITY</span><span class="h">↑ + GOLPE</span><i class="bar"><i></i></i><i class="dr" style="left:18%;--h:18px"></i><i class="dr" style="left:47%;--h:30px;animation-delay:.7s"></i><i class="dr" style="left:76%;--h:14px;animation-delay:1.3s"></i></button>
 <div id="netMsg"></div>
 <div id="olToast"></div>
 <div id="ver"></div>

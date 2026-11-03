@@ -181,6 +181,8 @@ class CineDOF extends BokehPass {
   }
   setSize(w, h) { super.setSize(w, h); this.uniforms.resolution.value.set(w, h); }
   _depthFor(m) {
+    // (a material with a depth of its own for this pass: a body cut in two, js/fx/splitbody.js)
+    if (m?.userData?.splitDepth) return m.userData.splitDepth;
     // (a blended pass with userData.depthAlpha - the soft tips of the hair - counts as solid above that alpha)
     const a = m && (m.userData.depthAlpha ? (this.depthAlpha || m.userData.depthAlpha) : m.alphaTest);
     // (a swinging hem, js/anim/clothsway.js: its depth moves with it)
@@ -283,7 +285,9 @@ export class PostFX {
         this.scene.traverse((o) => {
           if (!o.visible) return;
           const m = o.material, mm = Array.isArray(m) ? m[0] : m;
-          if (o.isPoints || o.isLine || o.isLine2 || o.isSprite || o.userData.noAO || (mm && (mm.transparent || mm.alphaTest > 0 || mm.blending === THREE.AdditiveBlending))) {
+          // (noGTAO: drawn in the depth of field's depth but not here: the halves of a body cut in two, whose cut this
+          // pass's one normal material would not make)
+          if (o.isPoints || o.isLine || o.isLine2 || o.isSprite || o.userData.noAO || o.userData.noGTAO || (mm && (mm.transparent || mm.alphaTest > 0 || mm.blending === THREE.AdditiveBlending))) {
             o.visible = false; cache.push(o);
           }
         });

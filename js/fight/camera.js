@@ -163,6 +163,14 @@ export class FightCamera {
       tl.copy(fp).addScaledVector(facing, 0.45).setY(1.15);
       tp.copy(fp).addScaledVector(facing, 1.6 - t * 0.3).addScaledVector(side, 1.9 - t * 0.9).setY(0.75 + t * 0.2);
       fov = 40; lam = 5;
+    } else if (this.mode === 'fatal') {
+      // the PUÑETALITY's shots (js/fight/fatality.js sets them frame by frame: place, aim, lens, focus; a new shot cuts)
+      const S = this.fatalShot;
+      if (S) {
+        tp.copy(S.tp); tl.copy(S.tl); fov = S.fov || 32; lam = S.lam || 5;
+        if (S.cut) { this.snap = true; S.cut = false; }
+        if (S.focus) focusPt = this._focus.copy(S.focus);
+      } else { tp.copy(this.pos); tl.copy(this.look); }
     } else if (this.mode === 'select') {
       // framed high enough that the card row does not hide the legs
       // pulled back so the fighter stands head to toe between the title panel and the card row

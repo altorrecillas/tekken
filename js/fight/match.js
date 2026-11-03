@@ -1,7 +1,7 @@
 // Match: runs the fixed-step fight simulation, hit resolution, round flow and events.
 import * as THREE from 'three';
 import { Fighter, FPS } from './fighter.js';
-import { B1, B2 } from './input.js';
+import { B1, B2, B3, B4 } from './input.js';
 import { THROWS } from './throws.js';
 import { newStats, newPlay, newBest, playScore, PF } from './stats.js';
 
@@ -40,6 +40,8 @@ const _r = new THREE.Vector3();
 
 // frames into a fighter's shot of the presentation when he says his line
 const INTRO_LINE = 14;
+// frames into the win screen from which the winner can finish the loser (PUÑETALITY)
+export const FATAL_FROM = 24;
 
 export class Match {
   constructor(game, chars, ids, opts = {}) {
@@ -77,6 +79,9 @@ export class Match {
     this.stats = [newStats(), newStats()];
     this.play = [newPlay(), newPlay()];
     this.best = newBest();
+    // which fighters a person plays (the CPU never finishes with a PUÑETALITY): set by the game once the controllers
+    // are known; online and in replays both are
+    this.humans = [true, true];
   }
 
   // -------------------------------------------------------------- tallies and the play of the match
@@ -130,6 +135,24 @@ export class Match {
     const k = 1 - Math.exp(-4 / FPS);
     n.x += (nx - n.x) * k; n.z += (nz - n.z) * k; n.y = 0;
     n.normalize();
+  }
+  // how fast the simulation runs against real time (the screen's frames and, online, the session's): slow motion after
+  // a knockout or a Rage Art, and the PUÑETALITY's own (a slow sweep of the sword through the body). It depends on the
+  // simulation's state only, so both phones slow down on the same frames
+  timeRate() {
+    if (this.phase === 'fatal') {
+      const F = this.fighters[this.fatalBy | 0]?.style.fatal;
+      const S = F?.slow;
+      if (S) {
+        const t = this.pt;
+        if (t <= S[0] || t >= S[3]) return 1;
+        const k = t < S[1] ? (t - S[0]) / (S[1] - S[0]) : t > S[2] ? 1 - (t - S[2]) / (S[3] - S[2]) : 1;
+        const e = k * k * (3 - 2 * k);
+        return 1 + (S[4] - 1) * e;
+      }
+      return 1;
+    }
+    return this.slowmo > 0 ? SLOWMO : 1;
   }
   sfx(name, f, p) { this.audio?.play(name, p || f?.pos); }
   onMoveStart(f, m) {
@@ -265,8 +288,13 @@ export class Match {
       }
       this.hud.update(this);
     }
+    if (this.phase === 'fatal') { this.stepFatal(); return; }
     if (this.phase === 'matchEnd') {
       for (const f of this.fighters) { f.readInput(); if (f.ragdoll) continue; f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate(); }
+      // the PUÑETALITY: the winner (a person, with one of his own) holds up and presses a button, or taps it on the
+      // screen (the game presses it for him: it is an input like any other, recorded, sent to the other phone online)
+      const Wf = this.fighters[this.winner];
+      if (!this.endSent && this.pt > FATAL_FROM && this.canFatal(Wf) && Wf.inp.up > 0 && (Wf.inp.pressed & (B1 | B2 | B3 | B4))) { this.startFatal(); return; }
       // the winner says his line on its frame of his win pose (styles.js: say, sayAt), its subtitle with it; a button
       // ends the win screen once it has been said
       const W = this.fighters[this.winner]?.style || {}, sayAt = W.sayAt || 80;
@@ -275,6 +303,41 @@ export class Match {
       // (once: this runs every frame of the win screen)
       if (!this.endSent && this.pt > 60 && ((this.pt > minT && (a.inp.pressed || b.inp.pressed)) || this.pt > Math.max(420, minT + 60))) { this.endSent = true; this.game.onMatchEnd(this); }
     }
+  }
+
+  // ------------------------------------------------------------------ PUÑETALITY
+  // whether f can finish the loser now (the win screen of a match he won, played by a person, a finishing move of his)
+  canFatal(f) { return !!f && !this.training && !!f.style.fatal && this.humans[f.index] !== false && this.phase === 'matchEnd' && this.winner === f.index; }
+  // the finishing move starts: both fighters stood up face to face at the move's distance in the middle of the stage
+  // (the cut to it is behind a moment of black: js/fight/fatality.js draws it), the loser dazed
+  startFatal() {
+    const W = this.fighters[this.winner], L = W.opp, F = W.style.fatal;
+    this.game.ragdolls?.clear?.();
+    const side = W.pos.x <= L.pos.x ? -1 : 1;
+    for (const f of this.fighters) { f.reset(); f.ragdoll = null; f.snapPose = true; f.snapSmooth = true; }
+    W.pos.set(side * F.dist / 2, 0, 0); L.pos.set(-side * F.dist / 2, 0, 0);
+    W.yaw = side < 0 ? Math.PI / 2 : -Math.PI / 2; L.yaw = -W.yaw;
+    W.setState('fatal'); W.play('fatal', 1);
+    L.setState('fatalV'); L.play('fatalDaze', 1);
+    for (const f of this.fighters) { f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate(); f.prevPose.set(f.pose); }
+    this.phase = 'fatal'; this.pt = 0; this.fatalBy = W.index;
+    this.hitstop = 0; this.slowmo = 0;
+    this.events.push({ t: 'fatal', att: W, def: L });
+    this.camera.setMode('fatal', true, W);
+    this.hud.hideBars?.();
+    this.hud.fatalStart?.();
+  }
+  // a frame of it: the winner plays his move to the end, the loser is dazed, then afraid, and once cut no longer moves
+  // (what is drawn of him from then on is the two halves of js/fx/splitbody.js); a button ends it once its name is up
+  stepFatal() {
+    const W = this.fighters[this.fatalBy | 0], L = W.opp, F = W.style.fatal;
+    for (const f of this.fighters) f.readInput();
+    for (const f of this.fighters) {
+      if (f === L && this.pt > F.cut) continue;
+      f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate();
+    }
+    if (this.pt === F.fear) L.play('fatalFear', 10);
+    if (!this.endSent && (this.pt >= F.len || (this.pt > F.title + 60 && (W.inp.pressed || L.inp.pressed)))) { this.endSent = true; this.game.onMatchEnd(this); }
   }
 
   separate() {

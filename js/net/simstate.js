@@ -145,7 +145,7 @@ function ioFighter(f, io) {
 }
 
 function ioMatch(m, io) {
-  for (const k of ['frame', 'pt', 'hitstop', 'timeScale', 'slowmo', 'timer', 'round', 'winner', 'koWinner', 'lastHeavyFrame', 'lastTechFrame', 'hpScale']) m[k] = io.numU(m[k]);
+  for (const k of ['frame', 'pt', 'hitstop', 'timeScale', 'slowmo', 'timer', 'round', 'winner', 'koWinner', 'lastHeavyFrame', 'lastTechFrame', 'hpScale', 'fatalBy']) m[k] = io.numU(m[k]);
   m.wins[0] = io.num(m.wins[0]); m.wins[1] = io.num(m.wins[1]);
   m.endSent = io.bool(m.endSent);
   m.phase = io.ref(m.phase); m.lastEvent = io.ref(m.lastEvent);

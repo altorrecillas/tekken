@@ -637,6 +637,59 @@ export const STYLES = {
         advance: [[0, 0], [25, -0.04], [31, 0.24], [56, 0.24]], sfx: 'heavy',
       },
     }),
+    // PUÑETALITY (js/fight/fatality.js): she draws a sword of aloe vera from behind her back, tells the loser it will
+    // sting a little and cuts him in two at the waist with one sweep; she flicks the blood off the blade and lowers it.
+    // Frames of the move: len (all of it), cut (the sword goes through), fear (the loser sees it coming), title (its
+    // name comes up), dist (between them, m), slow (the slow motion round the cut: [ramp from, full from, full until,
+    // back by, speed]); say / sayAt: her line (tools/quotes_tts.py --fatal)
+    fatal: {
+      len: 640, cut: 204, fear: 56, title: 412, dist: 1.2, slow: [192, 200, 214, 250, 0.22],
+      say: 'Esto va a escocer un poquito.', sayAt: 84,
+      clip: [
+        // standing tall, cold, the hands loose at her sides
+        [0, { rootPos: [0, -0.03, 0], rootRot: [0.0, -0.2, 0], spine: [-0.02, 0.06, 0], neck: [0.06, 0.14, 0],
+          handL: [0.2, -0.86, 0.1], aimL: 1, fistL: 0.3, twistL: 0, handR: [0.2, -0.86, 0.06], aimR: 1, fistR: 0.35, twistR: 0,
+          footL: [0.12, 0.071, 0.12], footR: [0.14, 0.071, -0.1], footRotL: [0, 0.1, 0], footRotR: [0, 0.3, 0], kneeL: [0.1, 0, 1], kneeR: [0.15, 0, 1] }],
+        [18, {}, 'inout'],
+        // the right hand behind her back, the trunk turning to it; her eyes stay on the loser
+        [34, { rootRot: [0.02, -0.45, 0], spine: [0.02, -0.12, 0], neck: [0.06, 0.42, 0], handR: [0.14, -0.6, -0.24], poleR: [0.6, -0.4, -0.7], twistR: -0.4, fistR: 0.5, handL: [0.24, -0.7, 0.2] }, 'inout'],
+        [40, { fistR: 0.75 }, 'inout'],
+        // drawn out from behind her to her right side (the leaf grows out of the hilt as it comes), then raised upright
+        // before her face, a salute (the light runs up the blade)
+        [50, { handR: [0.62, -0.42, 0.02], poleR: [0.5, -1, 0], twistR: 0.4, rootRot: [0.0, -0.32, 0], spine: [-0.02, -0.02, 0], neck: [0.06, 0.3, 0] }, 'inout'],
+        [60, { handR: [0.4, -0.08, 0.5], poleR: [0.5, -1, 0.2], twistR: -0.5, wristR: [0, 0.5], spine: [-0.04, 0.02, 0], neck: [0.02, 0.22, 0] }, 'inout'],
+        [70, { handR: [0.4, -0.06, 0.51], neck: [0.0, 0.2, 0.04] }, 'sine'],
+        // brought down into her guard: the sword low by her right hip, palm down, its point at the loser's chest
+        [82, { rootPos: [0, -0.07, -0.02], rootRot: [0.04, -0.32, 0], spine: [0.06, 0.06, 0], neck: [0.1, 0.24, 0],
+          handR: [0.6, -0.35, 0.0], poleR: [0.5, -1, 0], twistR: 1.05, wristR: [0, 0], handL: [0.24, -0.62, 0.18], fistL: 0.25,
+          footL: [0.08, 0.071, 0.2], footR: [0.18, 0.071, -0.16], footRotL: [0, -0.2, 0], footRotR: [0, 0.5, 0] }, 'inout'],
+        [110, { handR: [0.6, -0.33, 0.02], neck: [0.12, 0.2, -0.06] }, 'sine'],
+        [140, { handR: [0.6, -0.35, 0.0], neck: [0.1, 0.24, 0.04] }, 'sine'],
+        [178, { handR: [0.6, -0.34, 0.01], neck: [0.1, 0.22, 0] }, 'sine'],
+        // the wind-up: the weight sinks and goes back, the trunk coils right, the sword drawn back behind her right hip,
+        // level, pointing away behind her (palm down already, as it will cut)
+        [196, { rootPos: [0, -0.15, -0.06], rootRot: [0.08, -0.95, 0], spine: [0.1, -0.3, 0], neck: [0.12, 0.85, 0],
+          handR: [0.1, -0.3, -0.4], poleR: [0.5, -1, 0], twistR: 1.35, wristR: [0, 0.35], handL: [0.12, -0.28, 0.42], fistL: 0.5,
+          footL: [0.1, 0.071, 0.26], footR: [0.2, 0.071, -0.2] }, 'inout'],
+        // the cut: she unwinds into it with a step, the arm sweeping level across at the loser's waist, palm down, the
+        // blade leading out of the fist (through the waist at frame `cut`: tools/fatalprobe.mjs)
+        [200, { rootPos: [0, -0.16, 0.08], rootRot: [0.12, -0.3, 0], spine: [0.14, 0.05, 0], neck: [0.12, 0.3, 0], handR: [0.62, -0.36, 0.35], twistR: 1.28, wristR: [0, 0.6] }, 'snap'],
+        [203, { rootPos: [0, -0.17, 0.16], rootRot: [0.14, 0.25, 0], spine: [0.15, 0.25, 0], neck: [0.1, -0.15, 0], handR: [0.4, -0.35, 0.7], twistR: 1.05, wristR: [-0.1, 0.45], handL: [0.3, -0.48, -0.05] }, 'lin'],
+        [206, { handR: [0.0, -0.35, 0.72], twistR: 1.1, wristR: [-0.1, 0.45] }, 'lin'],
+        [210, { rootPos: [0, -0.17, 0.18], rootRot: [0.12, 0.55, 0], spine: [0.12, 0.35, 0], neck: [0.1, -0.4, 0], handR: [-0.3, -0.32, 0.55], twistR: 1.1, wristR: [-0.1, 0.4], footR: [0.2, 0.071, -0.12] }, 'out'],
+        // held: the blade out to her left, still
+        [236, { rootRot: [0.11, 0.52, 0], handR: [-0.42, -0.3, 0.4], twistR: 1.4, wristR: [-0.3, 0.4] }, 'sine'],
+        // she straightens and turns to watch the halves go, the blade lowered in front of her
+        [300, { rootPos: [0, -0.08, 0.1], rootRot: [0.04, 0.2, 0], spine: [0.04, 0.1, 0], neck: [0.16, -0.2, 0], handR: [0.6, -0.75, 0.6], poleR: [0.6, -0.8, 0.4], twistR: -0.05, wristR: [0, 0.4], handL: [0.24, -0.7, 0.12] }, 'inout'],
+        // the blood flicked off the blade: up over her right shoulder, then snapped down and out to her right
+        [340, { handR: [0.34, -0.02, 0.24], poleR: [0.8, -0.5, 0], twistR: -1.28, wristR: [0, -0.05], neck: [0.12, 0.1, 0] }, 'inout'],
+        [347, { handR: [0.6, -0.75, 0.1], poleR: [0.8, -0.6, -0.3], twistR: -1.5, wristR: [0.3, 0.55] }, 'snap'],
+        [360, {}, 'lin'],
+        // the sword down at her side, the point to the floor; a look back at what is left
+        [384, { rootPos: [0, -0.04, 0.06], rootRot: [0.0, -0.1, 0], spine: [-0.02, 0.0, 0], neck: [0.12, 0.2, -0.05], handR: [0.6, -0.7, 0.0], poleR: [0.9, -0.2, 0.3], twistR: -1.5, wristR: [0.1, 0.55], handL: [0.2, -0.82, 0.1] }, 'inout'],
+        [640, { neck: [0.06, 0.1, -0.04] }, 'sine'],
+      ],
+    },
     // "te falta tomar áloe vera": a hand on her hip and the index finger wagging at the loser, then the case is closed:
     // the hand to her earpiece, a satisfied nod
     win: [

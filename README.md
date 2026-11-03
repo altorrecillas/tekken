@@ -49,7 +49,7 @@ Es una web estática: vale cualquier hosting con HTTPS (GitHub Pages, Netlify, C
 
 Los dos versus están en el submenú **VERSUS** del menú principal.
 
-**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.74»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
+**Versión:** el número de versión se ve en pequeño en la esquina inferior izquierda de los menús (por ejemplo «v0.75»). Así se sabe qué versión ha cargado cada móvil, porque GitHub Pages y los navegadores guardan los ficheros en caché un rato. Está en `js/version.js` y **hay que subirlo con cada cambio que se publique**. Dos móviles con versiones distintas no pueden jugar online juntos: el que se une recibe un aviso con las dos versiones.
 | Entrenamiento | Sparring configurable, grabación del rival, historial de entradas y pruebas de combo. Ver [Entrenamiento](#entrenamiento). |
 
 **Dificultad** (menú principal, se recuerda entre partidas): **Fácil**, **Normal** o **Difícil**. Fija el nivel de la CPU (de 1 a 5) en cada uno de los seis combates del arcade:
@@ -257,6 +257,22 @@ Antes del primer asalto, la cámara enfoca a cada luchador mientras sale su nomb
 
 Las frases se cambian en `tools/quotes_tts.py` (texto, voz y tono; `INTROS` las de presentación, que se generan con `--intro`) y en `js/fight/styles.js`: `say` y `introSay` son los subtítulos, y `sayLen` e `introLen` lo que dura cada una en fotogramas, que la herramienta imprime al generarlas.
 
+### Puñetality
+
+El remate final después de ganar un combate, al estilo de los «fatality»: al terminar el último asalto, mientras el ganador celebra, aparece en pantalla el botón **PUÑETALITY** con una barra que se va vaciando. Si se pulsa antes de que se acabe la pantalla de victoria, el ganador remata al perdedor con su movimiento propio. Con teclado o mando también vale **arriba + cualquier golpe**. Solo lo puede hacer una persona (la CPU no remata) y solo los luchadores que tienen el suyo; los demás se irán añadiendo uno a uno.
+
+| Luchador | Remate |
+|---|---|
+| Noemí | Saca de detrás de la espalda una espada de **áloe vera** (una hoja carnosa con motas claras y dientes en los bordes, mango vendado con gasa y una cruz verde de farmacia que brilla en el pomo), la saluda delante de la cara, le dice «Esto va a escocer un poquito» y de un tajo horizontal lo **parte por la cintura**. La parte de arriba resbala por el corte y cae; las piernas aguantan un momento soltando chorros de sangre al ritmo del corazón y se doblan. Ella sacude la sangre de la hoja y la baja. |
+
+Cómo está hecho:
+- **Es una entrada más del combate:** el botón de la pantalla pulsa «arriba + 1» por el jugador, así que va en la grabación, se repite igual en las repeticiones y online lo ven igual los dos móviles (lo comprueba `tools/netsim.mjs --only fatal`, con rebobinados y copia por red a mitad del corte). La fase `fatal` de `js/fight/match.js` coloca a los dos y reproduce el movimiento; los fotogramas y la animación de cada uno están en `fatal` de `js/fight/styles.js`.
+- **Todo lo que se ve y se oye** está en `js/fight/fatality.js`, que lo sigue fotograma a fotograma del combate: los planos de cámara (corte a negro, el desenvainado, primer plano de la cara con la espada, contraplano por encima del hombro, cámara lenta en el tajo, la caída, la grúa final con el título), los sonidos, el subtítulo, el título «PUÑETALITY» chorreando sangre con la voz del locutor y la sangre que salpica la bata de Noemí.
+- **El cuerpo partido** (`js/fx/splitbody.js`): cada prenda que cruza la cintura se dibuja dos veces con el mismo esqueleto, una por debajo del corte y otra por encima; los brazos y la cabeza siempre van con la mitad de arriba, aunque las manos cuelguen más abajo. Al mirar dentro de una mitad se pinta la sección: piel, grasa, músculo, intestinos delante y la columna detrás, y la sangre que va subiendo. Después del corte, cada mitad es un muñeco de física propio: la de arriba se apoya en el corte de la de abajo, resbala por su pendiente y cae.
+- **La sangre** (`js/fx/blood.js`): gotas con brillo húmedo y estela de movimiento, niebla roja, manchas en el suelo que se extienden y charcos que crecen, y gotas en la «lente» de la cámara.
+- **La espada** (`js/fx/aloesword.js`) está hecha por código. Dónde va en el puño lo calcula `tools/swordgrip.mjs` para que los dedos rodeen el mango sin atravesarlo; el recorrido del tajo se midió con `tools/fatalprobe.mjs` (altura y distancia de la hoja a la columna del rival en cada fotograma).
+- Las voces se generan con `tools/quotes_tts.py --fatal` (la frase de Noemí) y `--announcer` (el «¡Puñetality!»).
+
 ## Tecnología
 
 - **Render:** PBR de Three.js con cadena HDR: MSAA, GTAO, bloom, profundidad de campo en las cinemáticas y un pase final con tonemapping AgX, grading CDL por escenario, viñeta y grano.
@@ -374,7 +390,8 @@ Son los scripts usados para generar los personajes y probar el juego. Se incluye
 - `tools/sfx_build.py <carpeta de Kenney> <carpeta de swishes>`: prepara los golpes grabados (`assets/sfx/fight.mp3` y `fight.json`): recorta cada toma, iguala el volumen de las tomas de cada grupo y las junta en un solo archivo con la tabla de dónde empieza cada una.
 - `tools/ambience_build.py <escenario> <grabación>`: prepara el ambiente de un escenario (`assets/sfx/amb_<escenario>.mp3`): filtra, suaviza los momentos fuertes y hace un bucle sin cortes.
 - `tools/music_build.py <carpeta con los originales>`: prepara la música (`assets/music/*.mp3`) desde los MP3 originales de incompetech y su catálogo `pieces.json`: recorta introducciones y finales largos, filtra los graves, iguala el volumen a −16 LUFS, codifica a 128 kbps y mide el tempo y el primer pulso de cada pista (imprime la tabla `BEATS` de `js/audio/audio.js`). La lista de pistas por escenario está en su tabla `TRACKS`.
-- `tools/quotes_tts.py <carpeta de voces> [--intro] [luchadores]`: genera con Piper las frases de victoria o, con `--intro`, las de presentación, e imprime en qué fotograma acaba cada una.
+- `tools/quotes_tts.py <carpeta de voces> [--intro | --fatal | --announcer] [luchadores]`: genera con Piper las frases de victoria o, con `--intro`, las de presentación, con `--fatal` las del Puñetality y con `--announcer` el «¡Puñetality!» del locutor, e imprime en qué fotograma acaba cada una.
+- `tools/fatalprobe.mjs [ganador] [perdedor]`: el Puñetality fotograma a fotograma sin navegador (mano, base y punta de la espada, por dónde cruza la hoja al rival); con `SOLVE=` o `SEARCH=` busca el giro de antebrazo y muñeca, o la pose del brazo, que apuntan la hoja donde se quiere. `tools/swordgrip.mjs`: dónde va el mango en el puño cerrado.
 - `tools/*.mjs`: capturas headless con Playwright (`shot.mjs`), pruebas de flujo de menús (`flow.mjs`, `flow2.mjs`), simulación de combates sin gráficos para equilibrar (`simtest.mjs` y `rr.sh`), banco de dificultad (`diffbench.mjs`: un jugador novato o medio simulado contra cada nivel de la CPU, muchos combates; da el porcentaje de combates y asaltos ganados) y horneado del público (`crowdbake.mjs`). Las herramientas localizan el juego a partir de su propia carpeta; la variable `GAME_ROOT` permite apuntar a otra copia.
 - Móvil:
   - `tools/mshot.mjs`: capturas con perfiles de móvil y tablet (844×390 @3x, 667×375 @2x, vertical, 1180×820 @2x).

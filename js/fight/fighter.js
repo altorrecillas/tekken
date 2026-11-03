@@ -738,9 +738,11 @@ export class Fighter {
   // strike's wind-up and impact, a smile on winning; knocked out, the face goes slack. Eased on the fight's own clock
   updateFace(alpha) {
     const s = this.state, mv = this.move;
-    const pain = this.ko ? 0 : s === 'hit' || s === 'air' || s === 'thrown' ? 1 : s === 'block' ? 0.45 : s === 'land' || s === 'down' || s === 'getup' ? 0.5 : 0;
-    const effort = (s === 'move' && mv?.hit && this.mf <= mv.hit.f[1] + 6) || s === 'throwing' || s === 'rageArt' ? 1 : 0;
-    const smile = s === 'win' ? 0.85 : 0;
+    // (the PUÑETALITY: the loser afraid; the winner's cold smile, her face set hard through the cut)
+    const F = s === 'fatal' ? this.style.fatal : null, fe = F && this.cf >= F.cut - 12 && this.cf <= F.cut + 10;
+    const pain = this.ko ? 0 : s === 'hit' || s === 'air' || s === 'thrown' ? 1 : s === 'block' ? 0.45 : s === 'land' || s === 'down' || s === 'getup' ? 0.5 : s === 'fatalV' ? 0.8 : 0;
+    const effort = (s === 'move' && mv?.hit && this.mf <= mv.hit.f[1] + 6) || s === 'throwing' || s === 'rageArt' || fe ? 1 : 0;
+    const smile = s === 'win' ? 0.85 : F && !fe ? 0.45 : 0;
     const t = ((this.match?.frame || 0) + alpha) / 60;
     const dt = this._faceT != null ? Math.min(0.1, Math.max(0, t - this._faceT)) : 1;
     this._faceT = t;
@@ -757,7 +759,7 @@ export class Fighter {
     const prop = this.ch.winProp;
     if (prop) prop.visible = this.state === 'win' && this.clipName === 'win' && this.cf >= (prop.userData.from || 0);
     // eyes squeeze while taking a hit, shut when knocked out
-    this.rig.lidClose = this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : 0;
+    this.rig.lidClose = this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : this.state === 'fatalV' ? 0.2 : 0;
     this.updateFace(alpha);
     this.rig.apply(this.renderPose);
     const g = this.ch.group;

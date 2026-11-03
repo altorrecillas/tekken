@@ -12,7 +12,8 @@ import { FX, setFxViewHeight } from './fx/fx.js';
 import { HUD } from './ui/hud.js';
 import { Audio } from './audio/audio.js';
 import { FightCamera } from './fight/camera.js';
-import { Match, SLOWMO } from './fight/match.js';
+import { Match, SLOWMO, FATAL_FROM } from './fight/match.js';
+import { FatalityDirector } from './fight/fatality.js';
 import { FPS } from './fight/fighter.js';
 import { KeyboardController, GamepadController, MergedController, KEYMAPS, menuKeysPressed, menuKeys, freeKeys, padHas, keyLabel, START, B1, B2, B3, B4 } from './fight/input.js';
 import { TouchController, loadTouchPrefs, saveTouchPrefs } from './ui/touch.js';
@@ -102,6 +103,10 @@ class Game {
     this.p1ctrl = new MergedController(new KeyboardController(KEYMAPS.p1), new GamepadController(0), this.touch);
     this.p2keys = new MergedController(new KeyboardController(KEYMAPS.p2), new GamepadController(1));
     this.controlsUI = new ControlsUI(this);
+    // PUÑETALITY: what is drawn and heard of the finishing move (js/fight/fatality.js), and its button on the win screen
+    this.fatal = new FatalityDirector(this);
+    this.fatalBtn = $('#fatalBtn');
+    this.fatalBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.fatalPress(); });
     this.roster = ROSTER;
     // the version, small in a corner (which build this is: see js/version.js); out of the way during a fight
     this.verEl = $('#ver');
@@ -118,10 +123,11 @@ class Game {
       // a touch on a hybrid laptop (or after a gamepad session) brings the touch controls (back)
       if (e.pointerType === 'touch' && this.touch.opt.show !== 'never') { this.padActive = false; this.touch.enable(); document.body.classList.add('touchui'); }
       const ph = this.match?.phase;
+      if (e.target?.closest?.('#fatalBtn')) return; // (its own click: not a tap that ends the win screen)
       if (this.state === 'fight' && this.replaying) { this.online.replayEnded(); return; }
       if (this.state === 'highlight' && this.hl?.phase === 'play') { this.endHighlight(); return; }
       if (this.state === 'ending') { this.endingTap(); return; }
-      if (this.state === 'fight' && (ph === 'intro' || ph === 'matchEnd')) this.touch.tap();
+      if (this.state === 'fight' && (ph === 'intro' || ph === 'matchEnd' || ph === 'fatal')) this.touch.tap();
     }, { capture: true });
     addEventListener('keydown', () => this.audio.init());
     if ((DEVICE.touch && this.touch.opt.show !== 'never') || this.touch.opt.show === 'always') { this.touch.enable(); document.body.classList.add('touchui'); }
@@ -151,7 +157,7 @@ class Game {
     this.camCtl.touchFrame = this.touch.enabled && document.body.classList.contains('touchui') && !this.padActive;
     if (!this.touch.enabled) return;
     const m = this.match;
-    const inFight = this.state === 'fight' && !!m && !['showcase', 'intro', 'matchEnd'].includes(m.phase) && !this.padActive && !this.replaying;
+    const inFight = this.state === 'fight' && !!m && !['showcase', 'intro', 'matchEnd', 'fatal'].includes(m.phase) && !this.padActive && !this.replaying;
     const cine = !!m && (m.phase === 'ko' || m.phase === 'end');
     if (inFight !== this._tv || cine !== this._tc) { this._tv = inFight; this._tc = cine; this.touch.setVisible(inFight, cine); }
     const p1 = m?.fighters?.[this.online.inFight ? this.online.local : 0];
@@ -429,6 +435,7 @@ class Game {
     this.camCtl.setMode('fight', true);
   }
   clearFighters() {
+    this.fatal?.dispose(); this.syncFatalButton?.(null);
     if (this.match) for (const f of this.match.fighters) { this.scene.remove(f.ch.group); f.ch.group.traverse(o => o.geometry?.dispose?.()); }
     this.match = null;
     this.entrance = null;
@@ -823,6 +830,9 @@ class Game {
     else if (opts.training) { b.ctrl = { poll: () => ({ dx: 0, dy: 0, held: 0, pressed: 0 }) }; }
     else { const ai = new AIController(opts.ai || 3); ai.attach(b, this.match); b.ctrl = ai; }
     if (opts.demo && !opts.training) { const ai1 = new AIController(opts.ai || 3); ai1.attach(a, this.match); a.ctrl = ai1; }
+    // (who is a person: only a person finishes with a PUÑETALITY; its line is fetched now, not as it starts)
+    this.match.humans = [!opts.demo, !!opts.human2];
+    for (const id of [id1, id2]) if (STYLES[id]?.fatal) this.audio.preloadFatal?.(id);
     if (this.rec) { a.ctrl = this.rec.wrap(a.ctrl, 0); b.ctrl = this.rec.wrap(b.ctrl, 1); }
     if (opts.training && !opts.demo) this.training.start(this.match); else this.training.stop();
     // (without the saved moment: REINICIAR and the rematch start the fight from the beginning)
@@ -842,6 +852,12 @@ class Game {
       this.resumeT = 3; this._resumeShown = null;
     } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
+    // (?fatalnow=1: straight to player 1's PUÑETALITY, for captures: index.html?demo=1&p1=noemi&p2=…&fatalnow=1&readyon=fatal&readyat=<frame>)
+    if (q.get('fatalnow') && this.match.fighters[0].style.fatal) {
+      const m = this.match;
+      m.startRound(); m.wins = [m.opts.rounds, 0]; m.winner = 0; m.phase = 'matchEnd'; m.pt = 0; m.humans = [true, true];
+      m.startFatal();
+    }
     // (a new fight starts on the stage's next track; training has a calmer one of its own)
     this.audio.music(opts.training && !opts.demo ? 'training' : STAGES[this.stageKey].music, { fresh: true });
     this.fade(false);
@@ -915,6 +931,7 @@ class Game {
   cameraFor(m) {
     if (m.phase === 'intro') return ['intro', null];
     if (m.phase === 'matchEnd') return ['win', m.fighters[m.winner] || null];
+    if (m.phase === 'fatal') return ['fatal', m.fighters[m.fatalBy | 0] || null];
     if (m.phase === 'ko') return ['ko', m.fighters.find((f) => f.ko) || m.fighters[1 - (m.koWinner | 0)]];
     if (m.rageLock) return ['rage', m.rageLock.att];
     if (m.throwLock) return ['throw', null];
@@ -933,6 +950,7 @@ class Game {
     this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
     $('#trainingInfo').classList.remove('on');
     this.match.startIntro();
+    for (const id of [id1, id2]) if (STYLES[id]?.fatal) this.audio.preloadFatal?.(id);
     this.fx.warmup();
     this.state = 'netwait';
     $('#fade').classList.add('busy');
@@ -1446,8 +1464,9 @@ class Game {
       if (netRun) alpha = this.online.session.alpha;
       else if (this.state === 'highlight' && this.hl && this.hl.m === m) alpha = this.highlightTick(dt);
       else if (running) {
-        let scale = 1;
-        if (m.slowmo > 0) { if (!m.det) m.slowmo -= dt; scale = SLOWMO; }
+        // (slow motion: after a knockout, a Rage Art, round the PUÑETALITY's cut; Match.timeRate)
+        const scale = m.timeRate ? m.timeRate() : m.slowmo > 0 ? SLOWMO : 1;
+        if (m.slowmo > 0 && !m.det) m.slowmo -= dt;
         this.acc += dt * scale;
         let steps = 0;
         let maxSteps = +(q.get('maxsteps') || 6);
@@ -1456,6 +1475,7 @@ class Game {
         const simonly = +(q.get('simonly') || 0);
         const ro = q.get('readyon'), ra = +(q.get('readyat') || 0);
         const stopAt = () => (ro === 'ko' && (m.phase === 'ko' || m.phase === 'matchEnd') && m.pt >= (ra || 45))
+          || (ro === 'fatal' && m.phase === 'fatal' && m.pt >= ra)
           || (ro === 'intro' && m.phase === 'intro' && m.pt >= (ra || 40))
           || (ro === 'win' && m.phase === 'matchEnd' && m.pt >= (ra || 90))
           // a few frames after the first heavy/counter hit past frame `readyat` (impact VFX checks)
@@ -1463,7 +1483,7 @@ class Game {
           || (ro === 'tech' && m.lastTechFrame >= ra && m.frame - m.lastTechFrame >= +(q.get('hitage') || 8));
         const koHit = stopAt();
         // impact captures freeze the simulation on the stop frame; the camera snaps and the particles age by `hitage` once
-        if ((ro === 'hit' || ro === 'tech') && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
+        if ((ro === 'hit' || ro === 'tech' || ro === 'fatal') && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
         const fastForward = simonly && m.phase !== 'showcase' && m.frame < simonly && !koHit;
         if (koHit && !window.__ready) { this.readyIn = (this.readyIn ?? 8) - 1; if (this.readyIn <= 0) window.__ready = true; }
         if (fastForward) { this.acc = 400 / FPS; maxSteps = 400; }
@@ -1478,8 +1498,9 @@ class Game {
         if (q.get('frames') && m.frame >= +q.get('frames') && !window.__ready) window.__ready = true;
         if (simonly && m.phase !== 'showcase' && m.frame >= simonly && !window.__ready) { this.readyIn = (this.readyIn ?? 6) - 1; if (this.readyIn <= 0) window.__ready = true; }
         if (fastForward) {
-          for (const f of m.fighters) { if (!f.ragdoll) f.syncRender(1); }
+          for (const f of m.fighters) { if (!f.ragdoll && !f.drawnBy) f.syncRender(1); }
           this.ragdolls.sync();
+          this.fatal.update(m, 1, steps / FPS);
           // the camera follows the simulated time too, so a capture shows the framing a player would see
           this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null; this.camCtl.introCut = (m.introCut || 101) / FPS; this.camCtl.introEnd = (m.introEnd || 220) / FPS; this.camCtl.readyT = m.phase === 'ready' ? m.pt / FPS : null;
           this.camCtl.update(Math.min(2, steps / FPS), m.fighters);
@@ -1487,8 +1508,11 @@ class Game {
         }
         alpha = this.acc * FPS;
       }
-      for (const f of m.fighters) { if (!f.ragdoll) f.syncRender(alpha); }
+      for (const f of m.fighters) { if (!f.ragdoll && !f.drawnBy) f.syncRender(alpha); }
       this.ragdolls.sync();
+      // (the PUÑETALITY: its props, the halves of the loser, the blood, the shot; after the fighters are posed)
+      this.fatal.update(m, alpha, dt);
+      this.syncFatalButton(m);
       this.contact.update(m.fighters);
       this.fx.updateTrails();
       for (const f of m.fighters) if (f.rage && !f.ko) this.fx.aura(f, dt);
@@ -1496,7 +1520,7 @@ class Game {
       const c = new THREE.Vector3().addVectors(m.fighters[0].ch.group.position, m.fighters[1].ch.group.position).multiplyScalar(0.5);
       const spread = m.fighters[0].pos.distanceTo(m.fighters[1].pos);
       this.stage.followShadow(c, spread);
-      this.stage.keyBoost = m.phase === 'intro' || m.phase === 'matchEnd' ? 1.4 : 1; // cinematic close-ups get more face light
+      this.stage.keyBoost = m.phase === 'intro' || m.phase === 'matchEnd' || m.phase === 'fatal' ? 1.4 : 1; // cinematic close-ups get more face light
       this.stage.followCamera(this.camera, c);
       // fill light: a share of the key, half way to white, stronger in the cinematic close-ups (js/materials.js)
       { const kc = FIGHTER_KEY.color.value, l = (kc.r + kc.g + kc.b) / 3;
@@ -1530,9 +1554,10 @@ class Game {
     e.radial = Math.max(0, e.radial - dt * 1.4);
     const targetDesat = m && m.slowmo > 0 ? 0.45 : 0;
     // (slow motion is heard too: the music and the background sink under a muffle, js/audio/audio.js slowmo)
-    if (!!targetDesat !== !!this._slowHeard) { this._slowHeard = !!targetDesat; this.audio.slowmo?.(this._slowHeard); }
+    const slowHeard = !!targetDesat || (m?.phase === 'fatal' && m.timeRate() < 0.6);
+    if (slowHeard !== !!this._slowHeard) { this._slowHeard = slowHeard; this.audio.slowmo?.(this._slowHeard); }
     e.desat += (targetDesat - e.desat) * (1 - Math.exp(-dt * 6));
-    const lb = m && (m.phase === 'intro' || m.phase === 'matchEnd' || this.state === 'highlight') ? 1 : 0;
+    const lb = m && (m.phase === 'intro' || m.phase === 'matchEnd' || m.phase === 'fatal' || this.state === 'highlight') ? 1 : 0;
     e.letterbox += (lb - e.letterbox) * (1 - Math.exp(-dt * 4));
     // phones: the player's own fighter taking a blow is felt in the hand too (the vibration option rules)
     const mine = this.online.inFight ? this.online.local : 0, feel = document.body.classList.contains('touchui') && this.state === 'fight' && !this.replaying;
@@ -1552,6 +1577,7 @@ class Game {
       const u = this.post.u;
       const fl = this.prefs?.flash ?? 1;
       u.hitFlash.value = e.hitFlash * fl; u.radial.value = e.radial * fl; u.desat.value = e.desat; u.letterbox.value = e.letterbox;
+      u.fade.value = e.fade || 0;
       if (this.post.bokeh) {
         const cine = e.letterbox > 0.5 || this.camCtl.mode === 'ko' || this.camCtl.mode === 'win';
         this.post.bokeh.enabled = cine && this.state !== 'title';
@@ -1568,6 +1594,32 @@ class Game {
       }
       this.post.render(dt);
     }
+  }
+
+  // ------------------------------------------------------------------ PUÑETALITY button
+  // on the win screen of a person's win, if the winner has one: his own screen only (online, the winner's phone)
+  syncFatalButton(m) {
+    const b = this.fatalBtn;
+    if (!b) return;
+    const W = m && m.phase === 'matchEnd' && !m.endSent ? m.fighters[m.winner] : null;
+    const on = !!W && this.state === 'fight' && !this.replaying && m.pt > FATAL_FROM && m.canFatal(W) && (!this.online.inFight || this.online.local === W.index);
+    if (on !== !!this._fatalOn) { this._fatalOn = on; b.classList.toggle('on', on); }
+    if (on) {
+      // the time left before the win screen ends by itself (Match: matchEnd)
+      const st = W.style, minT = st.say ? (st.sayAt || 80) + (st.sayLen || 120) : 60, end = Math.max(420, minT + 60);
+      const k = Math.max(0, 1 - (m.pt - FATAL_FROM) / (end - FATAL_FROM));
+      const bar = b.querySelector('.bar i');
+      if (bar) bar.style.transform = `scaleX(${k.toFixed(3)})`;
+    }
+  }
+  // the button pressed: up and 1 for the winner, through his own controls (an input like any other)
+  fatalPress() {
+    const m = this.match;
+    if (!m || m.phase !== 'matchEnd' || m.endSent) return;
+    const W = m.fighters[m.winner];
+    const ctrl = this.online.inFight ? this.online.ctrl : (W.index === 0 ? this.p1ctrl : this.p2keys);
+    this.audio.init();
+    ctrl?.press?.(1, B1, 4);
   }
 
   showcaseStep(m) {

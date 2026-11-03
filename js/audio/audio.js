@@ -7,6 +7,7 @@ const ANN_TEXT = {
   final: '¡Ronda final!', fight: '¡A luchar!', ko: 'K.O.', time: '¡Tiempo!', perfect: '¡Perfecto!', draw: '¡Empate!',
   win_alejandro: '¡Gana Alejandro!', win_arnau: '¡Gana Arnau!', win_camilo: '¡Gana Camilo!', win_rafa: '¡Gana Rafa!', win_zapponi: '¡Gana Zaponi!',
   win_dani: '¡Gana Dani!', win_noemi: '¡Gana Noemí!',
+  punetality: '¡Puñetality!',
 };
 
 // background music: Kevin MacLeod (incompetech.com), CC BY 4.0 (see README; made by tools/music_build.py). Each stage
@@ -446,6 +447,87 @@ export class Audio {
       else { this.tone(t, 0.09, { type: 'triangle', f0: 660, f1: 990, gain: 0.2, out, rev: 0.1 }); this.tone(t + 0.07, 0.12, { type: 'triangle', f0: 990, f1: 1320, gain: 0.18, out }); }
     }
     else if (name === 'uiback') { if (!this.uiSound('ui_back', 0.45)) this.tone(t, 0.07, { type: 'triangle', f0: 660, f1: 440, gain: 0.15, out, rev: 0 }); }
+  }
+  // ------------------------------------------------------------------ the PUÑETALITY (js/fight/fatality.js)
+  // the winner's line in it (assets/voice/fatal_<id>.mp3, tools/quotes_tts.py --fatal), fetched for those who have one
+  preloadFatal(id) { this.loadLine(id, 'fatal'); }
+  // its sounds: the recorded blows and swishes with synthesized layers (the sword is a plant: it rings, but wet)
+  fatal(kind, pos, o = {}) {
+    if (!this.ctx || !this.enabled) return;
+    const c = this.ctx, t = c.currentTime + 0.004, rec = !!this.takes;
+    const out = this.pan(pos?.x); out.connect(this.sfxBus);
+    if (kind === 'drone') {
+      // a low, uneasy hum under the build-up, and a heartbeat in it; stopped with kind 'droneOff'
+      this.fatal('droneOff');
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.34, t + 1.6);
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 2;
+      const oscs = [55, 55.7, 82.4, 110.3].map((f, i) => { const o = c.createOscillator(); o.type = i < 2 ? 'sawtooth' : 'triangle'; o.frequency.value = f; o.connect(lp); o.start(t); return o; });
+      const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 0.23; lg.gain.value = 90; lfo.connect(lg).connect(lp.frequency); lfo.start(t);
+      lp.connect(g).connect(this.sfxBus);
+      const r = c.createGain(); r.gain.value = 0.3; g.connect(r).connect(this.revSend);
+      this.droneNodes = { g, oscs: [...oscs, lfo] };
+    } else if (kind === 'droneOff') {
+      const D = this.droneNodes; if (!D) return;
+      this.droneNodes = null;
+      D.g.gain.cancelScheduledValues(t); D.g.gain.setValueAtTime(Math.max(0.0001, D.g.gain.value), t); D.g.gain.exponentialRampToValueAtTime(0.0001, t + (o.fast ? 0.08 : 0.8));
+      for (const x of D.oscs) x.stop(t + 1);
+    } else if (kind === 'cutin') {
+      // the cut to black as it starts: a deep hit and a breath of air pulled in
+      this.tone(t, 1.4, { f0: 46, f1: 27, gain: 0.95, out, dist: true, rev: 0.6 });
+      this.noise(t, 0.5, { type: 'lowpass', f0: 900, f1: 120, gain: 0.4, attack: 0.004, out, rev: 0.5 });
+      this.noise(t + 0.1, 0.9, { type: 'bandpass', f0: 300, f1: 1600, q: 0.8, gain: 0.12, attack: 0.6, out, rev: 0.4 });
+    } else if (kind === 'heart') {
+      // lub-dub
+      this.tone(t, 0.16, { f0: 70, f1: 38, gain: 0.55 * (o.gain ?? 1), out, rev: 0.05 });
+      this.tone(t + 0.2, 0.13, { f0: 62, f1: 34, gain: 0.38 * (o.gain ?? 1), out, rev: 0.05 });
+    } else if (kind === 'shing') {
+      // drawn: a bright ring with a long tail, a hiss of air, and the wet snap of a leaf
+      for (const [f, g, d] of [[2210, 0.09, 1.3], [3340, 0.07, 1.1], [5120, 0.05, 0.9], [7460, 0.035, 0.7], [1180, 0.05, 0.6]]) this.tone(t + 0.02, d, { type: 'sine', f0: f * 1.01, f1: f, gain: g, attack: 0.004, out, rev: 0.45 });
+      this.noise(t, 0.22, { type: 'highpass', f0: 3000, gain: 0.22, attack: 0.03, out, rev: 0.2 });
+      this.noise(t, 0.09, { type: 'lowpass', f0: 900, f1: 300, gain: 0.35, out, rev: 0.05 });
+      if (rec) this.take('swishL', t, { out, gain: 0.45, rate: 1.25, rev: 0.2 });
+    } else if (kind === 'glint') {
+      this.tone(t, 0.5, { type: 'sine', f0: 6200, f1: 6000, gain: 0.06, attack: 0.01, out, rev: 0.5 });
+      this.tone(t + 0.05, 0.4, { type: 'sine', f0: 9100, f1: 8900, gain: 0.04, attack: 0.01, out, rev: 0.5 });
+    } else if (kind === 'whoosh') {
+      if (rec) { this.take('swishH', t, { out, gain: 0.9, rate: 0.62, rev: 0.25 }); this.take('swishH', t + 0.05, { out, gain: 0.5, rate: 0.8, rev: 0.25 }); }
+      this.noise(t, 0.38, { type: 'bandpass', f0: 500, f1: 2600, q: 1.2, gain: 0.3, attack: 0.18, out, rev: 0.2 });
+    } else if (kind === 'slice') {
+      // through: a tearing, wet cut, a deep punch under it and a long ring of the blade
+      this.noise(t, 0.16, { type: 'bandpass', f0: 3200, f1: 500, q: 0.8, gain: 0.65, attack: 0.002, out, rev: 0.3 });
+      this.noise(t + 0.02, 0.32, { type: 'lowpass', f0: 1400, f1: 180, q: 3, gain: 0.55, attack: 0.01, out, rev: 0.25 });
+      if (rec) { this.take('slap', t, { out, gain: 1.4, rate: 0.55, rev: 0.4 }); this.take('punchH', t + 0.01, { out, gain: 0.9, rate: 0.7, rev: 0.4 }); this.take('thudH', t + 0.02, { out, gain: 0.7, rate: 0.75, rev: 0.4 }); }
+      this.tone(t, 0.9, { f0: 64, f1: 28, gain: 0.85, out, dist: true, rev: 0.5 });
+      for (const [f, g] of [[2980, 0.05], [4410, 0.035]]) this.tone(t + 0.03, 1.6, { type: 'sine', f0: f, f1: f * 0.995, gain: g, attack: 0.005, out, rev: 0.6 });
+    } else if (kind === 'spurt') {
+      // a pulse of the fountain: a hiss of spray with a gurgle in it
+      const p = o.power ?? 1;
+      this.noise(t, 0.42 * p + 0.1, { type: 'bandpass', f0: 1400, f1: 700, q: 0.9, gain: 0.32 * p, attack: 0.03, out, rev: 0.25 });
+      for (let k = 0; k < 4; k++) this.noise(t + k * 0.06 + Math.random() * 0.03, 0.08, { type: 'lowpass', f0: 520 + Math.random() * 300, q: 6, gain: 0.25 * p, attack: 0.01, out, rev: 0.15 });
+    } else if (kind === 'splat') {
+      // the trunk lands: a heavy thud and a wet splash
+      if (rec) { this.take('thudH', t, { out, gain: 1.0, rate: 0.85, rev: 0.35 }); this.take('slap', t + 0.01, { out, gain: 0.8, rate: 0.6, rev: 0.3 }); }
+      this.tone(t, 0.35, { f0: 75, f1: 30, gain: 0.6, out, dist: true, rev: 0.3 });
+      this.noise(t + 0.01, 0.35, { type: 'lowpass', f0: 1800, f1: 250, gain: 0.45, out, rev: 0.25 });
+      for (let k = 0; k < 6; k++) this.noise(t + 0.08 + k * 0.05 + Math.random() * 0.04, 0.05, { type: 'bandpass', f0: 1800 + Math.random() * 1800, q: 2, gain: 0.12, out, rev: 0.2 });
+    } else if (kind === 'fall') {
+      // the legs fold and drop
+      if (rec) { this.take('thudM', t, { out, gain: 0.9, rate: 0.9, rev: 0.3 }); this.take('thudH', t + 0.09, { out, gain: 0.6, rate: 1.05, rev: 0.3 }); }
+      this.tone(t + 0.05, 0.25, { f0: 70, f1: 32, gain: 0.4, out, dist: true, rev: 0.3 });
+    } else if (kind === 'flick') {
+      if (rec) this.take('swishL', t, { out, gain: 0.7, rate: 0.85, rev: 0.15 });
+      for (let k = 0; k < 9; k++) this.noise(t + 0.12 + k * 0.035 + Math.random() * 0.03, 0.04, { type: 'bandpass', f0: 1500 + Math.random() * 2500, q: 2, gain: 0.1, out, rev: 0.2 });
+    } else if (kind === 'title') {
+      // the name of it: a deep boom and a crash, then the announcer
+      this.tone(t, 1.8, { f0: 52, f1: 26, gain: 1.0, out, dist: true, rev: 0.7 });
+      this.noise(t, 1.6, { type: 'lowpass', f0: 4200, f1: 300, gain: 0.5, attack: 0.005, out, rev: 0.6 });
+      if (rec) this.take('thudH', t, { out, gain: 1.2, rate: 0.6, rev: 0.6 });
+      setTimeout(() => this.announce('punetality'), 250);
+    } else if (kind === 'summon') {
+      // the leaf growing out of the hilt: a rising shimmer
+      this.noise(t, 0.7, { type: 'bandpass', f0: 600, f1: 5200, q: 3, gain: 0.16, attack: 0.25, out, rev: 0.5 });
+      for (let k = 0; k < 6; k++) this.tone(t + k * 0.07, 0.5, { type: 'sine', f0: 1320 * Math.pow(1.122, k), f1: 1320 * Math.pow(1.122, k), gain: 0.035, attack: 0.02, out, rev: 0.6 });
+    }
   }
   // fighters' shouts (recorded): kind 'attack' (effort), 'hurt', 'hurtBig', 'ko', 'win'. Each fighter has a voice of
   // his own and a pitch; a clip is never repeated twice running, and a new shout cuts that fighter's previous one.

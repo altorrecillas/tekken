@@ -27,6 +27,7 @@ export const ACHIEVEMENTS = [
   { id: 'online', name: 'CONECTADOS', desc: 'Gana un combate ONLINE.' },
   { id: 'student', name: 'ALUMNO APLICADO', desc: 'Completa todas las pruebas de combo de un luchador.' },
   { id: 'master', name: 'MAESTRO DEL BARRIO', desc: 'Completa todas las pruebas de combo de todos los luchadores.', count: (p, g) => [g.roster.filter((id) => p.trialsDone[id]).length, g.roster.length] },
+  { id: 'punetality', name: '¡PUÑETALITY!', desc: 'Remata a un rival con un Puñetality.' },
   { id: 'cinema', name: 'MODO CINE', desc: 'Mira 5 jugadas del combate.', count: (p) => [Math.min(5, p.n.highlights), 5] },
   { id: 'endings', name: 'FINAL FELIZ', desc: 'Desbloquea el final de todos los luchadores.', count: (p, g) => [g.roster.filter((id) => p.endings[id]).length, g.roster.length] },
 ];
@@ -77,6 +78,7 @@ export class Progress {
       if (m.winner === i) {
         d.n.wins++;
         this.unlock('firstWin');
+        if (m.phase === 'fatal' && m.fatalBy === i) this.unlock('punetality');
         if (mode === 'online') this.unlock('online');
       }
       if (S.perfects > 0) this.unlock('perfect');

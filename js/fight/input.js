@@ -139,7 +139,10 @@ export function padHas(g, a) { return PADMAP[a].some((i) => i !== null && g.butt
 
 // Merges several sources (keyboard + pad + touch) into one
 export class MergedController {
-  constructor(...srcs) { this.srcs = srcs; }
+  constructor(...srcs) { this.srcs = srcs; this.pulse = null; }
+  // a press made for the player by a button on the screen (the PUÑETALITY's: up and 1), held over the next frames;
+  // the fight reads it as his own input (recorded, and sent to the other phone online)
+  press(dy, btn, frames = 4) { this.pulse = { dy, btn, n: frames, first: true }; }
   poll() {
     let dx = 0, dy = 0, held = 0, pressed = 0;
     for (const s of this.srcs) {
@@ -147,6 +150,13 @@ export class MergedController {
       if (f.dx) dx = f.dx;
       if (f.dy) dy = f.dy;
       held |= f.held; pressed |= f.pressed;
+    }
+    const P = this.pulse;
+    if (P) {
+      dy = P.dy; held |= P.btn;
+      if (P.first) pressed |= P.btn;
+      P.first = false;
+      if (--P.n <= 0) this.pulse = null;
     }
     return { dx, dy, held, pressed };
   }

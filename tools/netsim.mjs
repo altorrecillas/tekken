@@ -8,7 +8,7 @@
 //     and loss play a whole match and agree on every checkpoint (see the 'session' part).
 // The inputs come from two CPU players (Math.random seeded) recorded once, so the fight has everything: strings,
 // throws and their escapes, launches and juggles, Rage Arts, knockouts, rounds and the end of the match.
-// usage: node --import ./register.mjs netsim.mjs [--pairs a:b,c:d] [--frames N] [--only det,rollback,pack,session]
+// usage: node --import ./register.mjs netsim.mjs [--pairs a:b,c:d] [--frames N] [--only det,rollback,pack,fatal,session]
 import fs from 'fs';
 const GAME = process.env.GAME_ROOT || decodeURIComponent(new URL('..', import.meta.url).pathname).replace(/\/$/, '');
 globalThis.window = globalThis; globalThis.addEventListener = () => {}; globalThis.document = { createElement: () => ({ getContext: () => null }) };
@@ -153,6 +153,57 @@ for (const ids of (run('det') || run('rollback') || run('pack') ? PAIRS : [])) {
     }
     check(!bad, `${copies} copies through the network format (${(bytes / 1024).toFixed(1)} KB each) go on identically${bad ? ` (differs: ${bad})` : ''}`);
   }
+}
+
+// ------------------------------------------------------------------ 5. the PUÑETALITY
+// the win screen of a match Noemí won, her player holding up and pressing 1 on frame 40 (the button on the screen
+// presses the same): the whole move must play the same from the same inputs, rewound over and over (the press itself
+// predicted wrong and corrected, as online when it comes late), and copied over the network mid-move
+if (run('fatal')) {
+  const ids = ['noemi', 'camilo'];
+  console.log(`\n== PUÑETALITY ${ids.join(' vs ')} ==`);
+  const start = (m) => { m.startRound(); m.wins = [m.opts.rounds, 0]; m.winner = 0; m.phase = 'matchEnd'; m.pt = 0; m.humans = [true, true]; };
+  const N = 760, rec = [];
+  for (let i = 0; i < N; i++) rec[i] = [{ dx: 0, dy: 0, held: 0, pressed: 0 }, { dx: 0, dy: 0, held: 0, pressed: 0 }];
+  rec[40][0] = { dx: 0, dy: 1, held: 1, pressed: 1 }; rec[41][0] = { dx: 0, dy: 1, held: 1, pressed: 0 };
+  const R = makeMatch(ids, null); replay(R, rec); start(R);
+  const f0 = R.frame, hashes = [hashOf(R)];
+  let began = -1, ended = -1;
+  R.game.onMatchEnd = () => { if (ended < 0) ended = R.frame; };
+  for (let i = 0; i < N; i++) { R.step(); hashes.push(hashOf(R)); if (began < 0 && R.phase === 'fatal') began = R.frame - f0; }
+  check(began > 0 && ended > 0, `the press starts it (frame ${began} of the win screen) and it plays to the end (frame ${ended - f0})`);
+  const A = makeMatch(ids, null); replay(A, rec); start(A);
+  let bad = -1;
+  for (let i = 0; i < N && bad < 0; i++) { A.step(); if (hashOf(A) !== hashes[i + 1]) bad = i + 1; }
+  check(bad < 0, `the same inputs give the same move, bit for bit${bad >= 0 ? ` (differs from frame ${bad})` : ''}`);
+  const B = makeMatch(ids, null); replay(B, rec); start(B);
+  const none = rec.map(() => [{ dx: 0, dy: 0, held: 0, pressed: 0 }, { dx: 0, dy: 0, held: 0, pressed: 0 }]);
+  const s0 = new Snap();
+  let rewinds = 0; bad = -1;
+  for (let fr = 0, next = 2; fr < N && bad < 0;) {
+    if (fr === next) {
+      const n = 1 + Math.floor(rnd() * 10);
+      saveMatch(B, s0);
+      const real = B.fighters.map((f) => f.ctrl);
+      B.fighters.forEach((f, i) => { f.ctrl = { poll: () => none[B.frame - 1]?.[i] }; });
+      for (let k = 0; k < n && fr + k < N; k++) B.step();
+      loadMatch(B, s0);
+      B.fighters.forEach((f, i) => { f.ctrl = real[i]; });
+      if (hashOf(B) !== hashes[fr]) { bad = fr; break; }
+      rewinds++; next = fr + 1 + Math.floor(rnd() * 9);
+    }
+    B.step(); fr++;
+    if (hashOf(B) !== hashes[fr]) bad = fr;
+  }
+  check(bad < 0, `${rewinds} rewinds through it (the press missed and found again) replay exactly${bad >= 0 ? ` (differs at frame ${bad})` : ''}`);
+  const C0 = makeMatch(ids, null); replay(C0, rec); start(C0);
+  for (let i = 0; i < 300; i++) C0.step();
+  const wire = JSON.stringify(packSnap(C0, saveMatch(C0, new Snap())));
+  const C = makeMatch(ids, null); replay(C, rec); start(C);
+  loadMatch(C, unpackSnap(C, JSON.parse(wire)));
+  bad = hashOf(C) !== hashes[300] ? 300 : -1;
+  for (let k = 301; k <= N && bad < 0; k++) { C.step(); if (hashOf(C) !== hashes[k]) bad = k; }
+  check(bad < 0, `copied over the network in the middle of it, it goes on identically${bad >= 0 ? ` (differs at frame ${bad})` : ''}`);
 }
 
 // ------------------------------------------------------------------ 4. two rollback sessions over a fake network

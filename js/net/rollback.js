@@ -120,7 +120,7 @@ export class RollbackSession {
     this.rewindTo = Infinity;
     let n = 0;
     if (!this.paused && !this.stopped) {
-      const rate = (this.m.slowmo > 0 ? SLOWMO : 1) * this._syncRate();
+      const rate = (this.m.timeRate ? this.m.timeRate() : this.m.slowmo > 0 ? SLOWMO : 1) * this._syncRate();
       this.acc = Math.min(this.acc + dt * rate, DT * MAX_STEPS);
       let waited = false;
       while (this.acc >= DT && n < MAX_STEPS) {

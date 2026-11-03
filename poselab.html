@@ -18,6 +18,7 @@ if (new URLSearchParams(location.search).get('fs')) Rig.FINGER_SIGN = +new URLSe
 import { LIB, makePose } from './js/anim/poses.js';
 import { Accessories } from './js/fx/accessories.js';
 import { STYLES } from './js/fight/styles.js';
+import { makeAloeSword, attachAloeSword } from './js/fx/aloesword.js';
 
 const q = new URLSearchParams(location.search);
 const ids = (q.get('ids') || 'alejandro').split(',');
@@ -47,6 +48,8 @@ for (let i = 0; i < n; i++) {
   const rig = new Rig(ch);
   // (acc: the fighter's accessories too, a win-pose prop shown)
   if (q.get('acc')) { new Accessories().attach(ch, STYLES[ids[i % ids.length]], data.meta); if (ch.winProp) ch.winProp.visible = true; }
+  // (sword: Noemí's aloe vera sword in the right fist, js/fx/aloesword.js; &grow= &blood= its uniforms)
+  if (q.get('sword')) { const sw = makeAloeSword(); attachAloeSword(ch, sw); sw.group.visible = true; sw.U.grow.value = +(q.get('grow') ?? 1); sw.U.blood.value = +(q.get('blood') || 0); }
   rig.lookTarget = new THREE.Vector3(0, 1.5, 3);
   // (extra: pose fields on top of the named pose, as JSON: &extra={"fistR":1,"ptR":1})
   rig.apply(makePose({ ...(LIB[poses[i % poses.length]] || {}), ...JSON.parse(q.get('extra') || '{}') }));

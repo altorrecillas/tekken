@@ -363,6 +363,31 @@ export function buildClips(style) {
     [70, { handL: [-0.1, 0.15, 0.55], handR: [-0.2, 0.18, 0.4], fistL: 1, fistR: 1, neck: [-0.1, 0, 0] }, 'back'],
     [90, null, 'inout'],
   ], st));
+  // ---------------------------------------------------------------- PUÑETALITY (js/fight/fatality.js)
+  // the loser stood up for it: dazed, swaying on soft knees, the head lolling, the hands loose and half raised...
+  const DAZE0 = { rootPos: [0.02, -0.08, -0.02], rootRot: [0.07, -0.15, 0.05], spine: [0.12, 0.05, 0.06], neck: [0.26, 0.1, 0.16],
+    handL: [0.24, -0.36, 0.3], aimL: 1, fistL: 0.35, twistL: 0.1, handR: [0.26, -0.38, 0.26], aimR: 1, fistR: 0.3, twistR: 0.1,
+    footL: [0.13, 0.071, 0.1], footR: [0.15, 0.071, -0.08], footRotL: [0, 0.1, 0], footRotR: [0, 0.3, 0], kneeL: [0.1, 0, 1], kneeR: [0.15, 0, 1], jaw: 0.14 };
+  clips.fatalDaze = C([
+    [0, DAZE0],
+    [30, { rootPos: [-0.03, -0.1, 0.0], rootRot: [0.1, -0.1, -0.06], spine: [0.16, -0.04, -0.08], neck: [0.33, -0.12, -0.2], handL: [0.26, -0.42, 0.27], handR: [0.22, -0.34, 0.3], jaw: 0.24 }, 'sine'],
+    [60, { rootPos: [0.03, -0.085, -0.01], rootRot: [0.05, -0.18, 0.07], spine: [0.1, 0.06, 0.09], neck: [0.2, 0.15, 0.22], handL: [0.22, -0.36, 0.32], handR: [0.28, -0.4, 0.24], jaw: 0.1 }, 'sine'],
+    [90, { rootPos: [-0.02, -0.095, -0.02], rootRot: [0.09, -0.12, -0.04], spine: [0.14, -0.02, -0.05], neck: [0.3, -0.06, -0.12], handL: [0.25, -0.4, 0.28], handR: [0.25, -0.36, 0.27], jaw: 0.2 }, 'sine'],
+    [120, DAZE0, 'sine'],
+  ], { loop: true });
+  // ... and once the sword is out, afraid: backing off on bent knees, leaning away, the open hands up in front of the
+  // chest and the face (above the waist, where the sword will go), trembling
+  const FEAR0 = { rootPos: [0, -0.11, -0.08], rootRot: [-0.07, 0.1, 0], spine: [-0.1, 0.08, 0], neck: [0.1, 0.26, 0.06],
+    handL: [0.12, -0.12, 0.34], aimL: 1, handR: [0.14, -0.09, 0.31], aimR: 1, fistL: 0.1, fistR: 0.15, twistL: 0.85, twistR: 0.85,
+    wristL: [0.8, 0], wristR: [0.8, 0], poleL: [0.3, -1, 0], poleR: [0.3, -1, 0],
+    footL: [0.14, 0.071, 0.05], footR: [0.16, 0.071, -0.15], footRotL: [0, 0.1, 0], footRotR: [0, 0.35, 0], kneeL: [0.1, 0, 1], kneeR: [0.15, 0, 1], jaw: 0.16 };
+  clips.fatalFear = C([
+    [0, FEAR0],
+    [7, { rootPos: [0.005, -0.114, -0.083], handL: [0.115, -0.105, 0.345], handR: [0.135, -0.075, 0.315], neck: [0.13, 0.24, 0.05], jaw: 0.22 }, 'sine'],
+    [14, FEAR0, 'sine'],
+  ], { loop: true });
+  // the winner's own move (styles.js fatal.clip)
+  if (style.fatal?.clip) clips.fatal = C(style.fatal.clip);
   clips.win = C(style.win || [
     [0, {}],
     [20, { rootPos: [0, 0, 0], rootRot: [-0.05, 0, 0], spine: [-0.15, 0, 0], neck: [-0.3, 0, 0], handL: [0.1, 0.95, 0.1], handR: [0.1, 0.95, 0.1], aimL: 1, aimR: 1, fistL: 1, fistR: 1,

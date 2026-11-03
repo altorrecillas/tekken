@@ -6,7 +6,10 @@ The text shown on screen is `say` (victory) and `introSay` (presentation) in js/
 `sayAt` there is the frame of the win pose the line starts on and `sayLen` / `introLen` how long each lasts in frames
 (the win screen can't be skipped before the line is said; the presentation's shot of a fighter lasts as long as his
 line): copy the frames this prints.
-usage: python3 tools/quotes_tts.py <folder with the .onnx voices> [--intro] [ids...]
+The PUÑETALITY (the finishing move after a win, js/fight/fatality.js): the line the winner says in it
+(assets/voice/fatal_<id>.mp3, with --fatal; `fatalSay` in styles.js) and the announcer's call (assets/voice/
+punetality.mp3, with --announcer: davefx, deeper, with the announcer's big echo like the other clips).
+usage: python3 tools/quotes_tts.py <folder with the .onnx voices> [--intro | --fatal | --announcer] [ids...]
 voices (https://huggingface.co/rhasspy/piper-voices): es_ES-davefx-medium, es_ES-sharvard-medium (speakers M=0, F=1).
 needs piper (pip install piper-tts) and ffmpeg."""
 import os, re, subprocess, sys, tempfile
@@ -33,16 +36,25 @@ INTROS = {
     'noemi': 'Voy cargadita de áloe vera, cuidado conmigo.',
 }
 
+# the line said in the fighter's PUÑETALITY
+FATALS = {
+    'noemi': 'Esto va a escocer un poquito.',
+}
+# the announcer's call as the finishing move ends (spelt as it is said: «pu-ñe-TÁ-li-ti»)
+ANNOUNCER = {'punetality': 'Puñetáliti.'}
+
 
 def volume(path):
     r = subprocess.run(['ffmpeg', '-hide_banner', '-i', path, '-af', 'volumedetect', '-f', 'null', '-'], capture_output=True, text=True).stderr
     return float(re.search(r'mean_volume: (-?[\d.]+)', r).group(1)), float(re.search(r'max_volume: (-?[\d.]+)', r).group(1))
 
 
-def make(vid, voices, tmp, intro=False):
+def make(vid, voices, tmp, intro=False, fatal=False):
     text, model, speaker, length, pitch = QUOTES[vid]
     if intro:
         text = INTROS[vid]
+    if fatal:
+        text = FATALS[vid]
     raw, pre = os.path.join(tmp, vid + '.wav'), os.path.join(tmp, vid + '_pre.wav')
     subprocess.run(['piper', '-m', os.path.join(voices, model + '.onnx'), '-s', str(speaker), '--length-scale', str(length), '-f', raw],
                    input=text.encode(), check=True, capture_output=True)
@@ -53,7 +65,7 @@ def make(vid, voices, tmp, intro=False):
     subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af', chain, '-ac', '1', pre], check=True)
     mean, peak = volume(pre)
     gain = min(-18.0 - mean, -1.5 - peak)  # like the announcer (about -18 dB), never past -1.5 dB peak
-    out = os.path.join(GAME, 'assets/voice/%s_%s.mp3' % ('intro' if intro else 'quote', vid))
+    out = os.path.join(GAME, 'assets/voice/%s_%s.mp3' % ('intro' if intro else 'fatal' if fatal else 'quote', vid))
     subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', pre, '-af', f'volume={gain:.2f}dB', '-ar', '44100', '-ac', '1', '-b:a', '80k', out], check=True)
     dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out], capture_output=True, text=True).stdout)
     # (where the voice stops: the last moment within 40 dB of its peak; the room's echo and the padding come after)
@@ -64,11 +76,33 @@ def make(vid, voices, tmp, intro=False):
     print(f'{vid:10s} {dur:.2f} s ({round(dur * 60)} frames), the voice ends at frame {int(end * 60) + 1}  «{text}»')
 
 
+def announcer(key, voices, tmp):
+    """the announcer's call: davefx a little slower and deeper than the fighters, the arena's long echo"""
+    raw, pre = os.path.join(tmp, key + '.wav'), os.path.join(tmp, key + '_pre.wav')
+    subprocess.run(['piper', '-m', os.path.join(voices, 'es_ES-davefx-medium.onnx'), '--length-scale', '1.12', '-f', raw],
+                   input=ANNOUNCER[key].encode(), check=True, capture_output=True)
+    pitch = 0.86
+    chain = (f'asetrate={int(22050 * pitch)},aresample=44100,atempo={1 / pitch:.4f},'
+             'highpass=f=70,lowpass=f=9500,equalizer=f=160:width_type=o:width=1:g=3,equalizer=f=2600:width_type=o:width=1.2:g=2,'
+             'acompressor=threshold=-22dB:ratio=4:attack=4:release=120:makeup=3,'
+             'aecho=0.8:0.6:70|150:0.3|0.18,apad=pad_dur=0.6')
+    subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af', chain, '-ac', '1', pre], check=True)
+    mean, peak = volume(pre)
+    gain = min(-16.0 - mean, -1.0 - peak)
+    out = os.path.join(GAME, 'assets/voice/%s.mp3' % key)
+    subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', pre, '-af', f'volume={gain:.2f}dB', '-ar', '44100', '-ac', '1', '-b:a', '80k', out], check=True)
+    print(key, 'written')
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
-    intro = '--intro' in sys.argv
-    ids = [a for a in sys.argv[2:] if a != '--intro']
+    intro, fatal, ann = '--intro' in sys.argv, '--fatal' in sys.argv, '--announcer' in sys.argv
+    ids = [a for a in sys.argv[2:] if not a.startswith('--')]
     with tempfile.TemporaryDirectory() as tmp:
-        for vid in ids or list(QUOTES):
-            make(vid, sys.argv[1], tmp, intro)
+        if ann:
+            for key in ids or list(ANNOUNCER):
+                announcer(key, sys.argv[1], tmp)
+        else:
+            for vid in ids or list(FATALS if fatal else QUOTES):
+                make(vid, sys.argv[1], tmp, intro, fatal)

@@ -112,6 +112,11 @@ export class HUD {
     q.textContent = `“${f.style.say}”`;
     q.classList.add('on');
   }
+  // the PUÑETALITY starts: the winner's card leaves the screen to it (js/fight/fatality.js puts up its own words)
+  fatalStart() {
+    this.winnerEl.classList.remove('show');
+    this.ann.className = '';
+  }
   update(match) {
     match.fighters.forEach((f, i) => {
       const r = Math.max(0, f.hp / f.maxHp);
