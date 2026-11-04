@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 
 const G = 9.81, DT = 1 / 60;
-const MAXD = 3200, MAXM = 160, MAXDEC = 180;
+const MAXD = 4200, MAXM = 200, MAXDEC = 260;
 const FLOOR = 0.0;
 function rng(seed) { let s = seed | 0; return () => { s = (s + 0x6D2B79F5) | 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -173,12 +173,12 @@ export class Blood {
   }
   // drops that just run off a surface (seeping from the cut): slow, heavy, falling
   dribble(p, n, size = [0.0025, 0.006]) { this.spray(p, new THREE.Vector3(0, -1, 0), n, { speed: [0.05, 0.4], spread: 0.6, size, drag: 0.6 }); }
-  puff(p, n, { size = [0.05, 0.12], speed = 0.6, life = 1.2 } = {}) {
+  puff(p, n, { size = [0.05, 0.12], speed = 0.6, life = 1.2, alpha = null } = {}) {
     const R = this.R;
     for (let i = 0; i < n; i++) {
       if (this.mist.length >= MAXM) this.mist.shift();
       const v = new THREE.Vector3(R() - 0.5, R() * 0.6, R() - 0.5).normalize().multiplyScalar(speed * (0.3 + R()));
-      this.mist.push({ p: p.clone(), prev: p.clone(), v, s0: size[0] * (0.7 + 0.6 * R()), s1: size[1] * (0.8 + 0.5 * R()), a: 0.32 + R() * 0.2, life: life * (0.7 + 0.6 * R()), age: 0 });
+      this.mist.push({ p: p.clone(), prev: p.clone(), v, s0: size[0] * (0.7 + 0.6 * R()), s1: size[1] * (0.8 + 0.5 * R()), a: alpha ?? (0.32 + R() * 0.2), life: life * (0.7 + 0.6 * R()), age: 0 });
     }
   }
   gore(p, dir, n, kind = 'flesh') {

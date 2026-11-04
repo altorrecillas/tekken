@@ -555,6 +555,50 @@ export class Audio {
     } else if (kind === 'tap') {
       // his phone: a soft key click
       this.tone(t, 0.03, { type: 'triangle', f0: 2400, f1: 2200, gain: 0.04, attack: 0.001, out, rev: 0.05 });
+    } else if (kind === 'bounce') {
+      // a tennis ball on the floor: a hollow pock
+      this.tone(t, 0.07, { type: 'sine', f0: 520, f1: 260, gain: 0.32, attack: 0.001, out, rev: 0.25 });
+      this.noise(t, 0.035, { type: 'bandpass', f0: 1300, q: 2, gain: 0.25, out, rev: 0.2 });
+    } else if (kind === 'catch') {
+      this.noise(t, 0.05, { type: 'lowpass', f0: 900, gain: 0.18, out, rev: 0.1 });
+    } else if (kind === 'toss') {
+      this.noise(t, 0.25, { type: 'bandpass', f0: 700, f1: 1400, q: 1, gain: 0.07, attack: 0.08, out, rev: 0.1 });
+    } else if (kind === 'serve') {
+      // the strings on the ball: a hard, ringing pop and the crack of air
+      this.tone(t, 0.12, { type: 'triangle', f0: 880, f1: 420, gain: 0.55, attack: 0.001, out, rev: 0.35 });
+      this.noise(t, 0.06, { type: 'bandpass', f0: 2400, q: 1.4, gain: 0.6, attack: 0.001, out, rev: 0.4 });
+      for (const [f, g] of [[1730, 0.06], [2650, 0.04]]) this.tone(t + 0.005, 0.35, { type: 'sine', f0: f, f1: f * 0.98, gain: g, attack: 0.002, out, rev: 0.4 });
+      if (rec) this.take('slap', t, { out, gain: 0.8, rate: 1.4, rev: 0.4 });
+      this.tone(t, 0.4, { f0: 70, f1: 32, gain: 0.5, out, dist: true, rev: 0.5 });
+    } else if (kind === 'flyby') {
+      // the ball tearing through the air
+      this.noise(t, 0.5, { type: 'bandpass', f0: 2600, f1: 500, q: 2.5, gain: 0.35, attack: 0.05, out, rev: 0.2 });
+      this.tone(t, 0.45, { type: 'sawtooth', f0: 900, f1: 260, gain: 0.05, attack: 0.03, out, rev: 0.2 });
+    } else if (kind === 'thump') {
+      // a ball buried in a chest: a deep, hollow blow
+      if (rec) { this.take('punchH', t, { out, gain: 1.1, rate: 0.6, rev: 0.4 }); this.take('thudH', t, { out, gain: 1.0, rate: 0.65, rev: 0.4 }); }
+      this.tone(t, 0.7, { f0: 60, f1: 30, gain: 0.9, out, dist: true, rev: 0.5 });
+    } else if (kind === 'inflate') {
+      // the body stretching from inside: a rising, straining groan of flesh
+      const c2 = this.ctx, o = c2.createOscillator(), f = c2.createBiquadFilter(), g = c2.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(55, t); o.frequency.exponentialRampToValueAtTime(240, t + 2.6);
+      f.type = 'bandpass'; f.Q.value = 6; f.frequency.setValueAtTime(220, t); f.frequency.exponentialRampToValueAtTime(1200, t + 2.6);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 2.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+      o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + 2.9);
+      for (let k = 0; k < 10; k++) this.noise(t + 0.4 + k * 0.22 + Math.random() * 0.08, 0.06, { type: 'bandpass', f0: 500 + k * 120, q: 4, gain: 0.08 + k * 0.012, out, rev: 0.2 });
+    } else if (kind === 'explode') {
+      // he bursts: a huge wet blast, the splatter all round and the rain of it after
+      this.tone(t, 2.0, { f0: 48, f1: 22, gain: 1.0, out, dist: true, rev: 0.8 });
+      this.noise(t, 1.2, { type: 'lowpass', f0: 5000, f1: 200, gain: 0.85, attack: 0.002, out, rev: 0.7 });
+      if (rec) { this.take('thudH', t, { out, gain: 1.4, rate: 0.5, rev: 0.7 }); this.take('slap', t + 0.01, { out, gain: 1.4, rate: 0.45, rev: 0.6 }); this.take('punchH', t, { out, gain: 1.0, rate: 0.5, rev: 0.6 }); }
+      for (let k = 0; k < 40; k++) this.noise(t + 0.25 + Math.random() * 1.6, 0.05, { type: 'bandpass', f0: 900 + Math.random() * 2600, q: 2, gain: 0.05 + Math.random() * 0.08, out, rev: 0.3 });
+    } else if (kind === 'gibland') {
+      const p = o.power ?? 1;
+      if (rec) { this.take('thudM', t, { out, gain: 0.8 * p, rate: 0.85, rev: 0.3 }); this.take('slap', t + 0.01, { out, gain: 0.45 * p, rate: 0.7, rev: 0.3 }); }
+      this.noise(t, 0.2, { type: 'lowpass', f0: 1200, f1: 200, gain: 0.3 * p, out, rev: 0.3 });
+    } else if (kind === 'twirl') {
+      if (rec) this.take('swishL', t, { out, gain: 0.35, rate: 1.3, rev: 0.1 });
+      else this.noise(t, 0.12, { type: 'bandpass', f0: 1800, q: 1.5, gain: 0.1, out, rev: 0.1 });
     } else if (kind === 'summon') {
       // the leaf growing out of the hilt: a rising shimmer
       this.noise(t, 0.7, { type: 'bandpass', f0: 600, f1: 5200, q: 3, gain: 0.16, attack: 0.25, out, rev: 0.5 });

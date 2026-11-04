@@ -101,6 +101,8 @@ const BLOOD_RGB = 'vec3( 0.13, 0.004, 0.006 )';
 function splitMaterial(mat, U) {
   const m = mat.clone();
   m.userData = { ...mat.userData };
+  // (a clone leaves the defines behind: the beard's shells need theirs, USE_UV)
+  if (mat.defines) m.defines = { ...mat.defines };
   const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey && mat.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : null;
   m.onBeforeCompile = (sh, r) => {
     if (prev && prev !== THREE.Material.prototype.onBeforeCompile) prev.call(mat, sh, r);

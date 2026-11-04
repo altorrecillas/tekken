@@ -15,6 +15,9 @@ import { HeadCrush } from '../fx/headcrush.js';
 import { Blood, LensBlood } from '../fx/blood.js';
 import { makeAloeSword, attachAloeSword, attachInFist } from '../fx/aloesword.js';
 import { makeDumbbells, DB_GRIP, LooseDumbbell } from '../fx/dumbbells.js';
+import { makeRacket, makeBall, RACKET_GRIP, BALL_R } from '../fx/tennis.js';
+import { GibBody } from '../fx/gibs.js';
+import { HAND_SCALE } from '../anim/body.js';
 import { POSE } from '../anim/rig.js';
 
 const $ = (s) => document.querySelector(s);
@@ -60,6 +63,8 @@ float fatalSpatter( vec3 P, vec3 N, float amount ) {
 function spatterMaterial(mat, U) {
   const m = mat.clone();
   m.userData = { ...mat.userData };
+  // (a clone leaves the defines behind: the beard's shells need theirs, USE_UV)
+  if (mat.defines) m.defines = { ...mat.defines };
   const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey && mat.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : null;
   m.onBeforeCompile = (sh, r) => {
     if (prev && prev !== THREE.Material.prototype.onBeforeCompile) prev.call(mat, sh, r);
@@ -423,7 +428,228 @@ const CAMILO = {
   ],
 };
 
-const MOVES = { noemi: NOEMI, camilo: CAMILO };
+// ------------------------------------------------------------------ Dani: the serve
+// A racket from behind his back, a ball from his pocket; side on at the line, two bounces, the toss, the trophy
+// position, and a flat serve into the loser's chest: the ball sinks in, he swells and bursts (js/fx/gibs.js), the lower
+// legs left standing. A twirl of the racket: "juego, set y partido".
+const G = 9.81;
+const DANI = {
+  racket: 24, ball: 46, bounces: [[80, 116], [118, 154]], toss: 172, grunt: 206,
+  // the middle of the strings at the contact (his axes: x his left, y up, z towards the loser), measured by
+  // tools/serveprobe.mjs CONTACT=212: where the toss is aimed
+  contactAt: [-0.265, 2.49, 0.456],
+  twirl: [296, 302, 308, 314], fall: 0.75,
+  spat: { m: [-0.1, 1.25, 0.3, 0.3], a: [-0.42, 1.08, 0.1, 0.12], b: [0, -9, 0.01, 0.01] },
+  setup(d) {
+    const W = d.W, ch = W.ch;
+    d.rk = makeRacket(); attachInFist(ch, d.rk.group, 'R', RACKET_GRIP);
+    // the ball in his left palm (rest-pose measures, as the win pose's phone), then loose in the scene
+    d.ball = makeBall(); d.ballHolder = new THREE.Group();
+    const R = (n) => ch.rest[n].head;
+    const Wr = R('wrist.L'), K = R('finger3-1.L'), f2 = R('finger2-1.L'), f5 = R('finger5-1.L');
+    const dir = K.clone().sub(Wr).normalize(), across = f2.clone().sub(f5).normalize(), palm = new THREE.Vector3().crossVectors(dir, across).normalize();
+    const hand = Wr.distanceTo(K);
+    d.ballHolder.position.copy(dir).multiplyScalar(hand * 0.95).addScaledVector(palm, 0.04);
+    d.ballHolder.scale.setScalar(1 / HAND_SCALE);
+    ch.bones['wrist.L'].add(d.ballHolder);
+    d.ball.mesh.visible = false; d.ballHolder.add(d.ball.mesh);
+    d.bs = { mode: 'hand', p: new THREE.Vector3(), prev: new THREE.Vector3(), v: new THREE.Vector3(), sq: 0 };
+    d.gib = new GibBody(d.g.scene, d.L);
+    d.gib.begin();
+    d.comet = makeComet(); d.g.scene.add(d.comet.mesh);
+    d.rings = [];
+  },
+  dispose(d) {
+    d.rk?.group.parent?.remove(d.rk.group); for (const m of d.rk?.mats || []) m.dispose();
+    d.ball?.mesh.parent?.remove(d.ball.mesh); d.ballHolder?.parent?.remove(d.ballHolder); d.ball?.mat.dispose();
+    d.gib?.restore();
+    if (d.comet) { d.g.scene.remove(d.comet.mesh); d.comet.mesh.geometry.dispose(); d.comet.mesh.material.dispose(); }
+    for (const r of d.rings || []) { d.g.scene.remove(r.m); r.m.material.dispose(); }
+  },
+  // the ball out of the hand into the scene, where it is drawn now
+  loose(d) {
+    const b = d.bs, m = d.ball.mesh;
+    m.updateWorldMatrix(true, false);
+    m.getWorldPosition(b.p); b.prev.copy(b.p);
+    d.ballHolder.remove(m); d.g.scene.add(m); m.scale.setScalar(1); m.position.copy(b.p);
+  },
+  // back into the palm
+  catchBall(d) { const m = d.ball.mesh; d.g.scene.remove(m); d.ballHolder.add(m); m.position.set(0, 0, 0); m.scale.setScalar(1); d.bs.mode = 'hand'; },
+  ring(d, p, n, size, life, color) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.copy(p); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n); m.renderOrder = 15; m.userData.noGTAO = true; m.userData.noAO = true;
+    d.g.scene.add(m); d.rings.push({ m, age: 0, life, size, color: new THREE.Color(color) });
+  },
+  chest(L, out) { return L.ch.bones.spine02.getWorldPosition(out).add(new THREE.Vector3(0, 0.02, 0)); },
+  frame(d, t) {
+    const D = this, F = d.F, W = d.W, L = d.L, B = d.blood, au = d.g.audio, b = d.bs;
+    if (t === D.racket) d.rk.group.visible = true;
+    if (t === D.ball) d.ball.mesh.visible = true;
+    // the bounces: pushed down to the floor, back up into the palm at the top of the bounce
+    for (const [r, c] of D.bounces) {
+      if (t === r) {
+        D.loose(d);
+        const h = b.p.y - BALL_R, e = D.fall;
+        b.v.set(0, -Math.sqrt(2 * G * h * (1 / (e * e) - 1)), 0); b.mode = 'bounce'; b.r = r;
+      }
+      if (t === c && b.mode === 'bounce') { D.catchBall(d); au.fatal?.('catch', W.pos); }
+    }
+    // the toss: up out of his hand to meet the strings at the contact
+    if (t === D.toss) {
+      D.loose(d);
+      const T = (F.contact - D.toss) / 60, pc = W.charToWorld(new THREE.Vector3(...D.contactAt), new THREE.Vector3());
+      b.v.copy(pc).sub(b.p).addScaledVector(new THREE.Vector3(0, -G, 0), -0.5 * T * T).multiplyScalar(1 / T);
+      b.mode = 'toss'; au.fatal?.('toss', W.pos);
+    }
+    if (t === D.grunt) au.voice?.(W, 'attack');
+    // the contact: the ball onto the strings as they are, and away flat at his chest
+    if (t === F.contact) {
+      d.rk.group.updateWorldMatrix(true, false);
+      const pc = d.rk.group.localToWorld(d.rk.center.clone());
+      b.prev.copy(b.p); b.p.copy(pc);
+      const tgt = D.chest(L, new THREE.Vector3()).addScaledVector(new THREE.Vector3().subVectors(W.pos, L.pos).setY(0).normalize(), 0.13);
+      b.from = pc.clone(); b.to = tgt; b.t0 = t; b.mode = 'serve'; b.sq = 1;
+      b.dir = tgt.clone().sub(pc).normalize();
+      au.fatal?.('serve', pc);
+      d.g.camCtl.shake(0.3); d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.25);
+      D.ring(d, pc, b.dir, 0.32, 8, 0x8a8170);
+      B.puff(pc, 3, { size: [0.04, 0.09], speed: 0.4, life: 0.5 });
+    }
+    // the ball's flight
+    const prevP = b.p.clone();
+    if (b.mode === 'bounce') {
+      b.v.y -= G / 60; b.p.addScaledVector(b.v, 1 / 60);
+      if (b.p.y < BALL_R) { b.p.y = BALL_R; b.v.y = -b.v.y * D.fall; au.fatal?.('bounce', b.p); }
+    } else if (b.mode === 'toss') {
+      b.v.y -= G / 60; b.p.addScaledVector(b.v, 1 / 60);
+    } else if (b.mode === 'serve') {
+      const k = Math.min(1, (t - b.t0) / (F.hit - b.t0));
+      b.p.lerpVectors(b.from, b.to, k);
+      if (k >= 1) b.mode = 'in';
+      if (t === b.t0 + 2) au.fatal?.('flyby', b.p);
+    } else if (b.mode === 'in') {
+      // sunk into his chest, going in deeper as he swells
+      b.p.copy(b.to).addScaledVector(b.dir, 0.05 * ss(F.hit, F.burst, t));
+    } else if (b.mode === 'out') {
+      b.v.y -= G / 60; b.p.addScaledVector(b.v, 1 / 60);
+      if (b.p.y < BALL_R) { b.p.y = BALL_R; b.v.y = Math.abs(b.v.y) * 0.6; b.v.x *= 0.8; b.v.z *= 0.8; if (Math.abs(b.v.y) > 0.8) { au.fatal?.('bounce', b.p); B.splat(b.p, 0.09, 0, 0); } }
+      if (t % 2 === 0) B.dribble(b.p, 1, [0.002, 0.004]);
+    }
+    if (b.mode !== 'hand') b.prev.copy(prevP);
+    b.sq = Math.max(0, b.sq - 0.34);
+    // the hit: the chest caved in round the ball, a shock through him; he swells
+    if (t === F.hit) {
+      au.fatal?.('thump', b.to); au.voice?.(L, 'hurtBig');
+      d.g.camCtl.shake(0.4); d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.4); d.g.effects.radial = Math.max(d.g.effects.radial, 0.5);
+      B.spray(b.to, b.dir.clone().negate().setY(0.3).normalize(), 25, { speed: [0.8, 2.2], spread: 0.6, size: [0.0015, 0.004] });
+      au.fatal?.('inflate', b.to);
+    }
+    // the burst
+    if (t === F.burst) D.burst(d);
+    if (t > F.burst) {
+      d.gib.step((P, sp) => {
+        const e = d.gib.end(P, new THREE.Vector3()).setY(0.01);
+        au.fatal?.('gibland', e, { power: Math.min(1.2, sp / 4) });
+        B.splat(e, 0.28 + 0.1 * Math.min(2, sp / 3), sp > 3 ? 1 : 0, Math.random() * 6);
+        B.spray(e, UP, 10, { speed: [0.5, 1.6], spread: 0.9, size: [0.0015, 0.004] });
+      });
+      // the pieces bleed as they go, and lie bleeding
+      if (t % 3 === 0) for (const P of d.gib.pieces) if (!P.R.stand || P.fall) B.dribble(d.gib.end(P, new THREE.Vector3()), 1, [0.002, 0.005]);
+      // a rain of blood over the place
+      if (t < F.burst + 50 && t % 2 === 0) {
+        const c = d.gib.c0;
+        for (let i = 0; i < 6; i++) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 1.6; B.spray(new THREE.Vector3(c.x + Math.cos(a) * r, 2.6 + Math.random() * 0.6, c.z + Math.sin(a) * r), new THREE.Vector3(0, -1, 0), 1, { speed: [0.5, 1.5], spread: 0.1, size: [0.002, 0.006] }); }
+      }
+      if (t === F.burst + 70) B.splat(d.gib.c0, 1.4, 3, 0, 320);
+    }
+    for (const c of D.twirl) if (t === c) au.fatal?.('twirl', W.pos);
+    // the rings fade
+    for (const r of d.rings) r.age++;
+  },
+  burst(d) {
+    const g = d.g, L = d.L, B = d.blood, au = g.audio, b = d.bs;
+    const c = D_chest(L);
+    d.gib.explode(c);
+    L.drawnBy = d.gib;
+    au.fatal?.('explode', c);
+    g.effects.hitFlash = Math.max(g.effects.hitFlash, 0.9); g.effects.radial = Math.max(g.effects.radial, 0.85);
+    g.camCtl.shake(1.0);
+    // everything that was his trunk: drops every way, a red cloud, meat and bone
+    B.spray(c, UP, 420, { speed: [2, 9], spread: 1.55, size: [0.002, 0.009], bright: 0.4 });
+    B.spray(c, new THREE.Vector3(0, -0.2, 0).normalize(), 220, { speed: [1, 6], spread: 1.5, size: [0.003, 0.01] });
+    B.spray(c, b.dir.clone().setY(0.1).normalize(), 320, { speed: [3, 10], spread: 0.65, size: [0.002, 0.008], bright: 0.6 });
+    // the red cloud he becomes, thick at first, spreading and thinning
+    for (let i = 0; i < 6; i++) B.puff(c, 7, { size: [0.25, 0.8], speed: 1.8, life: 2.6, alpha: 0.75 });
+    B.gore(c, UP, 34);
+    B.gore(c, b.dir.clone().setY(0.4), 16, 'bone');
+    d.lens.splash(9, 1.25);
+    d.spat.amount.value = 0.35;
+    // the ball goes on through him, red
+    b.mode = 'out'; b.v.copy(b.dir).multiplyScalar(14).setY(2.5); d.ball.U.blood.value = 1;
+  },
+  draw(d, t, alpha) {
+    const D = this, F = d.F, b = d.bs, m = d.ball.mesh;
+    if (b.mode !== 'hand') {
+      m.position.lerpVectors(b.prev, b.p, alpha);
+      // squashed on the strings, stretched in flight
+      if (b.sq > 0 && b.dir) { m.quaternion.setFromUnitVectors(UP, b.dir); m.scale.set(1 + 0.35 * b.sq, 1 - 0.4 * b.sq, 1 + 0.35 * b.sq); }
+      else { m.scale.setScalar(1); }
+    }
+    // the comet behind the served ball
+    d.comet.update(b.mode === 'serve' || (b.mode === 'in' && t < F.hit + 3) ? m.position : null, b.mode === 'out' ? 0 : 1);
+    if (t > F.hit && t < F.burst + 1 && !d.gib.burst) {
+      const k = ss(F.hit, F.burst, t);
+      d.gib.swell(k * k, 0.07 * Math.sin(t * 2.3) * k);
+    }
+    d.gib.sync(alpha);
+    for (const r of d.rings) {
+      const k = Math.min(1, r.age / r.life);
+      r.m.scale.setScalar(r.size * (0.15 + k)); r.m.material.color.copy(r.color).multiplyScalar(2 * (1 - k) * (1 - k));
+      r.m.visible = k < 1;
+    }
+  },
+  ctx(d) {
+    const W = d.W, L = d.L;
+    return {
+      ball: d.ball.mesh.getWorldPosition(new THREE.Vector3()),
+      lChest: d.gib?.c0 ? d.gib.c0.clone() : D_chest(L),
+      bounceAt: W.charToWorld(new THREE.Vector3(-0.1, 0.05, 0.35), new THREE.Vector3()),
+      contact: W.charToWorld(new THREE.Vector3(...DANI.contactAt), new THREE.Vector3()),
+      dirWL: L.pos.clone().sub(W.pos).setY(0).normalize(),
+    };
+  },
+  lp: (d) => null,
+  lHead: (d) => null,
+  mid: (d) => null,
+  shots: [
+    // him, three quarters from his right, the loser far off behind
+    [0, (c, t) => ({ tp: c.at(c.wp, 1.3 - 0.1 * t, 1.6 - 0.2 * t, 1.45), tl: c.wHead.clone().addScaledVector(c.right, 0.15).setY(c.wHead.y - 0.32), fov: 32, focus: c.wHead })],
+    // the racket out; the ball from his pocket
+    [22, (c, t) => ({ tp: c.at(c.wp, 1.15, 1.3, 1.3), tl: c.wp.clone().addScaledVector(c.right, 0.05).setY(1.25), fov: 33, focus: c.wHead })],
+    // at the line: the ball bouncing by his left foot, seen low, his body above
+    [70, (c, t) => ({ tp: c.bounceAt.clone().addScaledVector(c.right, 1.55).addScaledVector(c.wf, 0.35).setY(0.55), tl: c.bounceAt.clone().addScaledVector(c.right, 0.2).setY(0.62 + 0.08 * t), fov: 38, focus: c.bounceAt.clone().setY(0.5) })],
+    // the look: his face over his left shoulder, the eyes on the loser
+    [148, (c, t) => ({ tp: c.at(c.wp, 0.85, 0.12, c.wHead.y + 0.02), tl: c.wHead.clone().setY(c.wHead.y + 0.02), fov: 28, focus: c.wHead })],
+    // the toss and the trophy: from in front of his chest, low, looking up at the ball against the sky
+    [166, (c, t) => ({ tp: c.at(c.wp, 0.4, 2.1, 0.75), tl: c.wp.clone().addScaledVector(c.wf, 0.3).setY(1.7 + 0.5 * t), fov: 40, focus: c.ball })],
+    // the contact (slow motion): close, from below and in front of him
+    [204, (c, t) => ({ tp: c.contact.clone().addScaledVector(c.right, 1.2).addScaledVector(c.wf, 0.55).setY(1.75), tl: c.contact.clone().setY(c.contact.y - 0.15), fov: 34, focus: c.contact })],
+    // the flight: riding beside and behind the ball (clear of his head), the loser in front
+    [217, (c, t) => ({ tp: c.ball.clone().addScaledVector(c.dirWL, -1.5).addScaledVector(c.right, 0.6).setY(c.ball.y + 0.28), tl: c.ball.clone().lerp(c.lChest, 0.55).setY(c.ball.y * 0.45 + c.lChest.y * 0.55), fov: 38, lam: 30, focus: c.ball })],
+    // the hit: his chest and face, the ball sunk in, swelling
+    [222, (c, t) => ({ tp: c.lChest.clone().addScaledVector(c.dirWL, -2.1 - 0.3 * t).addScaledVector(c.right, 0.9).setY(c.lChest.y + 0.18), tl: c.lChest.clone().setY(c.lChest.y + 0.16), fov: 34, focus: c.lChest })],
+    // the burst: wide from the side
+    [238, (c, t) => ({ tp: c.lChest.clone().addScaledVector(c.right, 3.2 + 0.4 * t).addScaledVector(c.dirWL, -0.6).setY(1.25), tl: c.lChest.clone().setY(1.0 - 0.25 * t), fov: 38, focus: c.lChest })],
+    // what is left: the shoes standing in the blood, low; then they fall
+    [272, (c, t) => ({ tp: c.lp.clone().addScaledVector(c.right, 1.2).addScaledVector(c.dirWL, -1.1).setY(0.42), tl: c.lp.clone().setY(0.3), fov: 34, focus: c.lp.clone().setY(0.3) })],
+    // the racket's twirl, onto his shoulder: "juego, set y partido"
+    [292, (c, t) => ({ tp: c.at(c.wp, 1.5, 0.8, 1.42), tl: c.wHead.clone().setY(c.wHead.y - 0.25), fov: 32, focus: c.wHead })],
+    [430, (c, t) => ({ tp: c.mid.clone().addScaledVector(c.right, 3.0 + 1.0 * t).setY(1.6 + 1.4 * t), tl: c.mid.clone().addScaledVector(c.dirWL, 0.6).setY(0.4), fov: 38, lam: 2.5 })],
+  ],
+};
+function D_chest(L) { return L.ch.bones.spine02.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.02, 0)); }
+
+const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI };
 export function fatalOf(id) { return MOVES[id] || null; }
 
 export class FatalityDirector {
@@ -559,11 +785,39 @@ export class FatalityDirector {
     const lHead = D?.lHead?.(this) || head(L, new THREE.Vector3());
     const prop = D?.mid?.(this) || wHead.clone();
     return {
+      ...(D?.ctx?.(this) || {}),
       wp, lp, wf, right, wHead, lHead, prop, mid: wp.clone().add(lp).multiplyScalar(0.5),
       // a point `fwd` metres along the winner's facing and `side` to his right from p, at height h
       at: (p, fwd, side, h) => p.clone().addScaledVector(wf, fwd).addScaledVector(right, side).setY(h),
     };
   }
+}
+
+// the served ball's comet: a streak of hot yellow-white light along its last positions
+function makeComet() {
+  const N = 18, g = new THREE.BufferGeometry(), pos = new Float32Array(N * 3), al = new Float32Array(N);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('alpha', new THREE.BufferAttribute(al, 1).setUsage(THREE.DynamicDrawUsage));
+  const mesh = new THREE.Points(g, new THREE.ShaderMaterial({
+    vertexShader: 'attribute float alpha; varying float vA; void main(){ vA = alpha; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = (3.0 + 8.0 * alpha) * projectionMatrix[1][1] / -mv.z; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'varying float vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; if (d > 1.0) discard; gl_FragColor = vec4(vec3(1.1, 1.05, 0.55) * vA * exp(-d * d * 4.0), 1.0); }',
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  mesh.frustumCulled = false; mesh.renderOrder = 14; mesh.userData.noGTAO = true; mesh.userData.noAO = true;
+  const hist = [];
+  return {
+    mesh,
+    update(p, on) {
+      if (p && on) { hist.unshift(p.clone()); if (hist.length > N) hist.pop(); } else if (hist.length) hist.pop();
+      for (let i = 0; i < N; i++) {
+        const h = hist[i];
+        if (!h) { al[i] = 0; continue; }
+        pos.set(h.toArray(), i * 3); al[i] = Math.pow(1 - i / N, 1.5) * 0.9;
+      }
+      g.attributes.position.needsUpdate = true; g.attributes.alpha.needsUpdate = true;
+      mesh.visible = hist.length > 1;
+    },
+  };
 }
 
 // the sweep's trail: a ribbon between the blade's base and tip over the last few frames, bright and green-white,

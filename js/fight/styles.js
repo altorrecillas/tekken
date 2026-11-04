@@ -529,6 +529,59 @@ export const STYLES = {
       [76, { handL: [0.02, 0.2, 0.62], aimL: 0, twistL: -1.05, rootRot: [0.06, -0.45, 0] }, 'ret'],
       [96, null, 'inout'],
     ],
+    // PUÑETALITY (js/fight/fatality.js): tennis, his sport. He takes a racket from behind his back and a ball from his
+    // pocket, steps up to the line side on, bounces the ball twice, tosses it up, arches into the trophy position,
+    // drops the racket behind his back and serves flat at the loser: the ball sinks into his chest, he swells and bursts.
+    // A twirl of the racket, "juego, set y partido". Frames: contact (the racket meets the ball), hit (the ball meets
+    // the loser), burst (he bursts), still (from then on the fight no longer moves him); slow: windows of slow motion
+    fatal: {
+      len: 650, contact: 212, hit: 222, burst: 238, still: 238, title: 430, dist: 4.0,
+      slow: [[204, 210, 244, 262, 0.2]],
+      say: 'Juego, set y partido.', sayAt: 330, sayLen: 100,
+      victim: [[60, 'fatalFear', 10], [222, 'fatalBallHit', 1]],
+      clip: [
+        // standing, the loser far off in front of him
+        [0, { rootPos: [0, -0.02, 0], rootRot: [0, -0.1, 0], spine: [0, 0.05, 0], neck: [0.06, 0.08, 0], handR: [0.22, -0.86, 0.06], aimR: 1, handL: [0.22, -0.86, 0.06], aimL: 1, fistL: 0.35, fistR: 0.35, twistL: 0, twistR: 0,
+          footL: [0.14, 0.071, 0.1], footR: [0.15, 0.071, -0.1], footRotL: [0, 0.1, 0], footRotR: [0, 0.25, 0], kneeL: [0.1, 0, 1], kneeR: [0.12, 0, 1] }],
+        // the racket from behind his back (its grip found at 24)...
+        [14, { handR: [0.00, -0.84, -0.45], aimR: 1, poleR: [0.6, -0.4, -0.7], fistR: 0.5 }, 'inout'],
+        [24, { handR: [-0.09, -0.74, -0.53], aimR: 1, fistR: 0.8 }, 'inout'],
+        // ... out in front; the left hand to his pocket for the ball
+        [38, { handR: [0.10, -0.56, 0.60], aimR: 1, poleR: [0.4, -1, -0.2], handL: [0.06, -0.83, 0.15], aimL: 1, fistL: 0.5 }, 'inout'],
+        [46, { handL: [-0.03, -1.00, 0.04], aimL: 1, fistL: 0.6 }, 'inout'],
+        [56, { handL: [-0.23, -0.74, 0.56], aimL: 1, fistL: 0.55 }, 'inout'],
+        // side on at the line: the left foot forward, the right behind along the line, his eyes on the loser
+        [74, { rootPos: [0, -0.06, -0.04], rootRot: [0.04, -1.2, 0], spine: [0.1, 0.18, 0], neck: [0.14, 0.92, 0],
+          handR: [0.16, -0.74, 0.44], aimR: 1, twistR: -1.6, wristR: [0.25, 0.025], handL: [-0.16, -0.69, 0.42], aimL: 1, footL: [0.04, 0.071, 0.26], footR: [0.12, 0.071, -0.26], footRotL: [0, -0.7, 0], footRotR: [0, 1.2, 0], kneeL: [0.12, 0, 1], kneeR: [0.2, 0, 1] }, 'inout'],
+        // two bounces: the ball pushed down at 80 and 118, caught at the top at 116 and 154
+        [78, { handL: [-0.14, -0.61, 0.42], aimL: 1 }, 'inout'], [81, { handL: [-0.14, -0.83, 0.42], aimL: 1 }, 'out'], [98, { handL: [-0.16, -0.69, 0.42], aimL: 1 }, 'inout'], [116, { handL: [-0.16, -0.69, 0.42], aimL: 1 }, 'inout'],
+        [119, { handL: [-0.14, -0.83, 0.42], aimL: 1 }, 'out'], [136, { handL: [-0.16, -0.69, 0.42], aimL: 1 }, 'inout'], [154, { handL: [-0.16, -0.69, 0.42], aimL: 1 }, 'inout'],
+        // ball and racket together in front, a breath, a look
+        [164, { handR: [0.13, -0.64, 0.38], aimR: 1, twistR: 0.46, wristR: [-0.1, -0.175], handL: [-0.42, -0.53, 0.27], aimL: 1, neck: [0.12, 0.95, 0] }, 'inout'],
+        // the toss: the left arm rises straight and lets the ball go at 172; the racket arm swings down and up behind;
+        // the knees bend, the back arches: the trophy position
+        [172, { handL: [-0.15, 0.94, 0.67], aimL: 1, handR: [0.24, -0.87, -0.04], aimR: 1, rootPos: [0, -0.1, -0.05], rootRot: [-0.04, -1.25, 0.06], spine: [-0.05, 0.12, 0.05], neck: [-0.15, 0.95, 0] }, 'inout'],
+        [192, { handL: [-0.13, 0.90, 0.52], aimL: 1, handR: [0.15, 0.72, 0.01], aimR: 1, poleR: [0.7, 0.1, -0.7], twistR: -1.6, wristR: [0.8, -0.2], rootPos: [0, -0.17, -0.06], rootRot: [-0.14, -1.28, 0.12], spine: [-0.22, 0.05, 0.1], neck: [-0.42, 1.0, 0], kneeL: [0.2, 0, 1], kneeR: [0.25, 0, 1] }, 'inout'],
+        // the racket drops behind his back as the legs drive up (the elbow rising, the racket's head falling past
+        // level behind him to hang down his back)
+        [198, { handR: [0.1, 0.5, -0.09], aimR: 1, poleR: [0.6, 0.6, -0.5], twistR: -1.6, wristR: [0.82, 0.35] }, 'inout'],
+        [204, { handR: [0.1, 0.4, -0.12], aimR: 1, poleR: [0.65, 0.5, -0.55], twistR: -1.6, wristR: [0.85, 0.55], rootPos: [0, -0.1, 0.0], rootRot: [-0.06, -0.95, 0.06], spine: [-0.25, -0.1, 0], neck: [-0.5, 0.7, 0] }, 'inout'],
+        // up and through: the contact at full stretch over his head, in front
+        [212, { handR: [0.12, 0.93, 0.3], aimR: 1, poleR: [0.6, 0.3, 0.2], twistR: -0.54, wristR: [0.25, 0.575], handL: [-0.13, -0.26, -0.11], aimL: 1, rootPos: [0, 0.04, 0.12], rootRot: [0.1, -0.35, -0.1], spine: [0.05, -0.15, -0.12], neck: [-0.55, 0.3, 0], footR: [0.1, 0.13, -0.18], footRotR: [0.5, 1.0, 0], toeR: 0.6 }, 'snap'],
+        // the follow-through across his body, landing on the left foot, the right leg kicking up behind
+        [226, { handR: [-0.57, -0.50, -0.03], aimR: 1, poleR: [0.3, -1, 0.3], twistR: 1.38, wristR: [-0.8, -0.375], handL: [-0.29, -0.18, 0.33], aimL: 1, rootPos: [0, -0.1, 0.32], rootRot: [0.3, 0.35, 0], spine: [0.25, 0.2, 0], neck: [0.2, -0.2, 0],
+          footL: [0.06, 0.071, 0.46], footRotL: [0, -0.2, 0], footR: [0.12, 0.38, -0.2], footRotR: [0.8, 0.3, 0], kneeR: [0.2, 1, 0.3], toeR: 0 }, 'out'],
+        // he straightens and watches
+        [252, { handR: [0.22, -0.78, 0.26], aimR: 1, poleR: [0.2, -1, -0.5], twistR: -1.36, wristR: [0.3, 0.275], handL: [0.21, -0.83, 0.15], aimL: 1, rootPos: [0, -0.04, 0.3], rootRot: [0.04, -0.1, 0], spine: [0.02, 0.05, 0], neck: [0.06, 0.08, 0],
+          footL: [0.14, 0.071, 0.42], footR: [0.15, 0.071, 0.2], footRotL: [0, 0.1, 0], footRotR: [0, 0.25, 0], kneeR: [0.12, 0, 1] }, 'inout'],
+        // a twirl of the racket in his hand
+        [292, { handR: [-0.15, -0.42, 0.68], aimR: 1, poleR: [0.3, -1, -0.2], twistR: -0.98, wristR: [-0.8, -0.4] }, 'inout'],
+        [298, { twistR: 0.4 }, 'inout'], [304, { twistR: -1.4 }, 'inout'], [310, { twistR: 0.4 }, 'inout'], [316, { twistR: -0.98 }, 'inout'],
+        // onto his shoulder: "juego, set y partido"
+        [328, { handR: [0.07, -0.03, 0.49], aimR: 1, poleR: [0.3, -1, -0.3], twistR: -0.54, wristR: [0.8, -0.4] }, 'inout'],
+        [650, { neck: [0.04, 0.1, 0] }, 'sine'],
+      ],
+    },
     title: 'El Zorro Plateado', desc: 'Veterano fibroso de la vieja escuela. Esquivas, gancho al hígado y guantazos.',
     say: 'Más sabe el zorro por viejo que por zorro.', sayAt: 78, sayLen: 171, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Ponte los guantes, chaval.', introLen: 88, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)

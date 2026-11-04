@@ -739,7 +739,7 @@ export class Fighter {
   updateFace(alpha) {
     const s = this.state, mv = this.move;
     // (the PUÑETALITY: the loser afraid; the winner's cold smile, her face set hard through the cut)
-    const F = s === 'fatal' ? this.style.fatal : null, fe = F && this.cf >= F.cut - 12 && this.cf <= F.cut + 10;
+    const F = s === 'fatal' ? this.style.fatal : null, fc = F ? (F.contact ?? F.cut) : 0, fe = F && this.cf >= fc - 12 && this.cf <= fc + 10;
     const pain = this.ko ? 0 : s === 'hit' || s === 'air' || s === 'thrown' ? 1 : s === 'block' ? 0.45 : s === 'land' || s === 'down' || s === 'getup' ? 0.5 : s === 'fatalV' ? 0.8 : 0;
     const effort = (s === 'move' && mv?.hit && this.mf <= mv.hit.f[1] + 6) || s === 'throwing' || s === 'rageArt' || fe ? 1 : 0;
     const smile = s === 'win' ? 0.85 : F && !fe ? 0.45 : 0;

@@ -20,6 +20,7 @@ import { Accessories } from './js/fx/accessories.js';
 import { STYLES } from './js/fight/styles.js';
 import { makeAloeSword, attachAloeSword, attachInFist } from './js/fx/aloesword.js';
 import { makeDumbbells, DB_GRIP } from './js/fx/dumbbells.js';
+import { makeRacket, makeBall, RACKET_GRIP } from './js/fx/tennis.js';
 
 const q = new URLSearchParams(location.search);
 const ids = (q.get('ids') || 'alejandro').split(',');
@@ -53,6 +54,8 @@ for (let i = 0; i < n; i++) {
   if (q.get('sword')) { const sw = makeAloeSword(); attachAloeSword(ch, sw); sw.group.visible = true; sw.U.grow.value = +(q.get('grow') ?? 1); sw.U.blood.value = +(q.get('blood') || 0); }
   // (db: Camilo's dumbbells, one in each fist, js/fx/dumbbells.js; &blood= on them)
   if (q.get('db')) { const d = makeDumbbells(); for (const s of ['L', 'R']) { attachInFist(ch, d[s], s, DB_GRIP); d[s].visible = true; } d.U.blood.value = +(q.get('blood') || 0); }
+  // (racket: Dani's racket in the right fist and a ball in the left, js/fx/tennis.js)
+  if (q.get('racket')) { const r = makeRacket(); attachInFist(ch, r.group, 'R', RACKET_GRIP); r.group.visible = true; const b = makeBall(); b.mesh.position.set(-0.4, 1.0, 0.6); scene.add(b.mesh); }
   rig.lookTarget = new THREE.Vector3(0, 1.5, 3);
   // (extra: pose fields on top of the named pose, as JSON: &extra={"fistR":1,"ptR":1})
   rig.apply(makePose({ ...(LIB[poses[i % poses.length]] || {}), ...JSON.parse(q.get('extra') || '{}') }));

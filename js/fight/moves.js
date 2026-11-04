@@ -424,6 +424,16 @@ export function buildClips(style) {
     [52, { ...SLUMP, rootPos: [0, -0.64, -0.08] }, 'out'],
     [60, SLUMP, 'inout'],
   ]);
+  // ... struck in the chest by a ball served at him: the chest driven in and back, the arms and the head thrown forward
+  // round it, the mouth wide; then rigid, trembling, as he swells (js/fx/gibs.js)
+  clips.fatalBallHit = C([
+    [0, FEAR0],
+    [3, { rootPos: [0, -0.1, -0.16], rootRot: [0.28, 0, 0], spine: [0.42, 0, 0], neck: [0.45, 0, 0], handL: [0.3, -0.1, 0.45], handR: [0.32, -0.12, 0.42],
+      fistL: 0.05, fistR: 0.05, twistL: 0.3, twistR: 0.3, wristL: [-0.4, 0], wristR: [-0.4, 0], jaw: 0.75 }, 'snap'],
+    [8, { rootPos: [0, -0.08, -0.12], rootRot: [0.05, 0, 0], spine: [-0.15, 0, 0], neck: [-0.3, 0, 0], handL: [0.55, 0.05, 0.25], handR: [0.55, 0.05, 0.22], jaw: 0.85 }, 'out'],
+    [12, { handL: [0.57, 0.08, 0.24], handR: [0.53, 0.04, 0.23], neck: [-0.34, 0.04, 0], spine: [-0.18, 0, 0.02] }, 'sine'],
+    [16, { handL: [0.55, 0.05, 0.25], handR: [0.56, 0.07, 0.22], neck: [-0.3, -0.04, 0], spine: [-0.2, 0, -0.02] }, 'sine'],
+  ]);
   // the winner's own move (styles.js fatal.clip)
   if (style.fatal?.clip) clips.fatal = C(style.fatal.clip);
   clips.win = C(style.win || [

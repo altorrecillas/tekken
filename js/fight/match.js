@@ -142,15 +142,17 @@ export class Match {
   timeRate() {
     if (this.phase === 'fatal') {
       const F = this.fighters[this.fatalBy | 0]?.style.fatal;
-      const S = F?.slow;
-      if (S) {
+      // (one window [ramp from, full from, full until, back by, speed], or a list of them)
+      const L = F?.slow ? (Array.isArray(F.slow[0]) ? F.slow : [F.slow]) : [];
+      let r = 1;
+      for (const S of L) {
         const t = this.pt;
-        if (t <= S[0] || t >= S[3]) return 1;
+        if (t <= S[0] || t >= S[3]) continue;
         const k = t < S[1] ? (t - S[0]) / (S[1] - S[0]) : t > S[2] ? 1 - (t - S[2]) / (S[3] - S[2]) : 1;
         const e = k * k * (3 - 2 * k);
-        return 1 + (S[4] - 1) * e;
+        r = Math.min(r, 1 + (S[4] - 1) * e);
       }
-      return 1;
+      return r;
     }
     return this.slowmo > 0 ? SLOWMO : 1;
   }

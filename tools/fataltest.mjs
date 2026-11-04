@@ -52,7 +52,7 @@ try {
 
   // ---------------------------------------------------------------- Noemí's player wins: the button, a click, the move
   if (!CPU_ONLY) {
-  await winFight(WHO, WHO === 'camilo' ? 'rafa' : 'camilo', 0, false);
+  await winFight(WHO, WHO === 'noemi' ? 'camilo' : 'rafa', 0, false);
   await waitFor(() => document.querySelector('#fatalBtn.on'), null, 30000, 'the PUÑETALITY button');
   const bar0 = await p.evaluate(() => document.querySelector('#fatalBtn .bar i').style.transform);
   await p.waitForTimeout(800);
@@ -63,12 +63,24 @@ try {
   await waitFor(() => window.__game.match.phase === 'fatal', null, 10000, 'the move starting');
   check(true, 'a click on the button starts the move');
   check(await p.evaluate(() => !document.querySelector('#fatalBtn.on')), 'the button goes away');
-  const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len }; });
+  const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len, hit: s.hit, burst: s.burst }; });
   const at = async (f, name) => {
     await waitFor((f) => window.__game.match.pt >= f || window.__game.state === 'results', f, 240000, 'frame ' + f);
     await p.screenshot({ path: path.join(OUT, `fatal_${WHO}_${name}.png`) });
   };
-  if (WHO === 'camilo') {
+  if (WHO === 'dani') {
+    await at(60, 'racket');
+    check(await p.evaluate(() => { const f = window.__game.fatal; return !!f.rk && f.rk.group.visible && f.ball.mesh.visible; }), 'the racket in his hand, the ball in the other');
+    await at(F.hit + 12, 'swell');
+    const sw = await p.evaluate(() => +(window.__game.fatal.gib.swollen || 1).toFixed(2));
+    check(sw > 1.2, `the ball in the loser's chest, he swells (x${sw})`);
+    await at(F.burst + 30, 'burst');
+    const bu = await p.evaluate(() => { const f = window.__game.fatal; return { burst: f.gib.burst, pieces: f.gib.pieces.length, drops: f.blood.drops.length, drawn: window.__game.match.fighters[1].drawnBy === f.gib }; });
+    check(bu.burst && bu.drawn && bu.pieces === 7, `he bursts: ${bu.pieces} pieces of him flying, ${bu.drops} drops of blood in the air`);
+    await at(360, 'after');
+    const af = await p.evaluate(() => { const f = window.__game.fatal; return { down: f.gib.pieces.filter((P) => P.p.y < 0.3).length, fallen: f.gib.pieces.filter((P) => P.R.stand && P.fall?.done).length }; });
+    check(af.down >= 6 && af.fallen === 2, `all of him on the floor (${af.down} of 7 pieces), the shins standing and then fallen (${af.fallen})`);
+  } else if (WHO === 'camilo') {
     await at(70, 'dumbbells');
     check(await p.evaluate(() => { const f = window.__game.fatal; return !!f.db && f.db.L.visible && f.db.R.visible; }), 'the dumbbells are out, one in each hand');
     await at(F.cut + 12, 'crush');

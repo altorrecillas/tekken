@@ -175,22 +175,26 @@ button { touch-action: manipulation; }
 /* PUÑETALITY (js/fight/fatality.js): the button on the win screen, the line said in it, its name dripping blood, and
    drops on the camera's lens */
 #fatalBtn { position: fixed; right: max(4%, env(safe-area-inset-right)); bottom: 15%; z-index: 14; transform: scale(.55); transform-origin: 100% 100%; opacity: 0; pointer-events: none;
-  font-family: 'Bebas'; font-size: min(6.5vw, 58px); line-height: 1; letter-spacing: .06em; color: #fff; padding: .16em .75em .1em; border: 0; cursor: pointer;
-  border-radius: 6px; background: radial-gradient(120% 150% at 50% 0%, #c0160e 0%, #620505 52%, #1d0000 100%);
-  box-shadow: 0 0 0 3px #050000, 0 0 0 5px #8f0d07, 0 12px 30px rgba(0,0,0,.7), 0 0 40px rgba(255,30,10,.4);
-  text-shadow: 0 3px 0 #000, 0 0 18px rgba(255,60,30,.85); -webkit-tap-highlight-color: transparent;
+  font-family: 'Bebas'; font-size: min(3.8vw, 34px); line-height: 1; letter-spacing: .06em; color: #fff; padding: .2em .7em .16em; border: 0; cursor: pointer;
+  border-radius: 5px; background: radial-gradient(120% 150% at 50% 0%, #c0160e 0%, #620505 52%, #1d0000 100%);
+  box-shadow: 0 0 0 2px #050000, 0 0 0 3px #8f0d07, 0 8px 20px rgba(0,0,0,.7), 0 0 26px rgba(255,30,10,.4);
+  text-shadow: 0 2px 0 #000, 0 0 12px rgba(255,60,30,.85); -webkit-tap-highlight-color: transparent;
   transition: opacity .25s, transform .4s cubic-bezier(.2,1.5,.3,1); }
-#fatalBtn.on { opacity: 1; transform: scale(1); pointer-events: auto; animation: fatalPulse 1.05s ease-in-out infinite; }
-#fatalBtn .h { display: block; font-family: 'Teko'; font-size: .3em; letter-spacing: .32em; color: #ffd0c8; margin-top: .05em; text-shadow: 0 2px 0 #000; }
+/* (it blinks, bright and dim a little more than once a second, so that it is plain it can be pressed: well under the
+   rate that could trouble anyone sensitive to flashing) */
+#fatalBtn.on { opacity: 1; transform: scale(1); pointer-events: auto; animation: fatalBlink .9s ease-in-out infinite; }
+#fatalBtn .h { display: block; font-family: 'Teko'; font-size: .42em; letter-spacing: .28em; color: #ffd0c8; margin-top: .05em; text-shadow: 0 2px 0 #000; }
 body.touchui #fatalBtn .h { display: none; }
-#fatalBtn .bar { position: absolute; left: 7%; right: 7%; bottom: 5px; height: 4px; background: rgba(0,0,0,.55); border-radius: 2px; overflow: hidden; }
+#fatalBtn .bar { position: absolute; left: 8%; right: 8%; bottom: 3px; height: 3px; background: rgba(0,0,0,.55); border-radius: 2px; overflow: hidden; }
 #fatalBtn .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff3b2f, #ffb4a0); transform-origin: left; }
 /* (blood dripping off the button's bottom edge) */
-#fatalBtn .dr { position: absolute; top: 100%; width: 7px; border-radius: 0 0 4px 4px; background: linear-gradient(#5d0404, #9a0a06); animation: fatalDrip 2.4s ease-in infinite; }
-#fatalBtn .dr::after { content: ''; position: absolute; left: 50%; bottom: -5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: #9a0a06; }
+#fatalBtn .dr { position: absolute; top: 100%; width: 4px; border-radius: 0 0 4px 4px; background: linear-gradient(#5d0404, #9a0a06); animation: fatalDrip 2.4s ease-in infinite; }
+#fatalBtn .dr::after { content: ''; position: absolute; left: 50%; bottom: -3px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #9a0a06; }
 @keyframes fatalDrip { 0% { height: 0; opacity: 1; } 70% { height: var(--h, 22px); opacity: 1; } 100% { height: var(--h, 22px); opacity: 0; } }
-@keyframes fatalPulse { 0%, 100% { box-shadow: 0 0 0 3px #050000, 0 0 0 5px #8f0d07, 0 12px 30px rgba(0,0,0,.7), 0 0 34px rgba(255,30,10,.35); }
-  50% { box-shadow: 0 0 0 3px #050000, 0 0 0 5px #c41208, 0 12px 30px rgba(0,0,0,.7), 0 0 70px rgba(255,45,20,.85); } }
+@keyframes fatalBlink {
+  0%, 40% { filter: brightness(1.45) saturate(1.15); color: #fff; box-shadow: 0 0 0 2px #050000, 0 0 0 3px #ff2a18, 0 8px 20px rgba(0,0,0,.7), 0 0 44px rgba(255,50,25,.95); }
+  55%, 92% { filter: brightness(.6); color: #ffb9ad; box-shadow: 0 0 0 2px #050000, 0 0 0 3px #6d0905, 0 8px 20px rgba(0,0,0,.7), 0 0 10px rgba(255,30,10,.2); }
+  100% { filter: brightness(1.45) saturate(1.15); color: #fff; box-shadow: 0 0 0 2px #050000, 0 0 0 3px #ff2a18, 0 8px 20px rgba(0,0,0,.7), 0 0 44px rgba(255,50,25,.95); } }
 #fatalSub { position: absolute; bottom: 14%; width: 100%; text-align: center; font-family: 'Rajdhani'; font-size: 26px; font-style: italic; color: #f2ece4;
   text-shadow: 0 2px 0 #000, 0 0 14px rgba(0,0,0,.9); opacity: 0; transform: translateY(8px); transition: opacity .35s, transform .35s; }
 #fatalSub.on { opacity: 1; transform: none; }
@@ -851,7 +855,7 @@ body.touchui #fatalBtn .h { display: none; }
 <div id="achToast"></div>
 
 <div id="touch"></div>
-<button id="fatalBtn" type="button"><span class="t">PUÑETALITY</span><span class="h">↑ + GOLPE</span><i class="bar"><i></i></i><i class="dr" style="left:18%;--h:18px"></i><i class="dr" style="left:47%;--h:30px;animation-delay:.7s"></i><i class="dr" style="left:76%;--h:14px;animation-delay:1.3s"></i></button>
+<button id="fatalBtn" type="button"><span class="t">PUÑETALITY</span><span class="h">↑ + GOLPE</span><i class="bar"><i></i></i><i class="dr" style="left:18%;--h:11px"></i><i class="dr" style="left:47%;--h:18px;animation-delay:.7s"></i><i class="dr" style="left:76%;--h:9px;animation-delay:1.3s"></i></button>
 <div id="netMsg"></div>
 <div id="olToast"></div>
 <div id="ver"></div>

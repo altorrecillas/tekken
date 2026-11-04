@@ -13,6 +13,8 @@ float hcN( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2
 function crushMaterial(mat, U) {
   const m = mat.clone();
   m.userData = { ...mat.userData };
+  // (a clone leaves the defines behind: the beard's shells need theirs, USE_UV)
+  if (mat.defines) m.defines = { ...mat.defines };
   const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey && mat.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : null;
   m.onBeforeCompile = (sh, r) => {
     if (prev && prev !== THREE.Material.prototype.onBeforeCompile) prev.call(mat, sh, r);
