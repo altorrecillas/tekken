@@ -2,14 +2,16 @@
 // with its countdown), a real click on it, the whole move played (the sword out, the loser cut in two, his halves on
 // the floor, the title), then the results, the achievement unlocked, and no errors (shaders included). Then the
 // other way round: a CPU Noemí who wins gets no button. Screenshots at a few moments (fatal_*.png).
-// usage: node fataltest.mjs [outDir]   (playwright next to this file or GAME_ROOT=<game>)
+// usage: node fataltest.mjs [outDir] [--fighter camilo] [--cpu]   (playwright next to this file or GAME_ROOT=<game>)
 import { chromium } from 'playwright';
 import http from 'http'; import fs from 'fs'; import path from 'path';
 import { fileURLToPath } from 'url';
 
 const ROOT = process.env.GAME_ROOT || path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.resolve(process.argv[2] || '.');
+const OUT = path.resolve(process.argv.slice(2).find((a, i, A) => !a.startsWith('--') && A[i - 1] !== '--fighter') || '.');
 const CPU_ONLY = process.argv.includes('--cpu');  // (only the CPU winner's part)
+// (--fighter camilo: his move instead of Noemí's)
+const WHO = process.argv.includes('--fighter') ? process.argv[process.argv.indexOf('--fighter') + 1] : 'noemi';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.gz': 'application/gzip', '.bin': 'application/octet-stream' };
 const server = http.createServer((req, res) => {
@@ -50,7 +52,7 @@ try {
 
   // ---------------------------------------------------------------- Noemí's player wins: the button, a click, the move
   if (!CPU_ONLY) {
-  await winFight('noemi', 'camilo', 0, false);
+  await winFight(WHO, WHO === 'camilo' ? 'rafa' : 'camilo', 0, false);
   await waitFor(() => document.querySelector('#fatalBtn.on'), null, 30000, 'the PUÑETALITY button');
   const bar0 = await p.evaluate(() => document.querySelector('#fatalBtn .bar i').style.transform);
   await p.waitForTimeout(800);
@@ -64,8 +66,18 @@ try {
   const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len }; });
   const at = async (f, name) => {
     await waitFor((f) => window.__game.match.pt >= f || window.__game.state === 'results', f, 240000, 'frame ' + f);
-    await p.screenshot({ path: path.join(OUT, `fatal_${name}.png`) });
+    await p.screenshot({ path: path.join(OUT, `fatal_${WHO}_${name}.png`) });
   };
+  if (WHO === 'camilo') {
+    await at(70, 'dumbbells');
+    check(await p.evaluate(() => { const f = window.__game.fatal; return !!f.db && f.db.L.visible && f.db.R.visible; }), 'the dumbbells are out, one in each hand');
+    await at(F.cut + 12, 'crush');
+    const cr = await p.evaluate(() => { const f = window.__game.fatal; return { sy: +f.crush.sy.toFixed(2), drops: f.blood.drops.length }; });
+    check(cr.sy < 0.5, `the loser's head is crushed under them (to ${cr.sy} of its height), ${cr.drops} drops of blood in the air`);
+    await at(320, 'after');
+    const af = await p.evaluate(() => { const g = window.__game, f = g.fatal, L = g.match.fighters[1], h = L.ch.bones.head.getWorldPosition(new (L.pos.constructor)()); return { head: +h.y.toFixed(2), loose: f.loose.length, phone: !!g.match.fighters[0].ch.winProp?.visible }; });
+    check(af.head < 0.35 && af.loose === 2 && af.phone, `the body has folded to the floor (head at ${af.head} m), the dumbbells dropped (${af.loose}), his phone out (${af.phone})`);
+  } else {
   await at(70, 'sword');
   check(await p.evaluate(() => { const f = window.__game.fatal; return !!f.sw && f.sw.group.visible && f.sw.U.grow.value > 0.99; }), 'the aloe vera sword is out in her hand');
   await at(F.cut + 20, 'cut');
@@ -73,6 +85,7 @@ try {
   await at(330, 'halves');
   const fell = await p.evaluate(() => { const P = window.__game.fatal.split.P; return { chest: +P.chest.p.y.toFixed(2), hips: +P.pelvis.p.y.toFixed(2), drops: window.__game.fatal.blood.drops.length }; });
   check(fell.chest < 0.35 && fell.hips < 0.35, `both halves are on the floor (chest ${fell.chest} m, hips ${fell.hips} m), ${fell.drops} drops of blood in the air`);
+  }
   await at(F.title + 40, 'title');
   check(await p.evaluate(() => !!document.querySelector('#fatalTitle.on')), 'its name is up: PUÑETALITY');
   await waitFor(() => window.__game.state === 'results', null, 240000, 'results');

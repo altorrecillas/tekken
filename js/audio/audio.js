@@ -523,6 +523,38 @@ export class Audio {
       this.noise(t, 1.6, { type: 'lowpass', f0: 4200, f1: 300, gain: 0.5, attack: 0.005, out, rev: 0.6 });
       if (rec) this.take('thudH', t, { out, gain: 1.2, rate: 0.6, rev: 0.6 });
       setTimeout(() => this.announce('punetality'), 250);
+    } else if (kind === 'clank') {
+      // two dumbbells taken up: the steel collars knock together
+      for (const [f, g, d] of [[1850, 0.1, 0.5], [2790, 0.07, 0.4], [4120, 0.05, 0.3], [930, 0.06, 0.25]]) this.tone(t, d, { type: 'sine', f0: f, f1: f * 0.99, gain: g, attack: 0.002, out, rev: 0.3 });
+      this.tone(t + 0.09, 0.3, { type: 'sine', f0: 2210, f1: 2190, gain: 0.05, attack: 0.002, out, rev: 0.3 });
+      this.noise(t, 0.05, { type: 'highpass', f0: 2500, gain: 0.15, out, rev: 0.1 });
+    } else if (kind === 'hookhit') {
+      // a dumbbell into a face: a heavy punch, a crack and the iron's dull ring
+      if (rec) { this.take('punchH', t, { out, gain: 1.1, rate: 0.82, rev: 0.3 }); this.take('thudH', t + 0.005, { out, gain: 0.7, rate: 0.9, rev: 0.3 }); }
+      this.noise(t, 0.05, { type: 'bandpass', f0: 3200, q: 1.5, gain: 0.35, out, rev: 0.2 });
+      this.tone(t, 0.6, { type: 'sine', f0: 410, f1: 395, gain: 0.07, attack: 0.002, out, rev: 0.4 });
+      this.tone(t, 0.25, { f0: 70, f1: 35, gain: 0.5, out, dist: true, rev: 0.3 });
+    } else if (kind === 'crunch') {
+      // a skull giving way under forty kilos: cracks, a wet crush, a deep blow and the iron
+      for (let k = 0; k < 7; k++) this.noise(t + k * 0.012 + Math.random() * 0.01, 0.03, { type: 'bandpass', f0: 1800 + Math.random() * 2600, q: 2.5, gain: 0.5 - k * 0.05, out, rev: 0.25 });
+      this.noise(t + 0.01, 0.4, { type: 'lowpass', f0: 1500, f1: 160, q: 4, gain: 0.7, attack: 0.005, out, rev: 0.35 });
+      if (rec) { this.take('thudH', t, { out, gain: 1.2, rate: 0.62, rev: 0.5 }); this.take('slap', t + 0.02, { out, gain: 1.0, rate: 0.5, rev: 0.4 }); this.take('punchH', t, { out, gain: 0.9, rate: 0.6, rev: 0.4 }); }
+      this.tone(t, 1.1, { f0: 58, f1: 26, gain: 1.0, out, dist: true, rev: 0.6 });
+      this.tone(t + 0.005, 0.9, { type: 'sine', f0: 380, f1: 370, gain: 0.06, attack: 0.002, out, rev: 0.5 });
+    } else if (kind === 'dbland') {
+      // a dumbbell hitting the floor: a dull thud, the rubber, and a bounce
+      const p = o.power ?? 1;
+      if (rec) this.take('thudM', t, { out, gain: 0.9 * p, rate: 0.75, rev: 0.3 });
+      this.tone(t, 0.28, { f0: 95, f1: 45, gain: 0.55 * p, out, dist: true, rev: 0.25 });
+      this.noise(t, 0.08, { type: 'lowpass', f0: 1100, gain: 0.3 * p, out, rev: 0.2 });
+      this.tone(t, 0.35, { type: 'sine', f0: 620, f1: 600, gain: 0.03 * p, attack: 0.002, out, rev: 0.3 });
+    } else if (kind === 'clap') {
+      // dusting his hands
+      if (rec) this.take('slap', t, { out, gain: 0.35, rate: 1.4, vary: 0.05, rev: 0.15 });
+      else this.noise(t, 0.04, { type: 'bandpass', f0: 1800, q: 1, gain: 0.25, out, rev: 0.15 });
+    } else if (kind === 'tap') {
+      // his phone: a soft key click
+      this.tone(t, 0.03, { type: 'triangle', f0: 2400, f1: 2200, gain: 0.04, attack: 0.001, out, rev: 0.05 });
     } else if (kind === 'summon') {
       // the leaf growing out of the hilt: a rising shimmer
       this.noise(t, 0.7, { type: 'bandpass', f0: 600, f1: 5200, q: 3, gain: 0.16, attack: 0.25, out, rev: 0.5 });

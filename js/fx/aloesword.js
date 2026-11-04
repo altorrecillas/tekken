@@ -263,10 +263,12 @@ export function makeAloeSword() {
   return { group, U, base, tip, blade, teeth, crossMat, mats: [bladeMat, teethMat, leafletMat] };
 }
 
-// The sword in a fighter's right fist: the grip through the closed hand (across it, index to little finger), the
-// blade out of the thumb's side with its edge the way the knuckles point. Measured on the rest pose (the bones are
-// world-aligned there), like the win-pose phone of js/fx/accessories.js. Hidden until it is drawn.
-export function attachAloeSword(ch, sw, side = 'R') {
+// Something held in a fighter's fist (the sword, a dumbbell...): the grip through the closed hand (across it, index to
+// little finger: the group's +Y), the rest of it out of the thumb's side, its +Z the way the knuckles point. Measured
+// on the rest pose (the bones are world-aligned there), like the win-pose phone of js/fx/accessories.js. g: where the
+// grip sits in the fist, fitted by tools/swordgrip.mjs for the grip's thickness (x towards the palm, z along the
+// knuckles, tilt: the diagonal it lies on across the fingers). Hidden until it is shown.
+export function attachInFist(ch, group, side = 'R', g = { x: GRIP_X, z: GRIP_Z, tilt: GRIP_TILT }) {
   const R = (n) => ch.rest[n].head;
   const W = R(`wrist.${side}`), K = R(`finger3-1.${side}`), f2 = R(`finger2-1.${side}`), f5 = R(`finger5-1.${side}`);
   const dir = K.clone().sub(W).normalize(), across = f2.clone().sub(f5).normalize();
@@ -274,19 +276,19 @@ export function attachAloeSword(ch, sw, side = 'R') {
   if (side === 'R') palm.negate();
   const Y = across.clone(), Z = dir.clone().addScaledVector(Y, -dir.dot(Y)).normalize(), X = new THREE.Vector3().crossVectors(Y, Z);
   const hand = W.distanceTo(K);
-  // the grip lies across the fingers on a slight diagonal (from the heel of the hand to the root of the index finger),
-  // so the blade leans the way the knuckles point instead of standing square to the forearm
-  const c = Math.cos(GRIP_TILT), s = Math.sin(GRIP_TILT);
+  const c = Math.cos(g.tilt), s = Math.sin(g.tilt);
   const Y2 = Y.clone().multiplyScalar(c).addScaledVector(Z, s), Z2 = Z.clone().multiplyScalar(c).addScaledVector(Y, -s);
-  const g = sw.group;
-  g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y2, Z2));
-  // in the fist's hollow (offsets in metres of the scaled hand, the bone's units are the rest pose's)
-  g.position.copy(dir).multiplyScalar(hand * 0.74).addScaledVector(palm, hand * 0.42)
-    .addScaledVector(X, GRIP_X / HAND_SCALE).addScaledVector(Z2, GRIP_Z / HAND_SCALE);
+  group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y2, Z2));
+  // in the fist's hollow (offsets in metres of the scaled hand, the bone's units are the rest pose's; x along the palm's
+  // normal, the same for either hand)
+  group.position.copy(dir).multiplyScalar(hand * 0.74).addScaledVector(palm, hand * 0.42)
+    .addScaledVector(palm, g.x / HAND_SCALE).addScaledVector(Z2, g.z / HAND_SCALE);
   // the wrist bone is scaled up (bigger hands, js/anim/body.js HAND_SCALE, set by the rig): the place in the fist
-  // scales with the hand, the sword keeps its own size
-  g.scale.setScalar(1 / HAND_SCALE);
-  g.visible = false;
-  ch.bones[`wrist.${side}`].add(g);
-  return g;
+  // scales with the hand, the thing held keeps its own size
+  group.scale.setScalar(1 / HAND_SCALE);
+  group.visible = false;
+  ch.bones[`wrist.${side}`].add(group);
+  return group;
 }
+// the sword in her right fist, its edge the way the knuckles point
+export function attachAloeSword(ch, sw, side = 'R') { return attachInFist(ch, sw.group, side); }

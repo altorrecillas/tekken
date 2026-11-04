@@ -159,8 +159,7 @@ for (const ids of (run('det') || run('rollback') || run('pack') ? PAIRS : [])) {
 // the win screen of a match Noemí won, her player holding up and pressing 1 on frame 40 (the button on the screen
 // presses the same): the whole move must play the same from the same inputs, rewound over and over (the press itself
 // predicted wrong and corrected, as online when it comes late), and copied over the network mid-move
-if (run('fatal')) {
-  const ids = ['noemi', 'camilo'];
+for (const ids of (run('fatal') ? [['noemi', 'camilo'], ['camilo', 'zapponi']] : [])) {
   console.log(`\n== PUÑETALITY ${ids.join(' vs ')} ==`);
   const start = (m) => { m.startRound(); m.wins = [m.opts.rounds, 0]; m.winner = 0; m.phase = 'matchEnd'; m.pt = 0; m.humans = [true, true]; };
   const N = 760, rec = [];

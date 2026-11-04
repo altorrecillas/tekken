@@ -268,6 +268,79 @@ export const STYLES = {
         advance: [[0, 0], [11, 0.08], [30, 0.08]], sfx: 'light',
       },
     }),
+    // PUÑETALITY (js/fight/fatality.js): he cracks his neck, takes a pair of 20 kg dumbbells from behind his back, does
+    // a couple of curls ("hoy toca día de brazo"), drops the loser to his knees with a hook of the right one, raises both
+    // over his head and brings them down on the loser's head, crushing it; then he lets them fall, dusts his hands and
+    // gets his phone out: back to work. Frames: cut (the dumbbells come down on the head), hook (the hook lands),
+    // victim (the loser's clips: [frame, clip, blend]); the rest as Noemí's
+    fatal: {
+      len: 624, cut: 204, hook: 145, title: 404, dist: 0.72, slow: [196, 201, 216, 240, 0.24],
+      say: 'Hoy toca día de brazo.', sayAt: 60, sayLen: 84,
+      victim: [[60, 'fatalFear', 10], [145, 'fatalKnockKneel', 2], [182, 'fatalKneelUp', 12], [204, 'fatalCrushed', 1]],
+      clip: [
+        // standing tall, the hands loose at his sides
+        [0, { rootPos: [0, -0.02, 0], rootRot: [0, -0.15, 0], spine: [-0.02, 0.05, 0], neck: [0.08, 0.12, 0],
+          handL: [0.22, -0.86, 0.06], aimL: 1, fistL: 0.4, twistL: 0, handR: [0.22, -0.86, 0.06], aimR: 1, fistR: 0.4, twistR: 0,
+          footL: [0.14, 0.071, 0.1], footR: [0.15, 0.071, -0.1], footRotL: [0, 0.1, 0], footRotR: [0, 0.25, 0], kneeL: [0.1, 0, 1], kneeR: [0.12, 0, 1] }],
+        // he cracks his neck, to one side and the other
+        [14, { neck: [0.06, 0.15, -0.38] }, 'inout'],
+        [20, { neck: [0.06, 0.12, -0.42] }, 'out'],
+        [28, { neck: [0.06, 0.1, 0.38] }, 'inout'],
+        [33, { neck: [0.06, 0.1, 0.42] }, 'out'],
+        // both hands behind his back, the chest out
+        [44, { neck: [0.1, 0.12, 0], spine: [-0.08, 0.05, 0], handL: [0.16, -0.62, -0.26], handR: [0.16, -0.62, -0.26], poleL: [0.5, -0.6, -0.6], poleR: [0.5, -0.6, -0.6], fistL: 0.55, fistR: 0.55 }, 'inout'],
+        [48, { fistL: 0.75, fistR: 0.75 }, 'inout'],
+        // out they come, hanging at his sides, palms in
+        [58, { spine: [-0.02, 0.05, 0], handL: [0.26, -0.8, 0.04], handR: [0.26, -0.8, 0.04], poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5], twistL: 0, twistR: 0 }, 'inout'],
+        // two curls: the elbows kept at his sides, the dumbbells up to the shoulders, palms up
+        [66, { handL: [0.17, -0.3, 0.26], handR: [0.17, -0.3, 0.26], twistL: -1.25, twistR: -1.25, poleL: [0.1, -1, -0.4], poleR: [0.1, -1, -0.4], spine: [-0.06, 0.05, 0], neck: [0.06, 0.12, 0] }, 'inout'],
+        [78, { handL: [0.24, -0.78, 0.1], handR: [0.24, -0.78, 0.1], twistL: -0.6, twistR: -0.6 }, 'inout'],
+        [90, { handL: [0.17, -0.3, 0.26], handR: [0.17, -0.3, 0.26], twistL: -1.25, twistR: -1.25 }, 'inout'],
+        [102, { handL: [0.24, -0.78, 0.1], handR: [0.24, -0.78, 0.1], twistL: -0.6, twistR: -0.6 }, 'inout'],
+        [114, { handL: [0.17, -0.3, 0.26], handR: [0.17, -0.3, 0.26], twistL: -1.25, twistR: -1.25 }, 'inout'],
+        [128, { handL: [0.26, -0.78, 0.06], handR: [0.26, -0.78, 0.06], twistL: 0, twistR: 0, poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5] }, 'inout'],
+        // the hook: weight back, the trunk coiled right, the right dumbbell drawn back at his shoulder...
+        [138, { rootPos: [0, -0.07, 0.0], rootRot: [0.05, -0.6, 0], spine: [0.06, -0.25, 0], neck: [0.1, 0.6, 0],
+          handR: [0.55, 0.15, 0.0], poleR: [0.8, 0.2, -0.6], twistR: 0.7, handL: [0.18, -0.3, 0.3], twistL: 0, poleL: [0.3, -1, -0.2],
+          footL: [0.1, 0.071, 0.24], footR: [0.18, 0.071, -0.16] }, 'inout'],
+        // ... and round into his face
+        [145, { rootPos: [0, -0.09, 0.3], rootRot: [0.08, 0.35, 0], spine: [0.08, 0.3, 0], neck: [0.1, -0.2, 0], handR: [0.0, 0.3, 0.95], twistR: 0.9, footL: [0.1, 0.071, 0.42], footR: [0.18, 0.071, 0.0] }, 'snap'],
+        [154, { rootPos: [0, -0.08, 0.28], rootRot: [0.07, 0.5, 0], spine: [0.06, 0.35, 0], handR: [-0.35, 0.15, 0.6] }, 'out'],
+        // he looks down at him on his knees, the dumbbells at his sides
+        [174, { rootPos: [0, -0.03, 0.04], rootRot: [0.04, -0.1, 0], spine: [0.04, 0.05, 0], neck: [0.35, 0.05, 0], handR: [0.26, -0.76, 0.08], poleR: [0.2, -1, -0.5], twistR: 0, handL: [0.26, -0.78, 0.06],
+          footL: [0.14, 0.071, 0.12], footR: [0.16, 0.071, -0.1] }, 'inout'],
+        // both up over his head, together, the body arching back
+        [192, { rootPos: [0, -0.02, -0.02], rootRot: [-0.1, -0.05, 0], spine: [-0.18, 0.02, 0], neck: [0.25, 0.02, 0],
+          handL: [0.07, 0.98, 0.12], handR: [0.07, 0.98, 0.12], poleL: [1, 0.2, -0.3], poleR: [1, 0.2, -0.3], twistL: 0, twistR: 0, fistL: 0.8, fistR: 0.8 }, 'inout'],
+        [200, { handL: [0.07, 1.0, 0.08], handR: [0.07, 1.0, 0.08], spine: [-0.2, 0.02, 0] }, 'out'],
+        // down onto his head with all his weight (on it at frame `cut`), pressing on through it
+        [204, { rootPos: [0, -0.1, 0.05], rootRot: [0.22, -0.05, 0], spine: [0.22, 0.02, 0], neck: [0.22, 0.02, 0],
+          handL: [0.07, 0.25, 0.45], handR: [0.07, 0.25, 0.45], poleL: [0.9, -0.3, -0.2], poleR: [0.9, -0.3, -0.2], wristL: [0, -0.5], wristR: [0, 0.5] }, 'snap'],
+        [208, { rootPos: [0, -0.15, 0.06], rootRot: [0.3, -0.05, 0], spine: [0.3, 0.02, 0], neck: [0.2, 0.02, 0], handL: [0.07, 0.14, 0.42], handR: [0.07, 0.14, 0.42] }, 'lin'],
+        [212, { rootPos: [0, -0.16, 0.06], handL: [0.07, 0.11, 0.41], handR: [0.07, 0.11, 0.41] }, 'out'],
+        // pressed down, then off
+        [232, { handL: [0.07, 0.1, 0.41], handR: [0.07, 0.1, 0.41] }, 'sine'],
+        [244, { rootPos: [0, -0.06, 0.02], rootRot: [0.1, -0.05, 0], spine: [0.08, 0.02, 0], neck: [0.3, 0.02, 0], handL: [0.12, -0.2, 0.42], handR: [0.12, -0.2, 0.42], wristL: [0, 0], wristR: [0, 0] }, 'inout'],
+        // a step back as the body falls, the dumbbells hanging, dripping
+        [264, { rootPos: [0, -0.03, -0.22], rootRot: [0.04, -0.1, 0], spine: [0.02, 0.05, 0], neck: [0.3, 0.08, 0], handL: [0.26, -0.78, 0.04], handR: [0.26, -0.78, 0.04], poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5],
+          footL: [0.14, 0.071, -0.12], footR: [0.16, 0.071, -0.32] }, 'inout'],
+        // he lets them fall
+        [278, { fistL: 0.75, fistR: 0.75 }, 'inout'],
+        [282, { fistL: 0.05, fistR: 0.05, handL: [0.27, -0.76, 0.06], handR: [0.27, -0.76, 0.06] }, 'out'],
+        // dusts his hands
+        [294, { handL: [0.05, -0.28, 0.34], handR: [0.05, -0.28, 0.34], poleL: [0.4, -1, 0], poleR: [0.4, -1, 0], twistL: 0.9, twistR: 0.9, fistL: 0, fistR: 0, neck: [0.2, 0.08, 0] }, 'inout'],
+        [299, { handL: [0.12, -0.3, 0.34], handR: [0.0, -0.26, 0.34] }, 'sine'],
+        [304, { handL: [0.0, -0.26, 0.34], handR: [0.12, -0.3, 0.34] }, 'sine'],
+        [309, { handL: [0.12, -0.3, 0.34], handR: [0.0, -0.26, 0.34] }, 'sine'],
+        // and his phone: back to work (the win pose's phone, js/fx/accessories.js)
+        [326, { handL: [0.3, -0.7, 0.1], twistL: 0, poleL: [0.2, -1, -0.5], fistL: 0.25,
+          handR: [0.16, -0.3, 0.46], fistR: 0, twistR: -1.4, wristR: [-0.2, 0], thR: 0, poleR: [0.2, -1, -0.5], neck: [0.4, -0.05, 0] }, 'inout'],
+        [336, { wristR: [-0.13, 0] }, 'sine'], [342, { wristR: [-0.27, 0] }, 'sine'], [348, { wristR: [-0.13, 0] }, 'sine'], [354, { wristR: [-0.27, 0] }, 'sine'],
+        [360, { wristR: [-0.13, 0], neck: [0.4, 0.06, 0] }, 'sine'], [366, { wristR: [-0.27, 0] }, 'sine'], [372, { wristR: [-0.13, 0] }, 'sine'],
+        [378, { wristR: [-0.27, 0] }, 'sine'], [386, { wristR: [-0.13, 0], neck: [0.4, -0.05, 0] }, 'sine'], [394, { wristR: [-0.27, 0] }, 'sine'],
+        [624, { wristR: [-0.2, 0], neck: [0.42, 0.0, 0] }, 'sine'],
+      ],
+    },
     // "no molestes, estoy trabajando": the phone out of his pocket, the back of the other hand waves the loser away
     // without even looking up, and he goes on tapping at it, the phone flat on his palm (js/fx/accessories.js)
     win: [
@@ -641,9 +714,10 @@ export const STYLES = {
     // sting a little and cuts him in two at the waist with one sweep; she flicks the blood off the blade and lowers it.
     // Frames of the move: len (all of it), cut (the sword goes through), fear (the loser sees it coming), title (its
     // name comes up), dist (between them, m), slow (the slow motion round the cut: [ramp from, full from, full until,
-    // back by, speed]); say / sayAt: her line (tools/quotes_tts.py --fatal)
+    // back by, speed]), still (from then on the loser is not moved by the fight: he is drawn as two halves); say / sayAt:
+    // her line (tools/quotes_tts.py --fatal)
     fatal: {
-      len: 640, cut: 204, fear: 56, title: 412, dist: 1.2, slow: [192, 200, 214, 250, 0.22],
+      len: 640, cut: 204, fear: 56, still: 204, title: 412, dist: 1.2, slow: [192, 200, 214, 250, 0.22],
       say: 'Esto va a escocer un poquito.', sayAt: 84,
       clip: [
         // standing tall, cold, the hands loose at her sides

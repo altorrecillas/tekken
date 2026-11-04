@@ -332,11 +332,13 @@ export class Match {
   stepFatal() {
     const W = this.fighters[this.fatalBy | 0], L = W.opp, F = W.style.fatal;
     for (const f of this.fighters) f.readInput();
+    // (the loser's clips on their frames: styles.js fatal.victim, [frame, clip, blend]; still: the frame from which he
+    // no longer moves, when he is drawn by something else, cut in two)
+    for (const [at, clip, bl] of F.victim || [[F.fear, 'fatalFear', 10]]) if (this.pt === at) L.play(clip, bl);
     for (const f of this.fighters) {
-      if (f === L && this.pt > F.cut) continue;
+      if (f === L && F.still != null && this.pt > F.still) continue;
       f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate();
     }
-    if (this.pt === F.fear) L.play('fatalFear', 10);
     if (!this.endSent && (this.pt >= F.len || (this.pt > F.title + 60 && (W.inp.pressed || L.inp.pressed)))) { this.endSent = true; this.game.onMatchEnd(this); }
   }
 

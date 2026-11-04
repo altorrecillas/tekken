@@ -386,6 +386,44 @@ export function buildClips(style) {
     [7, { rootPos: [0.005, -0.114, -0.083], handL: [0.115, -0.105, 0.345], handR: [0.135, -0.075, 0.315], neck: [0.13, 0.24, 0.05], jaw: 0.22 }, 'sine'],
     [14, FEAR0, 'sine'],
   ], { loop: true });
+  // ... knocked to his knees by a blow to the left of his face (a right hook): the head whips round to his right, the
+  // knees go and he drops onto them, dazed, the head lolling. Kneeling: knees and shins on the floor, the toes tucked
+  // under (checked in poselab)
+  const KNEEL = { rootPos: [0, -0.39, -0.04], rootRot: [0.08, 0, 0], spine: [0.18, 0, 0], neck: [0.32, 0, 0],
+    footL: [0.13, 0.13, -0.35], footR: [0.15, 0.13, -0.36], kneeL: [0.1, -0.3, 1], kneeR: [0.1, -0.3, 1], footRotL: [1.45, 0, 0], footRotR: [1.45, 0, 0], toeL: -0.8, toeR: -0.8,
+    handL: [0.3, -0.72, 0.18], handR: [0.3, -0.72, 0.18], aimL: 1, aimR: 1, fistL: 0.25, fistR: 0.25, twistL: 0, twistR: 0, wristL: [0, 0], wristR: [0, 0], jaw: 0.25 };
+  clips.fatalKnockKneel = C([
+    [0, FEAR0],
+    [3, { rootPos: [0.03, -0.12, -0.1], rootRot: [-0.05, -0.35, 0.12], spine: [-0.05, -0.15, 0.15], neck: [0.0, -1.0, 0.45],
+      handL: [0.45, -0.1, 0.2], handR: [0.4, -0.35, 0.1], fistL: 0.2, fistR: 0.2, twistL: 0.3, twistR: 0.3, wristL: [0, 0], wristR: [0, 0], jaw: 0.6 }, 'snap'],
+    [10, { rootPos: [0.05, -0.2, -0.08], rootRot: [0.15, -0.4, 0.15], spine: [0.2, -0.1, 0.2], neck: [0.3, -0.8, 0.5], handL: [0.35, -0.45, 0.25], handR: [0.32, -0.55, 0.15],
+      footL: [0.13, 0.09, 0.0], footR: [0.15, 0.09, -0.18], kneeL: [0.1, -0.1, 1], kneeR: [0.1, -0.1, 1] }, 'inout'],
+    [18, { ...KNEEL, rootPos: [0.02, -0.4, -0.06], rootRot: [0.15, -0.2, 0.1], spine: [0.25, -0.05, 0.12], neck: [0.45, -0.5, 0.35], handL: [0.32, -0.62, 0.25], handR: [0.32, -0.66, 0.2] }, 'in'],
+    [22, { rootPos: [0.02, -0.37, -0.05] }, 'out'],
+    [34, { ...KNEEL, neck: [0.38, -0.25, 0.2] }, 'inout'],
+  ]);
+  // ... on his knees, he looks up at what is coming, the open hands raised a little in front of his chest
+  const KNEELUP = { ...KNEEL, rootRot: [0.02, 0, 0], spine: [0.05, 0, 0], neck: [-0.35, 0.05, 0.05], handL: [0.22, -0.32, 0.32], handR: [0.24, -0.3, 0.3],
+    fistL: 0.1, fistR: 0.1, twistL: 0.8, twistR: 0.8, wristL: [0.6, 0], wristR: [0.6, 0], jaw: 0.35 };
+  clips.fatalKneelUp = C([
+    [0, KNEELUP],
+    [8, { ...KNEELUP, neck: [-0.33, 0.07, 0.06], handL: [0.225, -0.315, 0.325], jaw: 0.4 }, 'sine'],
+    [16, KNEELUP, 'sine'],
+  ], { loop: true });
+  // ... crushed from above: the body jolts down under the blow and stays pressed while the weight is on his head, then
+  // goes limp and folds forwards onto his knees, the head on the floor
+  const SLUMP = { rootPos: [0, -0.66, -0.08], rootRot: [1.35, 0.15, 0.25], spine: [0.35, 0.05, 0.15], neck: [0.5, 0.2, 0.3],
+    footL: [0.13, 0.12, -0.33], footR: [0.15, 0.12, -0.34], kneeL: [0.1, -0.3, 1], kneeR: [0.1, -0.3, 1], footRotL: [1.45, 0, 0], footRotR: [1.45, 0, 0], toeL: -0.8, toeR: -0.8,
+    handL: [0.55, -0.6, 0.2], handR: [0.5, -0.55, 0.35], aimL: 0, aimR: 0, fistL: 0.15, fistR: 0.2, twistL: 0, twistR: 0, wristL: [0, 0], wristR: [0, 0], jaw: 0.4 };
+  clips.fatalCrushed = C([
+    [0, KNEELUP],
+    [3, { rootPos: [0, -0.47, -0.06], rootRot: [0.12, 0, 0], spine: [0.22, 0, 0], neck: [0.25, 0, 0], handL: [0.4, -0.55, 0.2], handR: [0.42, -0.5, 0.22], fistL: 0.3, fistR: 0.3, twistL: 0.2, twistR: 0.2, wristL: [0, 0], wristR: [0, 0] }, 'snap'],
+    [30, { rootPos: [0, -0.48, -0.06], handL: [0.42, -0.62, 0.18], handR: [0.44, -0.6, 0.2], fistL: 0.1, fistR: 0.1 }, 'inout'],
+    [40, { rootPos: [0, -0.56, -0.1], rootRot: [0.7, 0.08, 0.12], spine: [0.35, 0.03, 0.08], neck: [0.4, 0.1, 0.15] }, 'in'],
+    [46, SLUMP, 'in'],
+    [52, { ...SLUMP, rootPos: [0, -0.64, -0.08] }, 'out'],
+    [60, SLUMP, 'inout'],
+  ]);
   // the winner's own move (styles.js fatal.clip)
   if (style.fatal?.clip) clips.fatal = C(style.fatal.clip);
   clips.win = C(style.win || [

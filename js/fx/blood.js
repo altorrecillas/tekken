@@ -11,7 +11,7 @@ function rng(seed) { let s = seed | 0; return () => { s = (s + 0x6D2B79F5) | 0; 
 
 const DROP_VS = `
 attribute vec3 iPos, iPrev, iVel; attribute vec3 iSA;
-uniform float uAlpha;
+uniform float uAlpha, uShutter;
 varying vec2 vQ; varying float vA; varying float vB; varying float vH;
 void main() {
   vB = iSA.z;
@@ -21,12 +21,14 @@ void main() {
   float sp = length( vv.xy );
   // (nrm to the right of dir, as x is to the right of y: the quad keeps its winding, or it is culled as a back face)
   vec2 dir = sp > 1e-4 ? vv.xy / sp : vec2( 0.0, 1.0 ), nrm = vec2( dir.y, -dir.x );
-  // drawn as a capsule: the drop smeared along its path over a 1/60 s shutter, trailing behind it
-  float r = iSA.x, hl = 0.5 * sp / 60.0;
+  // drawn as a capsule: the drop smeared along its path over the shutter (1/60 s of the fight's time: in slow motion
+  // the drops hang in the air, sharp), trailing behind it
+  float r = iSA.x, hl = 0.5 * sp * uShutter;
   mv.xy += dir * ( position.y * 2.0 * ( r + hl ) - hl ) + nrm * position.x * 2.0 * r;
   gl_Position = projectionMatrix * mv;
   // (in units of the drop's radius: across, along)
-  vQ = vec2( position.x * 2.0, position.y * 2.0 * ( r + hl ) / r ); vH = hl / r; vA = iSA.y;
+  // (a drop right in front of the lens would be a big pale smear: they fade out there)
+  vQ = vec2( position.x * 2.0, position.y * 2.0 * ( r + hl ) / r ); vH = hl / r; vA = iSA.y * smoothstep( 0.2, 0.55, -mv.z );
 }`;
 const DROP_FS = `
 uniform vec3 uLight;
@@ -113,7 +115,7 @@ export class Blood {
       return [g, A];
     };
     [this.dg, this.dA] = mk(MAXD, [['iPos', 3], ['iPrev', 3], ['iVel', 3], ['iSA', 3]]);
-    this.dropU = { uAlpha: { value: 1 }, uLight: { value: new THREE.Vector3(0.3, 0.6, 0.75).normalize() } };
+    this.dropU = { uAlpha: { value: 1 }, uShutter: { value: 1 / 60 }, uLight: { value: new THREE.Vector3(0.3, 0.6, 0.75).normalize() } };
     this.dropMesh = new THREE.Mesh(this.dg, new THREE.ShaderMaterial({ uniforms: this.dropU, vertexShader: DROP_VS, fragmentShader: DROP_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     this.dropMesh.frustumCulled = false; this.dropMesh.renderOrder = 12;
     [this.mg, this.mA] = mk(MAXM, [['iPos', 3], ['iPrev', 3], ['iSA', 2]]);
@@ -142,6 +144,12 @@ export class Blood {
       return g;
     });
     this.chunkMat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.16, 0.01, 0.012), roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.1 });
+    // (bits of brain, pale and wet, and of bone or teeth)
+    this.chunkMats = {
+      flesh: this.chunkMat,
+      brain: new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.55, 0.3, 0.28), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1, sheen: 0.5, sheenColor: new THREE.Color(0.6, 0.25, 0.25) }),
+      bone: new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.72, 0.66, 0.56), roughness: 0.45, clearcoat: 0.4 }),
+    };
     this.chunkGeos = cg; this.chunks = [];
     this.group = new THREE.Group(); this.group.name = 'blood';
     this.group.add(this.dropMesh, this.mistMesh, ...this.decals.map((d) => d.im));
@@ -173,11 +181,11 @@ export class Blood {
       this.mist.push({ p: p.clone(), prev: p.clone(), v, s0: size[0] * (0.7 + 0.6 * R()), s1: size[1] * (0.8 + 0.5 * R()), a: 0.32 + R() * 0.2, life: life * (0.7 + 0.6 * R()), age: 0 });
     }
   }
-  gore(p, dir, n) {
+  gore(p, dir, n, kind = 'flesh') {
     const R = this.R;
     for (let i = 0; i < n; i++) {
-      const m = new THREE.Mesh(this.chunkGeos[i % 3], this.chunkMat);
-      const s = 0.006 + R() * 0.009;
+      const m = new THREE.Mesh(this.chunkGeos[i % 3], this.chunkMats[kind] || this.chunkMat);
+      const s = (kind === 'bone' ? 0.004 : 0.006) + R() * (kind === 'bone' ? 0.005 : 0.009);
       m.scale.setScalar(s); m.castShadow = true; m.userData.noGTAO = true;
       this.group.add(m);
       const v = dir.clone().multiplyScalar(1.2 + R() * 2.2).add(new THREE.Vector3((R() - 0.5) * 2, R() * 2.2, (R() - 0.5) * 2));
@@ -234,7 +242,7 @@ export class Blood {
       c.q.premultiply(this._q.setFromAxisAngle(this._p.copy(c.w).normalize(), c.w.length() * DT));
       if (c.p.y < c.r * 0.7) {
         c.p.y = c.r * 0.7;
-        if (!c.landed) { c.landed = true; this.splat(c.p, c.r * 7, 0, 0); }
+        if (!c.landed) { c.landed = true; if (c.m.material === this.chunkMat) this.splat(c.p, c.r * 7, 0, 0); }
         c.v.y = Math.abs(c.v.y) * 0.25; c.v.x *= 0.55; c.v.z *= 0.55; c.w.multiplyScalar(0.6);
         if (c.v.lengthSq() < 0.02) c.rest = true;
       }
@@ -243,8 +251,10 @@ export class Blood {
   }
 
   // ------------------------------------------------------------------ drawing (alpha: between the last two frames)
-  render(alpha, camera) {
+  // rate: how fast the fight's time runs (slow motion: the shutter takes in less of the drops' motion)
+  render(alpha, camera, rate = 1) {
     this.dropU.uAlpha.value = alpha; this.mistU.uAlpha.value = alpha;
+    this.dropU.uShutter.value = rate / 60;
     // the light from above, a little towards the lens (view space)
     if (camera) this.dropU.uLight.value.set(0.25, 0.85, 0.45).normalize();
     const A = this.dA, D = this.drops;
@@ -292,7 +302,7 @@ export class Blood {
     for (const D of this.decals) { D.im.material.map?.dispose(); D.im.material.dispose(); D.im.geometry.dispose(); }
     this.dropMesh.material.dispose(); this.mistMesh.material.dispose(); this.dg.dispose(); this.mg.dispose();
     for (const g of this.chunkGeos) g.dispose();
-    this.chunkMat.dispose();
+    for (const k in this.chunkMats) this.chunkMats[k].dispose();
   }
 }
 

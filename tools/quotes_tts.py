@@ -39,6 +39,7 @@ INTROS = {
 # the line said in the fighter's PUÑETALITY
 FATALS = {
     'noemi': 'Esto va a escocer un poquito.',
+    'camilo': 'Hoy toca día de brazo.',
 }
 # the announcer's call as the finishing move ends (spelt as it is said: «pu-ñe-TÁ-li-ti»)
 ANNOUNCER = {'punetality': 'Puñetáliti.'}
