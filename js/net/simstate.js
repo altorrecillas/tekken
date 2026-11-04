@@ -61,7 +61,7 @@ class IO {
 }
 
 const POSES = ['pose', 'prevPose', 'blendFrom', 'base', 'basePrev', 'offX', 'offV'];
-const NUMS = ['yaw', 'prevYaw', 'inertH', 'sf', 'mf', 'cf', 'cfRate', 'blendT', 'blendDur', 'ubc', 'yawRate', 'stun', 'juggles',
+const NUMS = ['fatalFloor', 'yaw', 'prevYaw', 'inertH', 'sf', 'mf', 'cf', 'cfRate', 'blendT', 'blendDur', 'ubc', 'yawRate', 'stun', 'juggles',
   'comboHits', 'comboDmg', 'slide', 'pending', 'pendingT', 'downT', 'invuln', 'downHold', 'upHold', 'lastDy', 'sideDir', 'hp', 'maxHp',
   'jumpFwd', 'advPrev', 'throwDmg', 'throwBreak', 'voiceT', 'shakeT', 'breath', 'hitFlash', 'counterFlash', 'spin'];
 const BOOLS = ['snapPose', 'snapSmooth', 'moveHit', 'moveConnected', 'crouching', 'airborne', 'ko', 'rage', 'rageUsed'];
@@ -154,6 +154,8 @@ function ioMatch(m, io) {
   for (const P of m.play) for (const k of PLAY_KEYS) P[k] = io.num(P[k]);
   for (const k of BEST_KEYS) m.best[k] = io.num(m.best[k]);
   io.vec(m.viewN);
+  // (where the finishing move put the two of them: its steps and throws are counted from there)
+  m.fatalW0 = io.vecU(m.fatalW0); m.fatalL0 = io.vecU(m.fatalL0);
   const F = m.fighters;
   if (io.bool(!!m.rageLock)) {
     const L = io.reading ? { p: new THREE.Vector3() } : m.rageLock;

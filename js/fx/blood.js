@@ -155,7 +155,11 @@ export class Blood {
     this.group.add(this.dropMesh, this.mistMesh, ...this.decals.map((d) => d.im));
     scene.add(this.group);
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._s = new THREE.Vector3(); this._p = new THREE.Vector3();
+    // the floor's height under a point (x, z), when it is not flat (a pit opened in it): drops and chunks land there and
+    // the splats lie there
+    this.floorAt = null;
   }
+  floor(x, z) { return this.floorAt ? this.floorAt(x, z) : FLOOR; }
 
   // ------------------------------------------------------------------ spawning
   // n drops from p along dir (unit) at speed (min, max), within a cone of `spread` (rad); size (m): radius range
@@ -197,7 +201,7 @@ export class Blood {
   splat(p, size, kind = 0, angle = 0, grow = 0) {
     const D = this.decals[kind];
     if (D.list.length >= MAXDEC) D.list.shift();
-    D.list.push({ x: p.x, z: p.z, size, angle, grow, age: 0, y: FLOOR + 0.0015 + (this._dy = ((this._dy || 0) + 0.00007) % 0.003) });
+    D.list.push({ x: p.x, z: p.z, size, angle, grow, age: 0, y: this.floor(p.x, p.z) + 0.0015 + (this._dy = ((this._dy || 0) + 0.00007) % 0.003) });
   }
 
   // ------------------------------------------------------------------ simulation (one fight frame)
@@ -211,7 +215,7 @@ export class Blood {
       d.prev.copy(d.p);
       d.v.y -= G * DT; d.v.multiplyScalar(Math.exp(-d.drag * DT));
       d.p.addScaledVector(d.v, DT);
-      if (d.p.y <= FLOOR + 0.002) {
+      if (d.p.y <= (this.floorAt ? this.floorAt(d.p.x, d.p.z) : FLOOR) + 0.002) {
         // landed: a splat for the bigger ones, drawn out the way it was going if it came in fast and flat
         const hs = Math.hypot(d.v.x, d.v.z);
         if (d.s > 0.0035 || this.R() < 0.2) {
@@ -240,8 +244,9 @@ export class Blood {
       c.v.y -= G * DT;
       c.p.addScaledVector(c.v, DT);
       c.q.premultiply(this._q.setFromAxisAngle(this._p.copy(c.w).normalize(), c.w.length() * DT));
-      if (c.p.y < c.r * 0.7) {
-        c.p.y = c.r * 0.7;
+      const fy = this.floor(c.p.x, c.p.z);
+      if (c.p.y < fy + c.r * 0.7) {
+        c.p.y = fy + c.r * 0.7;
         if (!c.landed) { c.landed = true; if (c.m.material === this.chunkMat) this.splat(c.p, c.r * 7, 0, 0); }
         c.v.y = Math.abs(c.v.y) * 0.25; c.v.x *= 0.55; c.v.z *= 0.55; c.w.multiplyScalar(0.6);
         if (c.v.lengthSq() < 0.02) c.rest = true;

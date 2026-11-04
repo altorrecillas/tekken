@@ -599,6 +599,129 @@ export class Audio {
     } else if (kind === 'twirl') {
       if (rec) this.take('swishL', t, { out, gain: 0.35, rate: 1.3, rev: 0.1 });
       else this.noise(t, 0.12, { type: 'bandpass', f0: 1800, q: 1.5, gain: 0.1, out, rev: 0.1 });
+    } else if (kind === 'beep') {
+      // a sports watch: two short beeps to start, one long one to stop
+      const f = 2750;
+      if (o.long) this.tone(t, 0.42, { type: 'square', f0: f, f1: f, gain: 0.05, attack: 0.002, out, rev: 0.05 });
+      else for (const k of [0, 0.14]) this.tone(t + k, 0.08, { type: 'square', f0: f, f1: f, gain: 0.05, attack: 0.002, out, rev: 0.05 });
+    } else if (kind === 'go') {
+      // off: a hard push from the floor and a breath out
+      if (rec) { this.take('stepC', t, { out, gain: 1.0, rate: 0.85 }); this.take('swishL', t + 0.03, { out, gain: 0.5, rate: 0.8 }); }
+      this.noise(t, 0.25, { type: 'bandpass', f0: 900, f1: 500, q: 0.8, gain: 0.12, attack: 0.01, out, rev: 0.1 });
+    } else if (kind === 'runstep') {
+      const v = o.v ?? 4;
+      if (rec) this.take(this.surface === 'wood' ? 'stepW' : 'stepC', t, { out, gain: 0.55 + Math.min(0.4, v * 0.03), rate: 1 + Math.min(0.5, v * 0.03), vary: 0.08 });
+      else this.noise(t, 0.05, { type: 'lowpass', f0: 700, gain: 0.25, out });
+    } else if (kind === 'windOn') {
+      // the whirlwind: a roar of filtered noise whose pitch and weight follow its strength (windLevel), a whistle on top
+      this.fatal('windOff', null, { fast: true });
+      const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300; lp.Q.value = 0.7;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 3;
+      const g = c.createGain(); g.gain.value = 0.0001; const gw = c.createGain(); gw.gain.value = 0.0001;
+      const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 0.6; lg.gain.value = 250; lfo.connect(lg).connect(bp.frequency); lfo.start(t);
+      src.connect(lp).connect(g).connect(this.sfxBus); src.connect(bp).connect(gw).connect(this.sfxBus);
+      const r = c.createGain(); r.gain.value = 0.25; g.connect(r).connect(this.revSend);
+      src.start(t);
+      this.windNodes = { src, lp, bp, g, gw, lfo };
+    } else if (kind === 'windLevel') {
+      const N = this.windNodes; if (!N) return;
+      const I = o.I ?? 0, red = o.red ?? 0;
+      N.g.gain.setTargetAtTime(0.0001 + 0.42 * I, t, 0.12);
+      N.lp.frequency.setTargetAtTime(250 + 1500 * I, t, 0.15);
+      N.gw.gain.setTargetAtTime(0.0001 + 0.1 * I * (1 - 0.5 * red), t, 0.15);
+      N.lfo.frequency.setTargetAtTime(0.5 + 2.5 * I, t, 0.2);
+    } else if (kind === 'windOff') {
+      const N = this.windNodes; if (!N) return;
+      this.windNodes = null;
+      const k = o.fast ? 0.06 : 0.5;
+      N.g.gain.setTargetAtTime(0.0001, t, k); N.gw.gain.setTargetAtTime(0.0001, t, k);
+      N.src.stop(t + k * 6); N.lfo.stop(t + k * 6);
+    } else if (kind === 'shred') {
+      // skin and cloth torn by the wind: wet rips and crackles
+      const p = o.power ?? 1;
+      for (let k = 0; k < 4; k++) this.noise(t + k * 0.03 + Math.random() * 0.03, 0.06, { type: 'bandpass', f0: 1200 + Math.random() * 2200, q: 2, gain: 0.12 * p, out, rev: 0.2 });
+      this.noise(t, 0.18, { type: 'lowpass', f0: 900, f1: 250, q: 3, gain: 0.14 * p, out, rev: 0.2 });
+    } else if (kind === 'evap') {
+      // the body coming apart in the wind: a long wet tearing roar
+      this.noise(t, 1.4, { type: 'bandpass', f0: 400, f1: 2400, q: 0.8, gain: 0.45, attack: 0.3, out, rev: 0.5 });
+      this.noise(t, 1.2, { type: 'lowpass', f0: 600, f1: 200, q: 4, gain: 0.35, attack: 0.1, out, rev: 0.4 });
+      for (let k = 0; k < 18; k++) this.noise(t + Math.random() * 1.3, 0.05, { type: 'bandpass', f0: 800 + Math.random() * 2500, q: 2, gain: 0.08 + Math.random() * 0.08, out, rev: 0.3 });
+    } else if (kind === 'pop') {
+      // gone: a deep wet burst, and the wind's last sigh
+      this.tone(t, 1.3, { f0: 55, f1: 24, gain: 0.95, out, dist: true, rev: 0.7 });
+      this.noise(t, 0.9, { type: 'lowpass', f0: 3800, f1: 220, gain: 0.6, attack: 0.003, out, rev: 0.6 });
+      if (rec) { this.take('thudH', t, { out, gain: 1.1, rate: 0.55, rev: 0.6 }); this.take('slap', t + 0.01, { out, gain: 1.0, rate: 0.5, rev: 0.5 }); }
+    } else if (kind === 'sizzle') {
+      this.noise(t, 1.2, { type: 'highpass', f0: 3500, gain: 0.04, attack: 0.2, out, rev: 0.2 });
+    } else if (kind === 'skid') {
+      // trainers skidding on the ground: a rubbery squeal and grit
+      this.tone(t, 0.55, { type: 'sawtooth', f0: 1150, f1: 820, gain: 0.05, attack: 0.02, out, rev: 0.2 });
+      this.noise(t, 0.6, { type: 'bandpass', f0: 2600, f1: 1200, q: 1.2, gain: 0.22, attack: 0.02, out, rev: 0.2 });
+      this.noise(t, 0.5, { type: 'lowpass', f0: 700, gain: 0.18, attack: 0.02, out, rev: 0.15 });
+    } else if (kind === 'pat') {
+      // a slap on a big belly: the flat smack of the palms and the low, round answer of it
+      const g = o.last ? 0.8 : 1;
+      if (rec) { this.take('slap', t, { out, gain: 0.9 * g, rate: 0.72, rev: 0.25 }); this.take('thudM', t + 0.004, { out, gain: 0.45 * g, rate: 0.7, rev: 0.2 }); }
+      else this.noise(t, 0.06, { type: 'bandpass', f0: 1400, q: 0.8, gain: 0.4 * g, out, rev: 0.25 });
+      this.tone(t, 0.28, { type: 'sine', f0: 118, f1: 82, gain: 0.32 * g, out, rev: 0.2 });
+    } else if (kind === 'stomp') {
+      // a heavy man's stamp that breaks the ground: a deep boom, the crack of the slab and grit
+      if (rec) { this.take('thudH', t, { out, gain: 1.3, rate: 0.55, rev: 0.55 }); this.take('stepC', t, { out, gain: 1.0, rate: 0.6 }); }
+      this.tone(t, 1.3, { f0: 50, f1: 24, gain: 1.0, out, dist: true, rev: 0.7 });
+      for (let k = 0; k < 6; k++) this.noise(t + 0.01 + k * 0.018 + Math.random() * 0.01, 0.04, { type: 'bandpass', f0: 1400 + Math.random() * 2200, q: 2, gain: 0.32 - k * 0.04, out, rev: 0.35 });
+      this.noise(t, 0.6, { type: 'lowpass', f0: 900, f1: 120, gain: 0.45, attack: 0.004, out, rev: 0.5 });
+    } else if (kind === 'crackrun') {
+      // the crack running across the ground: a fast crackle going away, stone grinding under it
+      for (let k = 0; k < 16; k++) this.noise(t + k * 0.022 + Math.random() * 0.012, 0.03, { type: 'bandpass', f0: 2600 - k * 90 + Math.random() * 900, q: 3, gain: 0.22 * (1 - k / 22), out, rev: 0.3 });
+      this.noise(t, 0.45, { type: 'lowpass', f0: 380, f1: 160, q: 3, gain: 0.3, attack: 0.03, out, rev: 0.4 });
+    } else if (kind === 'collapse') {
+      // the ground giving way: a long, deep rumble, the slab breaking up, falling, echoing in the pit
+      this.tone(t, 2.4, { f0: 38, f1: 22, gain: 0.9, attack: 0.05, out, dist: true, rev: 0.8 });
+      this.noise(t, 2.2, { type: 'lowpass', f0: 520, f1: 90, q: 1.5, gain: 0.6, attack: 0.08, out, rev: 0.8 });
+      this.noise(t + 0.05, 1.4, { type: 'bandpass', f0: 1800, f1: 500, q: 0.7, gain: 0.22, attack: 0.1, out, rev: 0.6 });
+      if (rec) for (let k = 0; k < 5; k++) this.take('thudH', t + 0.08 + k * 0.17 + Math.random() * 0.06, { out, gain: 0.8 - k * 0.1, rate: 0.5 + Math.random() * 0.2, rev: 0.7 });
+    } else if (kind === 'rubble') {
+      // a chunk of the slab landing at the pit's bottom
+      const s = Math.min(1, (o.s ?? 0.06) / 0.08);
+      if (rec) this.take('thudM', t, { out, gain: 0.25 + 0.4 * s, rate: 1.1 - 0.4 * s, rev: 0.6, vary: 0.15 });
+      this.noise(t, 0.08, { type: 'bandpass', f0: 900 + Math.random() * 1500, q: 1.5, gain: 0.12 + 0.12 * s, out, rev: 0.5 });
+    } else if (kind === 'gasp') {
+      // the loser's sharp breath in (no voice of his own for it: air through a throat)
+      this.noise(t, 0.35, { type: 'bandpass', f0: 1300, f1: 2200, q: 2.5, gain: 0.16, attack: 0.04, out, rev: 0.25 });
+      this.noise(t, 0.3, { type: 'bandpass', f0: 600, f1: 900, q: 4, gain: 0.08, attack: 0.05, out, rev: 0.2 });
+    } else if (kind === 'heavystep') {
+      // a big man running: each foot a thud, the ground answering
+      if (rec) { this.take('stepC', t, { out, gain: 1.0, rate: 0.66, vary: 0.06 }); this.take('thudM', t, { out, gain: 0.4, rate: 0.62, rev: 0.25 }); }
+      this.tone(t, 0.3, { f0: 64, f1: 34, gain: 0.45, out, rev: 0.25 });
+    } else if (kind === 'bump') {
+      // a belly bump that sends a man flying: a huge wet smack, a deep wobbling boom, the air knocked out
+      if (rec) { this.take('slap', t, { out, gain: 1.4, rate: 0.48, rev: 0.5 }); this.take('thudH', t, { out, gain: 1.3, rate: 0.5, rev: 0.6 }); this.take('punchH', t + 0.01, { out, gain: 1.0, rate: 0.55, rev: 0.5 }); }
+      this.tone(t, 1.4, { f0: 46, f1: 22, gain: 1.0, out, dist: true, rev: 0.8 });
+      const w = c.createOscillator(), wg = c.createGain(), vib = c.createOscillator(), vg = c.createGain();
+      w.type = 'sine'; w.frequency.setValueAtTime(140, t); w.frequency.exponentialRampToValueAtTime(70, t + 0.5);
+      vib.frequency.value = 11; vg.gain.value = 14; vib.connect(vg).connect(w.frequency);
+      wg.gain.setValueAtTime(0.0001, t); wg.gain.exponentialRampToValueAtTime(0.4, t + 0.01); wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      w.connect(wg).connect(out); w.start(t); vib.start(t); w.stop(t + 0.65); vib.stop(t + 0.65);
+      this.noise(t, 0.7, { type: 'lowpass', f0: 2600, f1: 200, gain: 0.45, attack: 0.003, out, rev: 0.6 });
+    } else if (kind === 'impale') {
+      // onto the spikes: iron punching through, ribs giving, a wet crunch, a deep blow, the spikes ringing
+      for (let k = 0; k < 9; k++) this.noise(t + k * 0.01 + Math.random() * 0.012, 0.035, { type: 'bandpass', f0: 1500 + Math.random() * 2800, q: 2.5, gain: 0.5 - k * 0.04, out, rev: 0.3 });
+      this.noise(t + 0.005, 0.5, { type: 'lowpass', f0: 1700, f1: 150, q: 5, gain: 0.75, attack: 0.004, out, rev: 0.45 });
+      if (rec) { this.take('thudH', t, { out, gain: 1.3, rate: 0.55, rev: 0.6 }); this.take('slap', t + 0.012, { out, gain: 1.1, rate: 0.45, rev: 0.5 }); this.take('punchH', t, { out, gain: 1.0, rate: 0.5, rev: 0.5 }); }
+      this.tone(t, 1.3, { f0: 54, f1: 24, gain: 1.0, out, dist: true, rev: 0.7 });
+      for (const [f, g] of [[612, 0.05], [883, 0.04], [1376, 0.03], [2011, 0.02]]) this.tone(t + 0.01, 1.4, { type: 'sine', f0: f * 1.004, f1: f, gain: g, attack: 0.002, out, rev: 0.7 });
+    } else if (kind === 'cough') {
+      // a wet, weak cough with blood in it
+      const g = o.last ? 0.7 : 1;
+      for (let k = 0; k < (o.last ? 1 : 2); k++) {
+        this.noise(t + k * 0.24, 0.16, { type: 'bandpass', f0: 700, f1: 420, q: 1.5, gain: 0.3 * g, attack: 0.008, out, rev: 0.3 });
+        for (let j = 0; j < 4; j++) this.noise(t + k * 0.24 + 0.04 + j * 0.03, 0.04, { type: 'lowpass', f0: 380 + Math.random() * 250, q: 7, gain: 0.18 * g, attack: 0.005, out, rev: 0.2 });
+      }
+    } else if (kind === 'drip') {
+      // a drop into the pool at the pit's bottom: a small wet plink, echoing
+      const f = 900 + Math.random() * 500;
+      this.tone(t, 0.12, { type: 'sine', f0: f, f1: f * 2.1, gain: 0.05, attack: 0.002, out, rev: 0.8 });
     } else if (kind === 'summon') {
       // the leaf growing out of the hilt: a rising shimmer
       this.noise(t, 0.7, { type: 'bandpass', f0: 600, f1: 5200, q: 3, gain: 0.16, attack: 0.25, out, rev: 0.5 });

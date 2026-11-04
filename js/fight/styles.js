@@ -84,6 +84,86 @@ export const STYLES = {
         advance: [[0, 0], [8, 0.12], [22, 0.3], [50, 0.3]], sfx: 'heavy',
       },
     }),
+    // PUÑETALITY (js/fight/fatality.js): a runner. He stretches a quad, starts his watch, and sets off round the loser,
+    // faster and faster, until he is a blur, a ring of himself, a tornado of dust that lifts the loser's clothes, then his
+    // skin, and turns red as it takes all of him away: nothing is left but his shoes, smoking. He skids to a stop, checks
+    // his watch ("récord personal") and smooths his hair: not a hair out of place. Frames: orbit (the run round him:
+    // from, R and v keys, turn, face), cadence (the stride's pace: m/s at the clip's own pace, its top), winner (his
+    // clips: [frame, clip, blend]), evap (the loser gone), the rest as the others'
+    fatal: {
+      len: 700, contact: 104, evap: [292, 334], title: 470, dist: 1.6,
+      orbit: { from: 104, turn: 12, face: 382, R: [[104, 1.6], [150, 1.18], [338, 1.18], [382, 1.95]], v: [[104, 0], [120, 4.5], [170, 8.5], [240, 16], [330, 16], [362, 4], [382, 0]] },
+      cadence: [4.2, 2.6],
+      slow: [[284, 292, 330, 348, 0.35]],
+      say: 'Récord personal.', sayAt: 408, sayLen: 60,
+      winner: [[104, 'fatal_run', 6], [376, 'fatal_stop', 6]],
+      victim: [[60, 'fatalFear', 10], [126, 'fatalCover', 10], [196, 'fatalVortex', 14]],
+      clip: [
+        // loose, a step out from the loser
+        [0, { rootPos: [0, -0.02, 0], rootRot: [0, -0.1, 0], spine: [0, 0.05, 0], neck: [0.06, 0.08, 0],
+          handL: [0.22, -0.86, 0.06], aimL: 1, handR: [0.22, -0.86, 0.06], aimR: 1, fistL: 0.35, fistR: 0.35, twistL: 0, twistR: 0,
+          footL: [0.14, 0.071, 0.1], footR: [0.15, 0.071, -0.1], footRotL: [0, 0.1, 0], footRotR: [0, 0.25, 0], kneeL: [0.1, 0, 1], kneeR: [0.12, 0, 1] }],
+        // a quad stretch: the right heel pulled up to his backside, the left arm out for balance
+        [14, { footR: [0.13, 0.52, -0.2], kneeR: [0.05, -1, 0.15], footRotR: [1.75, 0, 0], footL: [0.1, 0.071, 0.04], footRotL: [0, 0, 0],
+          handR: [0.15, -0.95, -0.35], poleR: [0.6, -0.3, -0.7], fistR: 0.7, handL: [0.6, -0.3, 0.2], fistL: 0.2, rootRot: [0.06, -0.1, 0.03], neck: [0.1, 0.1, 0] }, 'inout'],
+        [30, { footR: [0.13, 0.56, -0.21] }, 'sine'],
+        // the leg down and shaken out, a bounce on his toes
+        [40, { footR: [0.15, 0.071, -0.1], kneeR: [0.12, 0, 1], footRotR: [0, 0.25, 0], footL: [0.14, 0.071, 0.1], footRotL: [0, 0.1, 0],
+          handR: [0.24, -0.84, 0.04], poleR: [0.2, -1, -0.5], fistR: 0.3, handL: [0.24, -0.84, 0.06], fistL: 0.3, rootRot: [0, -0.1, 0] }, 'inout'],
+        [45, { rootPos: [0, 0.01, 0] }, 'sine'], [50, { rootPos: [0, -0.04, 0] }, 'sine'], [55, { rootPos: [0, 0.01, 0] }, 'sine'], [60, { rootPos: [0, -0.03, 0] }, 'sine'],
+        // his watch: the left wrist up before his chest, the right index finger presses it (the beep at 78)
+        [70, { rootPos: [0, -0.02, 0], handL: [0.0, -0.3, 0.42], twistL: 1.2, wristL: [0.2, 0], fistL: 0.6, handR: [0.05, -0.3, 0.38], twistR: 0.4, fistR: 1, ptR: 1, neck: [0.42, 0.0, 0] }, 'inout'],
+        [78, { handR: [0.02, -0.29, 0.4] }, 'out'],
+        [84, { handR: [0.06, -0.31, 0.37], neck: [0.2, 0.05, 0] }, 'inout'],
+        // set: the weight forward, the knees bent, the arms ready, his eyes on the loser
+        [100, { rootPos: [0, -0.12, 0.04], rootRot: [0.3, -0.25, 0], spine: [0.1, 0.1, 0], neck: [-0.05, 0.15, 0],
+          footL: [0.1, 0.071, 0.2], footR: [0.12, 0.09, -0.25], footRotL: [0, -0.1, 0], footRotR: [0.3, 0.1, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1],
+          handL: [0.12, -0.3, 0.38], handR: [0.22, -0.6, -0.25], twistL: -0.3, twistR: -0.3, wristL: [0, 0], fistL: 0.55, fistR: 0.55, ptR: 0, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6] }, 'inout'],
+        [104, { rootPos: [0, -0.13, 0.05] }, 'sine'],
+      ],
+      clips: {
+        // the sprint: one stride of each leg (24 frames at its own pace; Match.fatalOrbit speeds it up with him), the
+        // body leaning forward and into the circle, the arms pumping, his face turned to the loser on his left
+        run: [[
+          [0, { rootPos: [0, -0.07, 0.04], rootRot: [0.24, -0.12, -0.2], spine: [0.06, 0.2, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.075, 0.32], footRotL: [0.05, 0.0, 0.0], footR: [0.095, 0.295, -0.34], footRotR: [1.05, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.22, -0.62, -0.3], handR: [0.12, -0.22, 0.42], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }],
+          [2, { rootPos: [0, -0.083, 0.04], rootRot: [0.24, -0.08, -0.2], spine: [0.06, 0.133, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.073, 0.204], footRotL: [0.03, 0.0, 0.0], footR: [0.1, 0.46, -0.3], footRotR: [1.3, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.213, -0.573, -0.167], handR: [0.147, -0.307, 0.313], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [3, { rootPos: [0, -0.09, 0.04], rootRot: [0.24, -0.06, -0.2], spine: [0.06, 0.1, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.073, 0.146], footRotL: [0.02, 0.0, 0.0], footR: [0.1, 0.452, -0.184], footRotR: [1.16, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.21, -0.55, -0.1], handR: [0.16, -0.35, 0.26], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [5, { rootPos: [0, -0.074, 0.04], rootRot: [0.24, -0.02, -0.2], spine: [0.06, 0.033, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.071, 0.03], footRotL: [0.0, 0.0, 0.0], footR: [0.1, 0.436, 0.048], footRotR: [0.88, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.203, -0.503, 0.033], handR: [0.187, -0.437, 0.153], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [6, { rootPos: [0, -0.066, 0.04], rootRot: [0.24, 0.0, -0.2], spine: [0.06, 0.0, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.083, -0.052], footRotL: [0.16, 0.0, 0.0], footR: [0.1, 0.428, 0.164], footRotR: [0.74, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.2, -0.48, 0.1], handR: [0.2, -0.48, 0.1], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [7, { rootPos: [0, -0.058, 0.04], rootRot: [0.24, 0.02, -0.2], spine: [0.06, -0.033, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.095, -0.134], footRotL: [0.32, 0.0, 0.0], footR: [0.1, 0.42, 0.28], footRotR: [0.6, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.187, -0.437, 0.153], handR: [0.203, -0.503, 0.033], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [8, { rootPos: [0, -0.05, 0.04], rootRot: [0.24, 0.04, -0.2], spine: [0.06, -0.067, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.106, -0.216], footRotL: [0.48, 0.0, 0.0], footR: [0.097, 0.347, 0.327], footRotR: [0.417, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.173, -0.393, 0.207], handR: [0.207, -0.527, -0.033], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [10, { rootPos: [0, -0.035, 0.04], rootRot: [0.24, 0.08, -0.2], spine: [0.06, -0.133, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.13, -0.38], footRotL: [0.8, 0.0, 0.0], footR: [0.09, 0.2, 0.42], footRotR: [0.05, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.147, -0.307, 0.313], handR: [0.213, -0.573, -0.167], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [12, { rootPos: [0, -0.07, 0.04], rootRot: [0.24, 0.12, -0.2], spine: [0.06, -0.2, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.095, 0.295, -0.34], footRotL: [1.05, 0.0, 0.0], footR: [0.09, 0.075, 0.32], footRotR: [0.05, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.12, -0.22, 0.42], handR: [0.22, -0.62, -0.3], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [14, { rootPos: [0, -0.083, 0.04], rootRot: [0.24, 0.08, -0.2], spine: [0.06, -0.133, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.1, 0.46, -0.3], footRotL: [1.3, 0.0, 0.0], footR: [0.09, 0.073, 0.204], footRotR: [0.03, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.147, -0.307, 0.313], handR: [0.213, -0.573, -0.167], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [15, { rootPos: [0, -0.09, 0.04], rootRot: [0.24, 0.06, -0.2], spine: [0.06, -0.1, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.1, 0.452, -0.184], footRotL: [1.16, 0.0, 0.0], footR: [0.09, 0.073, 0.146], footRotR: [0.02, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.16, -0.35, 0.26], handR: [0.21, -0.55, -0.1], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [17, { rootPos: [0, -0.074, 0.04], rootRot: [0.24, 0.02, -0.2], spine: [0.06, -0.033, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.1, 0.436, 0.048], footRotL: [0.88, 0.0, 0.0], footR: [0.09, 0.071, 0.03], footRotR: [0.0, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.187, -0.437, 0.153], handR: [0.203, -0.503, 0.033], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [18, { rootPos: [0, -0.066, 0.04], rootRot: [0.24, 0.0, -0.2], spine: [0.06, 0.0, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.1, 0.428, 0.164], footRotL: [0.74, 0.0, 0.0], footR: [0.09, 0.083, -0.052], footRotR: [0.16, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.2, -0.48, 0.1], handR: [0.2, -0.48, 0.1], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [19, { rootPos: [0, -0.058, 0.04], rootRot: [0.24, -0.02, -0.2], spine: [0.06, 0.033, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.1, 0.42, 0.28], footRotL: [0.6, 0.0, 0.0], footR: [0.09, 0.095, -0.134], footRotR: [0.32, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.203, -0.503, 0.033], handR: [0.187, -0.437, 0.153], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [20, { rootPos: [0, -0.05, 0.04], rootRot: [0.24, -0.04, -0.2], spine: [0.06, 0.067, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.097, 0.347, 0.327], footRotL: [0.417, 0.0, 0.0], footR: [0.09, 0.106, -0.216], footRotR: [0.48, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.207, -0.527, -0.033], handR: [0.173, -0.393, 0.207], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [22, { rootPos: [0, -0.035, 0.04], rootRot: [0.24, -0.08, -0.2], spine: [0.06, 0.133, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.2, 0.42], footRotL: [0.05, 0.0, 0.0], footR: [0.09, 0.13, -0.38], footRotR: [0.8, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.213, -0.573, -0.167], handR: [0.147, -0.307, 0.313], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+          [24, { rootPos: [0, -0.07, 0.04], rootRot: [0.24, -0.12, -0.2], spine: [0.06, 0.2, 0.04], neck: [-0.08, 0.55, 0.12], footL: [0.09, 0.075, 0.32], footRotL: [0.05, 0.0, 0.0], footR: [0.095, 0.295, -0.34], footRotR: [1.05, 0.0, 0.0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], handL: [0.22, -0.62, -0.3], handR: [0.12, -0.22, 0.42], aimL: 1, aimR: 1, fistL: 0.55, fistR: 0.55, twistL: -0.3, twistR: -0.3, poleL: [0.3, -1, -0.6], poleR: [0.3, -1, -0.6], toeL: 0, toeR: 0, jaw: 0.05 }, 'sine'],
+        ], { loop: true }],
+        // the skid to a stop, the watch ("récord personal"), the hair smoothed back to his topknot: not a hair out of place
+        stop: [[
+          [0, { rootPos: [0, -0.12, -0.1], rootRot: [-0.15, 0, 0.1], spine: [-0.1, 0, 0], neck: [0.1, 0, 0],
+            footL: [0.12, 0.071, 0.4], footR: [0.14, 0.071, 0.1], footRotL: [-0.3, 0, 0], footRotR: [0, 0.2, 0], kneeL: [0.1, 0, 1], kneeR: [0.12, 0, 1],
+            handL: [0.55, -0.35, 0.25], aimL: 1, handR: [0.55, -0.35, 0.25], aimR: 1, fistL: 0.3, fistR: 0.3, twistL: 0, twistR: 0, poleL: [0.6, -0.6, -0.3], poleR: [0.6, -0.6, -0.3], jaw: 0.1 }],
+          [14, { rootPos: [0, -0.04, 0], rootRot: [0.02, -0.1, 0], spine: [0, 0.05, 0], neck: [0.06, 0.08, 0], footL: [0.14, 0.071, 0.12], footR: [0.15, 0.071, -0.1], footRotL: [0, 0.1, 0], footRotR: [0, 0.25, 0],
+            handL: [0.24, -0.84, 0.06], handR: [0.24, -0.84, 0.06], poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5], jaw: 0 }, 'inout'],
+          // the watch: the left wrist up before his face, he reads it
+          [30, { handL: [0.0, -0.18, 0.42], twistL: 1.2, wristL: [0.2, 0], fistL: 0.6, neck: [0.42, 0.0, 0] }, 'inout'],
+          [50, { handL: [0.0, -0.17, 0.43], neck: [0.4, 0.02, 0] }, 'sine'],
+          // "récord personal", a look up
+          [62, { handL: [0.24, -0.84, 0.06], twistL: 0, wristL: [0, 0], fistL: 0.3, neck: [0.04, 0.05, 0] }, 'inout'],
+          // the hand along the side of his head to the topknot (as his win pose's)
+          [76, { hgR: 1, hgPosR: [0.24, 0.08, 0.14], poleR: [0.8, -0.5, 0.2], fistR: 0.1, twistR: -0.6, neck: [-0.05, 0, 0.04] }, 'inout'],
+          [86, { hgPosR: [0.2, 0.12, 0.09] }, 'inout'],
+          [102, { hgPosR: [0.19, 0.11, -0.09], neck: [-0.12, 0.08, 0.06] }, 'inout'],
+          [118, { handR: [0.24, -0.84, 0.06], aimR: 1, hgR: 0, poleR: [0.2, -1, -0.5], fistR: 0.3, twistR: 0, neck: [0.02, 0.06, 0] }, 'inout'],
+          [320, { neck: [0.04, 0.1, 0] }, 'sine'],
+        ]],
+      },
+    },
     // "¿eso era todo? ni me he despeinado": the hand smooths his hair back to the topknot, a shrug with both palms
     // up, and a finger at the loser
     win: [
@@ -420,6 +500,96 @@ export const STYLES = {
         advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 38, throwType: 'hug',
       },
     }),
+    // PUÑETALITY (js/fight/fatality.js): a heavyweight's. He rolls his shoulders, slaps his belly twice and stamps: the
+    // ground cracks from his foot to the loser and gives way behind him, a pit of rusty spikes. He charges, a belly bump
+    // throws the loser back through the air and down onto the spikes; he walks to the edge, looks down: "te dije que
+    // iría despacito". Frames: contact (the belly lands), stomp, land (the loser on the spikes); move (his steps, m along
+    // the way he faces), fling (the loser's flight); the rest as the others'
+    fatal: {
+      len: 660, contact: 188, stomp: 92, land: 222, title: 440, dist: 2.4,
+      move: [[0, 0], [150, 0], [186, 1.85, 'lin'], [198, 1.95], [300, 1.95], [330, 2.55, 'lin']],
+      fling: { from: 188, to: 222, dist: 1.6, h: 1.05, yEnd: -0.98, floor: -1.68 },
+      slow: [[180, 186, 194, 204, 0.25], [216, 221, 232, 246, 0.3]],
+      say: 'Te dije que iría despacito.', sayAt: 344, sayLen: 110,
+      winner: [[150, 'fatal_charge', 8], [182, 'fatal_bump', 4]],
+      victim: [[40, 'fatalFear', 10], [104, 'fatalLookBack', 10], [136, 'fatalFear', 14], [188, 'fatalFlung', 1], [222, 'fatalImpaled', 1]],
+      clip: [
+        // standing, loose, the loser a good way off
+        [0, { rootPos: [0, -0.03, 0], rootRot: [0, -0.15, 0], spine: [-0.02, 0.05, 0], neck: [0.08, 0.12, 0],
+          handL: [0.25, -0.84, 0.06], aimL: 1, handR: [0.25, -0.84, 0.06], aimR: 1, fistL: 0.4, fistR: 0.4, twistL: 0, twistR: 0,
+          footL: [0.15, 0.071, 0.1], footR: [0.16, 0.071, -0.1], footRotL: [0, 0.15, 0], footRotR: [0, 0.3, 0], kneeL: [0.1, 0, 1], kneeR: [0.12, 0, 1] }],
+        // the shoulders rolled, one and the other, a turn of the neck
+        [14, { clavL: [0.22, 0.1], neck: [0.08, 0.12, 0.25] }, 'inout'],
+        [24, { clavL: [0, -0.05], clavR: [0.22, 0.1], neck: [0.08, 0.12, -0.25] }, 'inout'],
+        [34, { clavR: [0, -0.05], neck: [0.08, 0.12, 0] }, 'inout'],
+        // two slaps on his belly, his chin up
+        [42, { handL: [0.0, -0.6, 0.45], aimL: 1, handR: [0.0, -0.6, 0.45], aimR: 1, fistL: 0.05, fistR: 0.05, twistL: 0.9, twistR: 0.9, neck: [-0.05, 0.1, 0], spine: [-0.08, 0.05, 0] }, 'inout'],
+        [46, { handL: [-0.02, -0.62, 0.38], handR: [-0.02, -0.62, 0.38] }, 'out'],
+        [52, { handL: [0.0, -0.6, 0.45], aimL: 1, handR: [0.0, -0.6, 0.45], aimR: 1 }, 'inout'],
+        [56, { handL: [-0.02, -0.62, 0.38], handR: [-0.02, -0.62, 0.38] }, 'out'],
+        [64, { handL: [0.25, -0.84, 0.06], handR: [0.25, -0.84, 0.06], fistL: 0.5, fistR: 0.5, twistL: 0, twistR: 0, neck: [0.1, 0.12, 0], spine: [-0.02, 0.05, 0] }, 'inout'],
+        // the stamp: the right knee up high, the arms out, and down with all his weight (the ground cracks at frame stomp)
+        [80, { rootPos: [0, 0.0, 0], rootRot: [-0.04, -0.15, 0.06], footR: [0.16, 0.42, 0.02], kneeR: [0.1, 0.4, 1], footRotR: [0.2, 0.3, 0], handL: [0.55, -0.4, 0.2], handR: [0.55, -0.45, 0.2], fistL: 0.6, fistR: 0.6, neck: [0.15, 0.1, 0] }, 'inout'],
+        [92, { rootPos: [0, -0.12, 0.02], rootRot: [0.08, -0.15, -0.02], footR: [0.17, 0.071, -0.02], footRotR: [0, 0.3, 0], handL: [0.45, -0.6, 0.15], handR: [0.45, -0.62, 0.15], neck: [0.2, 0.1, 0] }, 'snap'],
+        [104, { rootPos: [0, -0.05, 0], rootRot: [0.02, -0.15, 0] }, 'inout'],
+        // he watches it open; a grin
+        [126, { neck: [0.12, 0.08, 0], jaw: 0.1, handL: [0.28, -0.8, 0.08], handR: [0.28, -0.8, 0.08] }, 'inout'],
+        // set to charge: head down, weight forward
+        [148, { rootPos: [0, -0.12, 0.04], rootRot: [0.28, -0.05, 0], spine: [0.12, 0, 0], neck: [-0.2, 0, 0], handL: [0.32, -0.5, 0.3], handR: [0.32, -0.5, 0.3], fistL: 0.6, fistR: 0.6,
+          footL: [0.12, 0.071, 0.18], footR: [0.14, 0.071, -0.22], jaw: 0 }, 'inout'],
+      ],
+      clips: {
+        // the charge: a heavy jog, two steps of 0.6 m in 24 frames
+        charge: [[
+          [0, { rootPos: [0, -0.1, 0.06], rootRot: [0.32, 0, 0.06], spine: [0.12, 0, -0.036], neck: [-0.25, 0, 0], footL: [0.11, 0.075, 0.3], footRotL: [0.05, 0.0, 0.0], footR: [0.115, 0.215, -0.25], footRotR: [0.8, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.38, -0.62, -0.2], handR: [0.3, -0.45, 0.35], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }],
+          [2, { rootPos: [0, -0.12, 0.06], rootRot: [0.32, 0, 0.04], spine: [0.12, 0, -0.024], neck: [-0.25, 0, 0], footL: [0.11, 0.073, 0.2], footRotL: [0.03, 0.0, 0.0], footR: [0.12, 0.32, -0.22], footRotR: [1.0, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.373, -0.597, -0.107], handR: [0.32, -0.483, 0.26], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [3, { rootPos: [0, -0.13, 0.06], rootRot: [0.32, 0, 0.03], spine: [0.12, 0, -0.018], neck: [-0.25, 0, 0], footL: [0.11, 0.073, 0.15], footRotL: [0.02, 0.0, 0.0], footR: [0.12, 0.316, -0.132], footRotR: [0.88, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.37, -0.585, -0.06], handR: [0.33, -0.5, 0.215], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [5, { rootPos: [0, -0.11, 0.06], rootRot: [0.32, 0, 0.01], spine: [0.12, 0, -0.006], neck: [-0.25, 0, 0], footL: [0.11, 0.071, 0.05], footRotL: [0.0, 0.0, 0.0], footR: [0.12, 0.308, 0.044], footRotR: [0.64, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.363, -0.562, 0.033], handR: [0.35, -0.533, 0.125], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [6, { rootPos: [0, -0.1, 0.06], rootRot: [0.32, 0, 0.0], spine: [0.12, 0, -0.0], neck: [-0.25, 0, 0], footL: [0.11, 0.079, -0.016], footRotL: [0.12, 0.0, 0.0], footR: [0.12, 0.304, 0.132], footRotR: [0.52, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.36, -0.55, 0.08], handR: [0.36, -0.55, 0.08], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [7, { rootPos: [0, -0.09, 0.06], rootRot: [0.32, 0, -0.01], spine: [0.12, 0, 0.006], neck: [-0.25, 0, 0], footL: [0.11, 0.087, -0.082], footRotL: [0.24, 0.0, 0.0], footR: [0.12, 0.3, 0.22], footRotR: [0.4, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.35, -0.533, 0.125], handR: [0.363, -0.562, 0.033], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [8, { rootPos: [0, -0.08, 0.06], rootRot: [0.32, 0, -0.02], spine: [0.12, 0, 0.012], neck: [-0.25, 0, 0], footL: [0.11, 0.094, -0.148], footRotL: [0.36, 0.0, 0.0], footR: [0.117, 0.253, 0.26], footRotR: [0.283, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.34, -0.517, 0.17], handR: [0.367, -0.573, -0.013], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [10, { rootPos: [0, -0.07, 0.06], rootRot: [0.32, 0, -0.04], spine: [0.12, 0, 0.024], neck: [-0.25, 0, 0], footL: [0.11, 0.11, -0.28], footRotL: [0.6, 0.0, 0.0], footR: [0.11, 0.16, 0.34], footRotR: [0.05, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.32, -0.483, 0.26], handR: [0.373, -0.597, -0.107], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [12, { rootPos: [0, -0.1, 0.06], rootRot: [0.32, 0, -0.06], spine: [0.12, 0, 0.036], neck: [-0.25, 0, 0], footL: [0.115, 0.215, -0.25], footRotL: [0.8, 0.0, 0.0], footR: [0.11, 0.075, 0.3], footRotR: [0.05, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.3, -0.45, 0.35], handR: [0.38, -0.62, -0.2], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [14, { rootPos: [0, -0.12, 0.06], rootRot: [0.32, 0, -0.04], spine: [0.12, 0, 0.024], neck: [-0.25, 0, 0], footL: [0.12, 0.32, -0.22], footRotL: [1.0, 0.0, 0.0], footR: [0.11, 0.073, 0.2], footRotR: [0.03, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.32, -0.483, 0.26], handR: [0.373, -0.597, -0.107], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [15, { rootPos: [0, -0.13, 0.06], rootRot: [0.32, 0, -0.03], spine: [0.12, 0, 0.018], neck: [-0.25, 0, 0], footL: [0.12, 0.316, -0.132], footRotL: [0.88, 0.0, 0.0], footR: [0.11, 0.073, 0.15], footRotR: [0.02, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.33, -0.5, 0.215], handR: [0.37, -0.585, -0.06], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [17, { rootPos: [0, -0.11, 0.06], rootRot: [0.32, 0, -0.01], spine: [0.12, 0, 0.006], neck: [-0.25, 0, 0], footL: [0.12, 0.308, 0.044], footRotL: [0.64, 0.0, 0.0], footR: [0.11, 0.071, 0.05], footRotR: [0.0, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.35, -0.533, 0.125], handR: [0.363, -0.562, 0.033], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [18, { rootPos: [0, -0.1, 0.06], rootRot: [0.32, 0, 0.0], spine: [0.12, 0, -0.0], neck: [-0.25, 0, 0], footL: [0.12, 0.304, 0.132], footRotL: [0.52, 0.0, 0.0], footR: [0.11, 0.079, -0.016], footRotR: [0.12, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.36, -0.55, 0.08], handR: [0.36, -0.55, 0.08], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [19, { rootPos: [0, -0.09, 0.06], rootRot: [0.32, 0, 0.01], spine: [0.12, 0, -0.006], neck: [-0.25, 0, 0], footL: [0.12, 0.3, 0.22], footRotL: [0.4, 0.0, 0.0], footR: [0.11, 0.087, -0.082], footRotR: [0.24, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.363, -0.562, 0.033], handR: [0.35, -0.533, 0.125], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [20, { rootPos: [0, -0.08, 0.06], rootRot: [0.32, 0, 0.02], spine: [0.12, 0, -0.012], neck: [-0.25, 0, 0], footL: [0.117, 0.253, 0.26], footRotL: [0.283, 0.0, 0.0], footR: [0.11, 0.094, -0.148], footRotR: [0.36, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.367, -0.573, -0.013], handR: [0.34, -0.517, 0.17], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [22, { rootPos: [0, -0.07, 0.06], rootRot: [0.32, 0, 0.04], spine: [0.12, 0, -0.024], neck: [-0.25, 0, 0], footL: [0.11, 0.16, 0.34], footRotL: [0.05, 0.0, 0.0], footR: [0.11, 0.11, -0.28], footRotR: [0.6, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.373, -0.597, -0.107], handR: [0.32, -0.483, 0.26], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+          [24, { rootPos: [0, -0.1, 0.06], rootRot: [0.32, 0, 0.06], spine: [0.12, 0, -0.036], neck: [-0.25, 0, 0], footL: [0.11, 0.075, 0.3], footRotL: [0.05, 0.0, 0.0], footR: [0.115, 0.215, -0.25], footRotR: [0.8, 0.0, 0.0], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1], handL: [0.38, -0.62, -0.2], handR: [0.3, -0.45, 0.35], aimL: 1, aimR: 1, fistL: 0.5, fistR: 0.5, twistL: -0.2, twistR: -0.2, poleL: [0.7, -0.6, -0.4], poleR: [0.7, -0.6, -0.4], toeL: 0, toeR: 0, jaw: 0.25 }, 'sine'],
+        ], { loop: true }],
+        // the bump: belly out, arms flung back, the pelvis driven through him; the recoil; a breath; then two steps to the
+        // pit's edge, a look down, his line, a pat on the belly
+        bump: [[
+          [0, { rootPos: [0, -0.08, 0.02], rootRot: [0.15, 0, 0], spine: [0.05, 0, 0], neck: [-0.1, 0, 0], handL: [0.4, -0.45, 0.1], aimL: 1, handR: [0.4, -0.45, 0.1], aimR: 1, fistL: 0.5, fistR: 0.5,
+            footL: [0.12, 0.071, 0.2], footR: [0.14, 0.09, -0.25], footRotL: [0, 0, 0], footRotR: [0.3, 0.2, 0], kneeL: [0.12, 0, 1], kneeR: [0.12, 0, 1], twistL: 0, twistR: 0, jaw: 0.2 }],
+          // (frame 182 of the move) leaning back, belly out
+          [4, { rootPos: [0, -0.06, -0.02], rootRot: [-0.22, 0, 0], spine: [-0.3, 0, 0], neck: [0.35, 0, 0], handL: [0.55, -0.2, -0.35], handR: [0.55, -0.2, -0.35], poleL: [0.6, 0.3, -0.7], poleR: [0.6, 0.3, -0.7], fistL: 0.3, fistR: 0.3,
+            footL: [0.12, 0.071, 0.28], footR: [0.14, 0.071, -0.2], footRotR: [0, 0.25, 0] }, 'inout'],
+          // the bump (188): the belly driven forward, the arms back
+          [6, { rootPos: [0, -0.1, 0.16], rootRot: [-0.38, 0, 0], spine: [-0.42, 0, 0], neck: [0.45, 0, 0], handL: [0.6, -0.1, -0.45], handR: [0.6, -0.1, -0.45], jaw: 0.4 }, 'snap'],
+          [12, { rootPos: [0, -0.1, 0.12], rootRot: [-0.3, 0, 0], spine: [-0.32, 0, 0] }, 'out'],
+          // upright again, arms down: he watches the loser fly
+          [34, { rootPos: [0, -0.04, 0.02], rootRot: [0.02, 0, 0], spine: [0, 0, 0], neck: [0.06, 0, 0], handL: [0.28, -0.8, 0.08], handR: [0.28, -0.8, 0.08], poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5], fistL: 0.4, fistR: 0.4,
+            footL: [0.14, 0.071, 0.12], footR: [0.15, 0.071, -0.1], footRotR: [0, 0.3, 0], jaw: 0.05 }, 'inout'],
+          [70, { neck: [0.12, 0.04, 0] }, 'sine'],
+          // (118 = frame 300 of the move) two steps to the edge, 0.6 m in 30 frames
+          [118, { footL: [0.14, 0.071, 0.1], footR: [0.15, 0.071, -0.1] }, 'inout'],
+          [126, { footR: [0.15, 0.14, -0.01], footL: [0.14, 0.071, -0.06], rootPos: [0, -0.02, 0.02] }, 'lin'],
+          [133, { footR: [0.15, 0.071, 0.1], footL: [0.14, 0.071, -0.2], rootPos: [0, -0.05, 0.02] }, 'lin'],
+          [141, { footL: [0.14, 0.14, -0.06], footR: [0.15, 0.071, -0.06], rootPos: [0, -0.02, 0.02] }, 'lin'],
+          [148, { footL: [0.14, 0.071, 0.1], footR: [0.15, 0.071, -0.2], rootPos: [0, -0.04, 0] }, 'lin'],
+          // he looks down into the pit, hands on his hips
+          [164, { rootRot: [0.12, 0, 0], spine: [0.18, 0, 0], neck: [0.55, 0, 0], handL: [0.3, -0.55, -0.02], handR: [0.3, -0.55, -0.02], poleL: [1, -0.2, -0.3], poleR: [1, -0.2, -0.3], fistL: 0.4, fistR: 0.4, twistL: 0, twistR: 0 }, 'inout'],
+          [230, { neck: [0.6, 0.05, 0.05] }, 'sine'],
+          // a pat on the belly
+          [246, { handL: [0.0, -0.6, 0.45], aimL: 1, handR: [0.0, -0.6, 0.45], aimR: 1, fistL: 0.05, fistR: 0.05, twistL: 0.9, twistR: 0.9, neck: [0.2, 0.05, 0], spine: [0.02, 0, 0], rootRot: [0.02, 0, 0] }, 'inout'],
+          [250, { handL: [-0.02, -0.62, 0.38], handR: [-0.02, -0.62, 0.38] }, 'out'],
+          [478, { neck: [0.15, 0.08, 0] }, 'sine'],
+        ]],
+      },
+    },
     // "¿ya? iba a empezar a calentar": a shrug with both palms up, a shake of the head, and the shoulders rolled like
     // a warm-up nobody needed
     win: [

@@ -41,6 +41,8 @@ FATALS = {
     'noemi': 'Esto va a escocer un poquito.',
     'camilo': 'Hoy toca día de brazo.',
     'dani': 'Juego, set y partido.',
+    'alejandro': 'Récord personal.',
+    'rafa': 'Te dije que iría despacito.',
 }
 # the announcer's call as the finishing move ends (spelt as it is said: «pu-ñe-TÁ-li-ti»)
 ANNOUNCER = {'punetality': 'Puñetáliti.'}

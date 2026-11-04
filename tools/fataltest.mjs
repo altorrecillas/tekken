@@ -52,7 +52,7 @@ try {
 
   // ---------------------------------------------------------------- Noemí's player wins: the button, a click, the move
   if (!CPU_ONLY) {
-  await winFight(WHO, WHO === 'noemi' ? 'camilo' : 'rafa', 0, false);
+  await winFight(WHO, WHO === 'noemi' || WHO === 'rafa' ? 'camilo' : 'rafa', 0, false);
   await waitFor(() => document.querySelector('#fatalBtn.on'), null, 30000, 'the PUÑETALITY button');
   const bar0 = await p.evaluate(() => document.querySelector('#fatalBtn .bar i').style.transform);
   await p.waitForTimeout(800);
@@ -63,12 +63,33 @@ try {
   await waitFor(() => window.__game.match.phase === 'fatal', null, 10000, 'the move starting');
   check(true, 'a click on the button starts the move');
   check(await p.evaluate(() => !document.querySelector('#fatalBtn.on')), 'the button goes away');
-  const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len, hit: s.hit, burst: s.burst }; });
+  const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len, hit: s.hit, burst: s.burst, evap: s.evap, land: s.land }; });
   const at = async (f, name) => {
     await waitFor((f) => window.__game.match.pt >= f || window.__game.state === 'results', f, 240000, 'frame ' + f);
     await p.screenshot({ path: path.join(OUT, `fatal_${WHO}_${name}.png`) });
   };
-  if (WHO === 'dani') {
+  if (WHO === 'rafa') {
+    await at(132, 'pit');
+    const pi = await p.evaluate(() => { const f = window.__game.fatal; return { open: f.pit.U.uPitOpen.value, holed: f.pit.patched.length, crack: f.pit.crackU.uGrow.value }; });
+    check(pi.open > 0.99 && pi.holed > 0 && pi.crack > 0.99, `the ground has cracked and given way behind the loser (${pi.holed} floor meshes holed)`);
+    await at(F.land + 40, 'spikes');
+    const sp = await p.evaluate(() => { const g = window.__game, f = g.fatal, L = g.match.fighters[1]; return { y: +L.pos.y.toFixed(2), clip: L.clipName, blood: Math.min(...f.pit.heroes.map((h) => h.U.uBlood.value)), soak: f.soak.U.uSoak.value[0].w, drops: f.blood.drops.length }; });
+    check(sp.y < -0.5 && sp.clip === 'fatalImpaled' && sp.blood > 0.3 && sp.soak > 0.05, `the loser is down on the spikes (${sp.y} m), blood running down them, ${sp.drops} drops of blood in the air`);
+    await at(350, 'edge');
+    const ed = await p.evaluate(() => { const g = window.__game, m = g.match, W = m.fighters[0]; return { clip: W.clipName, d: +Math.hypot(W.pos.x - m.fatalL0.x, W.pos.z - m.fatalL0.z).toFixed(2) }; });
+    check(ed.clip === 'fatal_bump' && ed.d < 0.5, `Rafa at the pit's edge looking down (${ed.d} m from where the loser stood)`);
+  } else if (WHO === 'alejandro') {
+    await at(60, 'stretch');
+    await at(230, 'run');
+    const ru = await p.evaluate(() => { const g = window.__game, m = g.match, W = m.fighters[0], L = m.fighters[1]; return { r: +Math.hypot(W.pos.x - L.pos.x, W.pos.z - L.pos.z).toFixed(2), clip: W.clipName, I: +g.fatal.torn.I.toFixed(2) }; });
+    check(ru.clip === 'fatal_run' && ru.r > 1 && ru.r < 1.4 && ru.I > 0.5, `he runs round the loser (${ru.r} m from him), the whirlwind up (${ru.I})`);
+    await at(F.evap[1] + 10, 'gone');
+    const go = await p.evaluate(() => { const f = window.__game.fatal; return { gone: f.evap.U.uEvGone.value, drops: f.blood.drops.length }; });
+    check(go.gone > 0.99, `the loser is gone in the wind (${go.gone.toFixed(2)}), ${go.drops} drops of blood in the air`);
+    await at(420, 'stop');
+    const st = await p.evaluate(() => { const m = window.__game.match, W = m.fighters[0]; return { clip: W.clipName, moving: Math.hypot(W.pos.x - W.prevPos.x, W.pos.z - W.prevPos.z) }; });
+    check(st.clip === 'fatal_stop' && st.moving < 0.001, `he has stopped (${st.clip})`);
+  } else if (WHO === 'dani') {
     await at(60, 'racket');
     check(await p.evaluate(() => { const f = window.__game.fatal; return !!f.rk && f.rk.group.visible && f.ball.mesh.visible; }), 'the racket in his hand, the ball in the other');
     await at(F.hit + 12, 'swell');
@@ -106,7 +127,7 @@ try {
   await p.screenshot({ path: path.join(OUT, 'fatal_results.png') });
   await p.evaluate(() => { document.querySelector('#overlay').classList.remove('on'); window.__game.backToTitle?.(); });
   await waitFor(() => window.__game.state === 'title', null, 60000, 'title again');
-  check(await p.evaluate(() => !window.__game.fatal.m && !document.querySelector('#lensBlood.on')), 'back at the title, all of it is gone');
+  check(await p.evaluate(() => !window.__game.fatal.m && !document.querySelector('#lensBlood.on') && !window.__game.scene.getObjectByName('spikePit')), 'back at the title, all of it is gone');
   }
 
   // ---------------------------------------------------------------- a CPU Noemí wins: no button

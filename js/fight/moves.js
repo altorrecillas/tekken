@@ -434,8 +434,69 @@ export function buildClips(style) {
     [12, { handL: [0.57, 0.08, 0.24], handR: [0.53, 0.04, 0.23], neck: [-0.34, 0.04, 0], spine: [-0.18, 0, 0.02] }, 'sine'],
     [16, { handL: [0.55, 0.05, 0.25], handR: [0.56, 0.07, 0.22], neck: [-0.3, -0.04, 0], spine: [-0.2, 0, -0.02] }, 'sine'],
   ]);
+  // ... the dust whipped up round him: an arm across his eyes, the other over his head, hunched, turning away
+  const COVER = { rootPos: [0, -0.14, -0.05], rootRot: [0.22, 0.3, 0.05], spine: [0.32, 0.25, 0.05], neck: [0.45, 0.35, 0.1],
+    handL: [-0.1, 0.12, 0.3], aimL: 1, handR: [0.05, 0.42, 0.18], aimR: 1, fistL: 0.3, fistR: 0.2, twistL: 0.8, twistR: 0.4, wristL: [0, 0], wristR: [0, 0],
+    poleL: [0.6, -0.4, -0.2], poleR: [0.8, 0.3, -0.4], footL: [0.15, 0.071, 0.05], footR: [0.17, 0.071, -0.12], kneeL: [0.1, 0, 1], kneeR: [0.15, 0, 1], jaw: 0.3 };
+  clips.fatalCover = C([
+    [0, COVER],
+    [9, { ...COVER, rootPos: [0.01, -0.13, -0.05], neck: [0.38, 0.32, 0.08], handL: [-0.04, 0.06, 0.41] }, 'sine'],
+    [18, COVER, 'sine'],
+  ], { loop: true });
+  // ... caught in the whirlwind: dragged round, the arms thrown about and up, the head whipping, the knees giving
+  const VORTEX0 = { rootPos: [0, -0.1, -0.03], rootRot: [-0.1, 0, 0.12], spine: [-0.2, 0.2, 0.15], neck: [-0.4, 0.3, 0.3],
+    handL: [0.55, 0.45, 0.2], aimL: 1, handR: [0.6, 0.2, -0.2], aimR: 1, fistL: 0.05, fistR: 0.05, twistL: 0.3, twistR: -0.3, wristL: [-0.4, 0], wristR: [-0.4, 0],
+    poleL: [0.8, 0.2, -0.4], poleR: [0.8, 0.2, -0.4], footL: [0.18, 0.071, 0.08], footR: [0.2, 0.08, -0.12], kneeL: [0.15, 0, 1], kneeR: [0.2, 0, 1], jaw: 0.8 };
+  clips.fatalVortex = C([
+    [0, VORTEX0],
+    [8, { rootRot: [0.05, 0, -0.1], spine: [-0.1, -0.25, -0.15], neck: [-0.2, -0.4, -0.3], handL: [0.6, 0.1, -0.25], handR: [0.5, 0.5, 0.2], jaw: 0.6 }, 'sine'],
+    [16, { rootRot: [-0.15, 0, 0.15], spine: [-0.25, 0.3, 0.2], neck: [-0.5, 0.35, 0.35], handL: [0.4, 0.6, 0.0], handR: [0.65, 0.05, -0.1], jaw: 0.9 }, 'sine'],
+    [24, { rootRot: [0.0, 0, -0.08], spine: [-0.12, -0.2, -0.1], neck: [-0.3, -0.3, -0.25], handL: [0.62, 0.2, 0.25], handR: [0.45, 0.55, -0.2], jaw: 0.7 }, 'sine'],
+    [32, VORTEX0, 'sine'],
+  ], { loop: true });
+  // ... the ground gives way behind him: he looks back over his shoulder at the hole, a step forward away from it
+  const LOOKB = { ...FEAR0, rootRot: [-0.02, 0.55, 0], spine: [0.0, 0.45, 0], neck: [0.25, 0.9, 0.05], handL: [0.3, -0.3, 0.2], handR: [0.25, -0.2, 0.25], jaw: 0.4,
+    footL: [0.14, 0.071, 0.12], footR: [0.16, 0.071, -0.05] };
+  clips.fatalLookBack = C([
+    [0, FEAR0],
+    [12, LOOKB, 'inout'],
+    [20, { ...LOOKB, neck: [0.32, 0.92, 0.06] }, 'sine'],
+    [30, LOOKB, 'sine'],
+  ]);
+  // ... a belly bump throws him back through the air: folded round it, then flailing as he turns over onto his back
+  clips.fatalFlung = C([
+    [0, FEAR0],
+    // jackknifed round the belly that hit him: the hips driven back, the chest and head, the arms and the legs all
+    // thrown forward (a V, its point leading)
+    [3, { rootPos: [0, -0.12, -0.16], rootRot: [0.6, 0, 0], spine: [0.5, 0, 0], neck: [0.4, 0, 0], handL: [0.3, -0.2, 0.5], handR: [0.3, -0.18, 0.48], fistL: 0.1, fistR: 0.1, twistL: 0.3, twistR: 0.3, wristL: [0, 0], wristR: [0, 0],
+      footL: [0.14, 0.3, 0.38], footR: [0.16, 0.34, 0.3], kneeL: [0.1, 0.5, 1], kneeR: [0.1, 0.5, 1], jaw: 0.75 }, 'snap'],
+    [9, { rootPos: [0, -0.16, -0.16], rootRot: [0.5, 0.04, 0.06], spine: [0.45, 0.05, 0.04], neck: [0.3, 0.1, 0.05], handL: [0.4, 0.05, 0.55], handR: [0.38, 0.12, 0.5], footL: [0.16, 0.52, 0.6], footR: [0.2, 0.46, 0.55], kneeL: [0.1, 0.3, 1], kneeR: [0.1, 0.3, 1] }, 'out'],
+    // opening out as he turns over backwards, the arms flung up and back
+    [16, { rootPos: [0, -0.3, -0.16], rootRot: [-0.15, 0.06, 0.08], spine: [0.05, 0.08, 0.06], neck: [-0.1, 0.15, 0.05], handL: [0.7, 0.5, 0.15], handR: [0.65, 0.6, 0.0], footL: [0.18, 0.4, 0.62], footR: [0.22, 0.3, 0.58], kneeL: [0.1, 0.5, 0.8], kneeR: [0.1, 0.5, 0.8] }, 'inout'],
+    // onto his back as he comes down, the legs still towards Rafa, the arms reaching
+    [23, { rootPos: [0, -0.55, -0.17], rootRot: [-0.95, 0.05, -0.08], spine: [-0.15, -0.08, -0.08], neck: [-0.3, -0.15, 0], handL: [0.65, 0.55, 0.2], handR: [0.75, 0.3, 0.25], footL: [0.2, 0.05, 0.62], footR: [0.22, 0.2, 0.56], kneeL: [0.1, 0.8, 0.5], kneeR: [0.1, 0.6, 0.6] }, 'inout'],
+    [32, { rootPos: [0, -0.8, -0.2], rootRot: [-1.45, 0, 0.05], spine: [-0.25, 0, 0], neck: [-0.5, 0, 0], handL: [0.65, 0.15, 0.3], handR: [0.6, 0.25, 0.25], footL: [0.2, -0.05, 0.62], footR: [0.24, 0.1, 0.6], kneeL: [0.1, 1, 0.3], kneeR: [0.1, 1, 0.3], jaw: 0.8 }, 'inout'],
+  ]);
+  // ... on the spikes: the back arched over them at the blow, then limp, the arms and legs hanging down either side
+  // of them, sinking a little further down them; a last twitch or two
+  const IMP = { rootPos: [0, -0.86, -0.2], rootRot: [-1.52, 0.05, 0.04], spine: [0.1, 0, 0.03], neck: [0.35, 0.25, 0.1],
+    handL: [0.55, -0.15, -0.5], handR: [0.5, -0.2, -0.55], aimL: 0, aimR: 0, fistL: 0.2, fistR: 0.25, twistL: 0, twistR: 0, wristL: [-0.4, 0], wristR: [-0.4, 0],
+    poleL: [0.6, -0.4, -0.6], poleR: [0.6, -0.4, -0.6],
+    footL: [0.22, -0.32, 0.56], footR: [0.26, -0.36, 0.52], kneeL: [0.15, 0.6, 0.8], kneeR: [0.2, 0.6, 0.8], footRotL: [-0.6, 0.2, 0], footRotR: [-0.7, 0.3, 0], toeL: 0, toeR: 0, look: 0, jaw: 0.55 };
+  clips.fatalImpaled = C([
+    [0, { ...IMP, rootPos: [0, -0.8, -0.2], spine: [-0.35, 0, 0], neck: [-0.55, 0, 0], handL: [0.7, 0.4, 0.2], handR: [0.7, 0.45, 0.15], footL: [0.2, 0.05, 0.6], footR: [0.24, 0.1, 0.58], jaw: 0.9 }],
+    [5, { rootPos: [0, -0.83, -0.2], spine: [-0.45, 0, 0], neck: [-0.7, 0, 0], handL: [0.75, 0.55, 0.0], handR: [0.72, 0.5, 0.05] }, 'out'],
+    [24, IMP, 'inout'],
+    [40, { ...IMP, rootPos: [0, -0.9, -0.2], handR: [0.48, -0.12, -0.5], fistR: 0.6 }, 'inout'],
+    [46, { ...IMP, rootPos: [0, -0.9, -0.2], handR: [0.5, -0.2, -0.55], fistR: 0.15, footL: [0.22, -0.26, 0.58] }, 'out'],
+    [70, { ...IMP, rootPos: [0, -0.92, -0.2], neck: [0.42, 0.3, 0.12], jaw: 0.4 }, 'inout'],
+    [76, { ...IMP, rootPos: [0, -0.92, -0.2], neck: [0.38, 0.3, 0.12], footR: [0.26, -0.3, 0.55], jaw: 0.6 }, 'out'],
+    [110, { ...IMP, rootPos: [0, -0.93, -0.2], neck: [0.45, 0.32, 0.14], fistL: 0.1, fistR: 0.1, jaw: 0.35 }, 'inout'],
+  ]);
   // the winner's own move (styles.js fatal.clip)
   if (style.fatal?.clip) clips.fatal = C(style.fatal.clip);
+  // (and its other clips, if the move has more than one: fatal.clips { name: [keys, opts] } -> clips.fatal_<name>)
+  for (const [n, [keys, opt]] of Object.entries(style.fatal?.clips || {})) clips['fatal_' + n] = C(keys, opt || {});
   clips.win = C(style.win || [
     [0, {}],
     [20, { rootPos: [0, 0, 0], rootRot: [-0.05, 0, 0], spine: [-0.15, 0, 0], neck: [-0.3, 0, 0], handL: [0.1, 0.95, 0.1], handR: [0.1, 0.95, 0.1], aimL: 1, aimR: 1, fistL: 1, fistR: 1,

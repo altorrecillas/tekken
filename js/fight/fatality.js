@@ -17,6 +17,9 @@ import { makeAloeSword, attachAloeSword, attachInFist } from '../fx/aloesword.js
 import { makeDumbbells, DB_GRIP, LooseDumbbell } from '../fx/dumbbells.js';
 import { makeRacket, makeBall, RACKET_GRIP, BALL_R } from '../fx/tennis.js';
 import { GibBody } from '../fx/gibs.js';
+import { Tornado, Afterimages } from '../fx/tornado.js';
+import { Evaporate } from '../fx/evaporate.js';
+import { SpikePit, BodySoak } from '../fx/spikepit.js';
 import { HAND_SCALE } from '../anim/body.js';
 import { POSE } from '../anim/rig.js';
 
@@ -649,7 +652,341 @@ const DANI = {
 };
 function D_chest(L) { return L.ch.bones.spine02.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.02, 0)); }
 
-const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI };
+// ------------------------------------------------------------------ Alejandro: the whirlwind
+// A runner: a quad stretch, his watch started, and off round the loser faster and faster (Match.fatalOrbit) until he is
+// a ring of afterimages and a tornado of dust that flays the loser and takes him away (js/fx/evaporate.js), blood and
+// all, leaving only his shoes, smoking. A skid to a stop, his watch: "récord personal"; his hair smoothed: not a hair
+// out of place.
+const lerpK = (K, x) => { if (x <= K[0][0]) return K[0][1]; for (let i = 1; i < K.length; i++) if (x <= K[i][0]) return K[i - 1][1] + (K[i][1] - K[i - 1][1]) * (x - K[i - 1][0]) / (K[i][0] - K[i - 1][0]); return K[K.length - 1][1]; };
+const ALEJANDRO = {
+  beep: 78, go: 104, wind: [140, 372], cut: [212, 292], screams: [206, 252, 288], beep2: 404, skid: [358, 380],
+  // the whirlwind's strength (0..1) and how red it is, [frame, value] keys
+  I: [[140, 0], [180, 0.35], [240, 1], [334, 1], [384, 0]],
+  red: [[226, 0], [296, 0.55], [334, 1]],
+  spat: { m: [0, 1.0, 0.01, 0.01], a: [0, -9, 0.01, 0.01], b: [0, -9, 0.01, 0.01] },
+  setup(d) {
+    const g = d.g, F = d.F;
+    d.cen = d.L.pos.clone();
+    d.dirA = d.W.pos.clone().sub(d.L.pos).setY(0).normalize();
+    d.torn = new Tornado(g.scene, d.cen, lerpK(F.orbit.R, 200));
+    d.ghosts = new Afterimages(g.scene, d.W.ch, 5);
+    d.evap = new Evaporate(d.L);
+    d.vspin = 0; d.cfPrev = 0; d.steps = 0;
+  },
+  dispose(d) {
+    d.torn?.dispose(); d.ghosts?.dispose(); d.evap?.restore();
+    if (d.L) { d.L.ch.group.rotation.x = 0; d.L.ch.group.rotation.z = 0; }
+    d.g.audio.fatal?.('windOff', null, { fast: true });
+  },
+  speed(F, t) { return F.orbit && t >= F.orbit.from ? lerpK(F.orbit.v, t) : 0; },
+  frame(d, t) {
+    const D = this, F = d.F, W = d.W, L = d.L, B = d.blood, au = d.g.audio, c = d.cen;
+    const v = D.speed(F, t), R = lerpK(F.orbit.R, t), w = v / Math.max(0.3, R);
+    if (t === D.beep || t === D.beep2) au.fatal?.('beep', W.pos, { long: t === D.beep2 });
+    if (t === D.go) au.fatal?.('go', W.pos);
+    // his footfalls, as long as they can be told apart
+    if (W.clipName === 'fatal_run') {
+      const ph = Math.floor(W.cf / 12);
+      if (ph !== d.cfPrev && v < 11) au.fatal?.('runstep', W.pos, { v });
+      d.cfPrev = ph;
+      // dust kicked up behind him
+      if (v > 3 && t % 2 === 0) d.torn.ps.length < d.torn.N && d.torn.ps.push({ r: R + (Math.random() - 0.5) * 0.2, th: Math.atan2(W.pos.x - c.x, W.pos.z - c.z) - 0.05, y: 0.04, kind: 0, s: 0.12 + Math.random() * 0.15, a: 0.1 + Math.min(0.12, v * 0.008), life: 0.8 + Math.random(), age: 0, up: 0.3, wm: 0.5 });
+    }
+    // the wind
+    if (t === D.wind[0]) au.fatal?.('windOn', c);
+    if (t > D.wind[0] && t <= D.wind[1] && t % 4 === 0) au.fatal?.('windLevel', c, { I: lerpK(D.I, t), red: lerpK(D.red, t), v });
+    if (t === D.wind[1]) au.fatal?.('windOff', c);
+    const I = lerpK(D.I, t), red = lerpK(D.red, t);
+    d.torn.step(I, w * 0.9 * Math.min(1, I * 3 + 0.2), red, Math.min(1, Math.max(0, (t - D.go) / 160)));
+    // the loser: flayed, then taken away
+    const cut = ss(D.cut[0], D.cut[1], t), gone = ss(F.evap[0], F.evap[1], t);
+    d.evap.set(cut, gone);
+    for (const s of D.screams) if (t === s) au.voice?.(L, s === D.screams[2] ? 'ko' : 'hurtBig');
+    if (cut > 0 && t % 9 === 0 && gone < 0.9) au.fatal?.('shred', c, { power: 0.4 + cut * 0.6 });
+    // blood flung off him round the whirl (the cuts, then everything as he goes)
+    const flow = gone > 0 ? (1 - gone) * 14 + 4 : cut * 5;
+    if (flow > 0.5) {
+      const bones = ['spine02', 'spine04', 'head', 'upperarm01.L', 'upperarm01.R', 'lowerarm01.L', 'lowerarm01.R', 'upperleg01.L', 'upperleg01.R', 'lowerleg01.L', 'lowerleg01.R'];
+      for (let i = 0; i < Math.round(flow); i++) {
+        const p = L.ch.bones[bones[(t * 7 + i * 3) % bones.length]]?.getWorldPosition(new THREE.Vector3());
+        if (!p) continue;
+        const th = Math.atan2(p.x - c.x, p.z - c.z), tan = new THREE.Vector3(Math.cos(th), 0.15, -Math.sin(th)).add(new THREE.Vector3(Math.sin(th), 0, Math.cos(th)).multiplyScalar(0.6)).normalize();
+        B.spray(p, tan, 2, { speed: [2, 5 + 4 * I], spread: 0.25, size: [0.0015, 0.005], bright: 0.5 });
+      }
+    }
+    if (t === F.evap[0] + 8) { au.fatal?.('evap', c); d.g.camCtl.shake(0.5); d.lens.splash(5, 1); d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.35); }
+    if (t === F.evap[1]) {
+      au.fatal?.('pop', c); d.g.camCtl.shake(0.6);
+      for (let i = 0; i < 5; i++) B.puff(new THREE.Vector3(c.x, 0.6 + i * 0.25, c.z), 6, { size: [0.2, 0.6], speed: 1.4, life: 2.2, alpha: 0.6 });
+      B.spray(new THREE.Vector3(c.x, 1.0, c.z), UP, 160, { speed: [1.5, 6], spread: 1.5, size: [0.002, 0.007] });
+      B.splat(c, 1.2, 3, 0, 300);
+    }
+    // the blood comes down in a spiral round where he stood
+    if (t > F.evap[1] && t < F.evap[1] + 40 && t % 2 === 0) {
+      const k = (t - F.evap[1]) / 40, th = k * Math.PI * 5 + 0.4, r = 0.35 + 1.6 * k;
+      B.splat(new THREE.Vector3(c.x + Math.sin(th) * r, 0, c.z + Math.cos(th) * r), 0.16 + 0.12 * Math.random(), 1, -th);
+    }
+    // his shoes, all that is left: smoking
+    if (t > F.evap[1] && t % 3 === 0 && t < F.len - 40) {
+      for (const s of ['L', 'R']) {
+        const p = L.ch.bones['foot.' + s]?.getWorldPosition(new THREE.Vector3());
+        if (p && d.torn.ps.length < d.torn.N) d.torn.ps.push({ r: Math.hypot(p.x - c.x, p.z - c.z), th: Math.atan2(p.x - c.x, p.z - c.z), y: 0.1, kind: 2, s: 0.06 + Math.random() * 0.08, a: 0.12, life: 1.6 + Math.random(), age: 0, up: 0.35, wm: 0 });
+      }
+      if (t % 30 === 0) au.fatal?.('sizzle', c);
+    }
+    // the skid
+    if (t === D.skid[0]) au.fatal?.('skid', W.pos);
+    if (t > D.skid[0] && t < D.skid[1] && t % 2 === 0) d.torn.ps.length < d.torn.N && d.torn.ps.push({ r: R, th: Math.atan2(W.pos.x - c.x, W.pos.z - c.z), y: 0.05, kind: 0, s: 0.18 + Math.random() * 0.2, a: 0.14, life: 1.2 + Math.random(), age: 0, up: 0.25, wm: 0 });
+  },
+  draw(d, t, alpha) {
+    const D = this, F = d.F, L = d.L;
+    const v = D.speed(F, t), R = lerpK(F.orbit.R, t), w = v / Math.max(0.3, R);
+    // afterimages: a few steps behind him round the circle
+    d.ghosts.draw(d.cen, w / 60 * 2.3, ss(6.5, 11, v) * 0.55 * (1 - 0.6 * ss(F.evap[0] - 10, F.evap[0], t)));
+    // the loser turned round by the wind, faster as it blows, swaying (drawn only)
+    const I = lerpK(D.I, t);
+    if (t > 190) {
+      d.vspin += I * 0.11 * (1 - ss(F.evap[1], F.evap[1] + 30, t));
+      const g = L.ch.group;
+      g.rotation.y += d.vspin; g.rotation.z = Math.sin(t * 0.37) * 0.06 * I; g.rotation.x = Math.cos(t * 0.29) * 0.05 * I;
+      g.updateMatrixWorld(true);
+    }
+    d.torn.draw(d.g.renderer.getDrawingBufferSize(_w2).y);
+  },
+  ctx(d) {
+    const W = d.W, L = d.L;
+    const wr = W.ch.bones['wrist.L']?.getWorldPosition(new THREE.Vector3()) || W.pos.clone().setY(1.2);
+    return { cen: d.cen.clone(), dirA: d.dirA.clone(), wristL: wr };
+  },
+  lp: (d) => d.cen.clone().setY(0),
+  lHead: (d) => null,
+  mid: (d) => null,
+  shots: [
+    // him, three quarters from his right: the stretch
+    [0, (c, t) => ({ tp: c.at(c.wp, 1.5, 1.35 - 0.2 * t, 1.3), tl: c.wp.clone().addScaledVector(c.right, 0.1).setY(1.05), fov: 33, focus: c.wHead })],
+    // his watch: the finger presses start
+    [62, (c, t) => ({ tp: c.wristL.clone().addScaledVector(c.wf, 0.62).addScaledVector(c.right, -0.25).setY(c.wristL.y + 0.32), tl: c.wristL.clone().addScaledVector(c.right, 0.04).setY(c.wristL.y + 0.02), fov: 32, focus: c.wristL })],
+    // set: low in front of him, his eyes on the loser
+    [86, (c, t) => ({ tp: c.at(c.wp, 1.35, -0.45, 1.05), tl: c.wHead.clone().setY(c.wHead.y - 0.12), fov: 34, focus: c.wHead })],
+    // off: high and wide, the circles closing in and speeding up
+    [104, (c, t) => ({ tp: c.cen.clone().addScaledVector(c.dirA, -3.6 - 0.4 * t).add(new THREE.Vector3(0, 2.7, 0)).addScaledVector(new THREE.Vector3(-c.dirA.z, 0, c.dirA.x), 1.2), tl: c.cen.clone().setY(0.75), fov: 40, focus: c.cen.clone().setY(1.0) })],
+    // inside the ring with the loser: a blur goes round behind him
+    [160, (c, t) => ({ tp: c.cen.clone().addScaledVector(c.dirA, 0.98).setY(1.35), tl: c.lHead.clone().setY(c.lHead.y - 0.2), fov: 44, focus: c.lHead })],
+    // the cuts: closer, turning with the wind
+    [212, (c, t) => { const a = new THREE.Vector3().copy(c.dirA).applyAxisAngle(UP, 0.9 * t); return { tp: c.cen.clone().addScaledVector(a, 0.75).setY(1.38), tl: c.lHead.clone().setY(c.lHead.y - 0.22), fov: 38, focus: c.lHead }; }],
+    // taken away: from just outside the ring at chest height, slowly round, the loser in the middle of the whirl
+    [284, (c, t) => { const a = new THREE.Vector3().copy(c.dirA).applyAxisAngle(UP, 1.6 + 0.35 * t); return { tp: c.cen.clone().addScaledVector(a, 2.25).setY(1.05), tl: c.cen.clone().setY(1.0), fov: 42, focus: c.cen.clone().setY(1.0) }; }],
+    // the whirlwind blows itself out: high and wide
+    [336, (c, t) => ({ tp: c.cen.clone().addScaledVector(c.dirA, -4.2).add(new THREE.Vector3(0, 3.0 - 0.6 * t, 0)).addScaledVector(new THREE.Vector3(-c.dirA.z, 0, c.dirA.x), -1.4), tl: c.cen.clone().setY(0.6), fov: 38, focus: c.cen.clone().setY(0.5) })],
+    // he skids to a stop: low, in front of him
+    [362, (c, t) => ({ tp: c.at(c.wp, 2.4 - 0.6 * t, 0.6, 0.7), tl: c.wp.clone().setY(0.95), fov: 36, focus: c.wHead })],
+    // the watch, "récord personal", the hair
+    [392, (c, t) => ({ tp: c.at(c.wp, 1.45 - 0.1 * t, 0.75, 1.5), tl: c.wHead.clone().setY(c.wHead.y - 0.22), fov: 31, focus: c.wHead })],
+    // what is left: his shoes in the blood, smoking
+    [470, (c, t) => ({ tp: c.cen.clone().addScaledVector(c.dirA, 1.9 + 1.2 * t).add(new THREE.Vector3(0, 1.4 + 1.6 * t, 0)).addScaledVector(new THREE.Vector3(-c.dirA.z, 0, c.dirA.x), 0.8), tl: c.cen.clone().setY(0.15), fov: 36, lam: 2.5 })],
+  ],
+};
+const _w2 = new THREE.Vector2();
+
+// ------------------------------------------------------------------ Rafa: the belly bump
+// A heavyweight's: his shoulders rolled, two slaps on the belly and a stamp that cracks the ground from his foot to the
+// loser; behind him it gives way, a pit lined with rusty spikes (js/fx/spikepit.js: a real hole in the stage's floor).
+// He charges; a belly bump throws the loser back through the air (Match.fatalFling) and down onto the spikes, which
+// come out through his chest and belly, his shoulder, a thigh, a calf; the blood soaks him from the wounds and runs down
+// the spikes, drips into the pit; he coughs blood, twitches. Rafa walks to the edge, looks down: "te dije que iría
+// despacito", a pat on the belly.
+const RAFA = {
+  pats: [46, 56, 432], stomp: 92, crack: [92, 101], open: [99, 122], look: 106, gasp: 112, whoosh: 183,
+  scream: 191, coughs: [264, 294], steps: [315, 330],
+  // the pit: its middle this far beyond where the loser stood (along the way Rafa faces), half-sizes, depth
+  pitAt: 1.7, pitA: 1.0, pitB: 1.1, pitD: 1.7,
+  // the spikes that go through him (the pit's frame: along, across, the tip's height), on his body as it lies on them
+  // (LOSER=1 BONES=... node tools/fatalpose.mjs rafa camilo 232 332): chest, belly, right shoulder, left thigh, right calf
+  heroes: [[0.38, 0.04, -0.44], [0.22, -0.07, -0.49], [0.55, -0.2, -0.53], [-0.07, 0.13, -0.6], [-0.42, -0.22, -0.84]],
+  // how far each wound's blood spreads on him (m), and the spike's blood (from its tip, m)
+  wound: [0.14, 0.13, 0.11, 0.09, 0.07],
+  spat: { m: [0, 1.0, 0.01, 0.01], a: [0, -9, 0.01, 0.01], b: [0, -9, 0.01, 0.01] },
+  setup(d) {
+    const D = this, g = d.g, m = d.m, W = d.W;
+    d.ax = d.wf(new THREE.Vector3());
+    d.L0 = (m.fatalL0 || d.L.pos).clone().setY(0);
+    d.pc = d.L0.clone().addScaledVector(d.ax, D.pitAt);
+    d.pit = new SpikePit(g.scene, g.stage, d.pc, d.ax, { a: D.pitA, b: D.pitB, D: D.pitD, heroes: D.heroes, clear: (u, v) => u > -0.8 && u < 1.0 && v > -0.64 && v < 0.62 });
+    d.sd = d.pit.side.clone();
+    // the crack: from where his right foot comes down to inside the pit's outline, between the loser's feet
+    const foot = W.boneWorld('foot.R', new THREE.Vector3()).setY(0).addScaledVector(d.ax, 0.16);
+    d.stompP = foot.clone();
+    d.pit.crack(foot, d.pit.toWorld(-D.pitA * 0.55, 0.04, 0), 7);
+    d.rubbleMat = new THREE.MeshStandardMaterial({ color: 0x6f6a64, roughness: 0.95, map: d.pit.textures[0] });
+    d.soak = new BodySoak(d.L);
+    d.cfPrev = -1; d.thuds = 0;
+  },
+  dispose(d) {
+    if (d.blood) d.blood.floorAt = null;
+    d.pit?.restore(); d.soak?.restore(); d.rubbleMat?.dispose();
+  },
+  // dust (the stage's colour): n puffs round p
+  dust(d, p, n, { spread = 0.3, up = 0.35, out = 0.6, s0 = 0.16, s1 = 0.7, a = 0.2, life = 0.9 } = {}) {
+    const fx = d.g.fx;
+    if (!fx?.smoke) return;
+    const c = (fx.dustColor || new THREE.Color(0.75, 0.68, 0.58)).clone().multiplyScalar(fx.dustLight ?? 0.8);
+    for (let i = 0; i < n; i++) {
+      const th = Math.random() * Math.PI * 2, r = Math.random() * spread;
+      fx.smoke.add({ p: new THREE.Vector3(p.x + Math.cos(th) * r, p.y + Math.random() * 0.08, p.z + Math.sin(th) * r), vel: new THREE.Vector3(Math.cos(th) * out * (0.4 + Math.random()), up * (0.4 + Math.random()), Math.sin(th) * out * (0.4 + Math.random())),
+        age: 0, life: life * (0.7 + 0.6 * Math.random()), s0, s1, a0: a, c, drag: 2.4, fadeIn: true, fadePow: 1.5 });
+    }
+  },
+  mouth(L, out) {
+    const b = L.ch.bones.oris01 || L.ch.bones.jaw;
+    return b ? b.getWorldPosition(out).add(_v.set(0, 0.012, 0)) : L.boneWorld('head', out);
+  },
+  frame(d, t) {
+    const D = this, F = d.F, W = d.W, L = d.L, B = d.blood, au = d.g.audio, P = d.pit, cam = d.g.camCtl;
+    for (const p of D.pats) if (t === p) au.fatal?.('pat', W.pos, { last: p === D.pats[2] });
+    // the stamp: the ground cracks from his foot
+    if (t === D.stomp) {
+      au.fatal?.('stomp', d.stompP); cam.shake(0.75);
+      d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.15);
+      D.dust(d, d.stompP, 12, { spread: 0.15, up: 0.25, out: 1.2, s1: 0.6, a: 0.24 });
+    }
+    if (t === D.crack[0] + 2) au.fatal?.('crackrun', d.pc);
+    // and gives way behind the loser: the slab breaks up and falls into the pit, dust comes up out of it
+    if (t === D.open[0]) { au.fatal?.('collapse', d.pc); cam.shake(0.55); }
+    const ko = ss(D.open[0], D.open[1], t);
+    if (t >= D.open[0] && t < D.open[1]) {
+      P.crumble(Math.min(1, ko + 0.05), t < D.open[0] + 8 ? 4 : 2, d.rubbleMat);
+      if (t % 3 === 0) cam.shake(0.18);
+      if (t % 2 === 0) { const th = Math.random() * Math.PI * 2; D.dust(d, P.toWorld(Math.cos(th) * D.pitA * ko, Math.sin(th) * D.pitB * ko, 0.02), 2, { spread: 0.12, up: 0.5, out: 0.25, s1: 0.55, a: 0.16 }); }
+    }
+    if (t > D.open[0] + 6 && t < D.open[1] + 60 && t % 3 === 0) D.dust(d, P.toWorld((Math.random() - 0.5) * D.pitA * 1.4, (Math.random() - 0.5) * D.pitB * 1.4, -0.9), 2, { spread: 0.3, up: 0.9, out: 0.15, s0: 0.25, s1: 1.0, a: 0.12, life: 1.6 });
+    P.step((c) => { if (d.thuds++ < 16) au.fatal?.('rubble', c.p, { s: c.r }); });
+    // (the blood that falls over the pit goes down into it)
+    if (t === D.open[1]) B.floorAt = (x, z) => (P.over(_w.set(x, 0, z), 0.02) ? -D.pitD : 0);
+    if (t === D.look) au.voice?.(L, 'hurt');
+    if (t === D.gasp) au.fatal?.('gasp', L.pos);
+    // the charge: heavy steps
+    if (W.clipName === 'fatal_charge') {
+      const ph = Math.floor(W.cf / 12);
+      if (ph !== d.cfPrev) {
+        au.fatal?.('heavystep', W.pos); cam.shake(0.1);
+        D.dust(d, W.pos, 3, { spread: 0.15, up: 0.2, out: 0.5, s1: 0.45, a: 0.12 });
+      }
+      d.cfPrev = ph;
+    }
+    if (t === D.whoosh) au.fatal?.('whoosh', W.pos);
+    // the bump
+    if (t === F.contact) {
+      const belly = W.boneWorld('spine04', new THREE.Vector3()).addScaledVector(d.ax, 0.3);
+      d.bumpP = belly.clone();
+      au.fatal?.('bump', belly); cam.shake(0.95);
+      d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.45); d.g.effects.radial = Math.max(d.g.effects.radial || 0, 0.55);
+      d.g.fx?.sweat?.(belly.clone().addScaledVector(d.ax, -0.1), 18);
+      const mo = D.mouth(L, new THREE.Vector3());
+      B.spray(mo, d.ax.clone().setY(0.45).normalize(), 26, { speed: [1.2, 3.2], spread: 0.4, size: [0.0015, 0.0045] });
+      B.puff(mo, 2, { size: [0.03, 0.08], speed: 0.4, life: 0.8 });
+      D.dust(d, W.pos, 10, { spread: 0.25, up: 0.2, out: 1.4, s1: 0.7, a: 0.2 });
+    }
+    if (t === D.scream) au.voice?.(L, 'ko');
+    if (t === D.scream + 9) au.fatal?.('flyby', L.pos);
+    // blood off his mouth as he flies
+    if (t > F.contact && t < F.land && t % 2 === 0) B.spray(D.mouth(L, new THREE.Vector3()), d.ax.clone().negate().setY(0.3).normalize(), 2, { speed: [0.3, 1], spread: 0.5, size: [0.0015, 0.004] });
+    // onto the spikes
+    if (t === F.land) {
+      au.fatal?.('impale', L.pos); au.voice?.(L, 'hurtBig'); cam.shake(1.1);
+      d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.4);
+      for (const h of P.heroes) {
+        const top = P.toWorld(h.u, h.v, h.tipY - 0.2), low = P.toWorld(h.u, h.v, -1.12);
+        B.spray(top, _v.set((Math.random() - 0.5) * 0.4, 1, (Math.random() - 0.5) * 0.4).normalize(), 60, { speed: [1.2, 4.4], spread: 0.55, size: [0.0018, 0.0075] });
+        B.puff(top, 3, { size: [0.04, 0.13], speed: 0.6, life: 1.3 });
+        B.gore(top, UP, 2, 'flesh');
+        B.spray(low, _v.set(0, -1, 0), 26, { speed: [0.4, 1.8], spread: 0.6, size: [0.002, 0.006] });
+      }
+      B.gore(P.toWorld(0.3, 0, -0.75), UP, 3, 'bone');
+      D.dust(d, P.toWorld(0.1, 0, -D.pitD + 0.05), 8, { spread: 0.6, up: 0.5, out: 0.5, s0: 0.2, s1: 0.8, a: 0.14, life: 1.4 });
+      B.splat(P.toWorld(0.15, -0.02, 0), 0.55, 3, 0.3, 240);
+    }
+    if (t > F.land) {
+      const k = t - F.land;
+      if (k === 4) au.fatal?.('spurt', L.pos, { power: 1 });
+      if (k === 26 || k === 60) au.fatal?.('spurt', L.pos, { power: 0.6 });
+      if (k === 40) B.splat(P.toWorld(-0.15, 0.1, 0), 0.32, 3, 1.1, 260);
+      if (k === 90) B.splat(P.toWorld(0.5, -0.2, 0), 0.28, 3, 2.2, 260);
+      // drips: off the spikes under him, his fingers, his mouth after the coughs
+      const n = k < 60 ? 3 : k < 200 ? 1 : (t % 2 === 0 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const h = P.heroes[(t * 3 + i) % P.heroes.length];
+        B.dribble(P.toWorld(h.u + (Math.random() - 0.5) * 0.08, h.v + (Math.random() - 0.5) * 0.08, -1.08 + Math.random() * 0.05), 1);
+      }
+      if (t % 7 === 0) for (const s of ['L', 'R']) { const p = L.boneWorld('wrist.' + s, new THREE.Vector3()); p.y -= 0.12; B.dribble(p, 1); }
+      if (t > D.coughs[0] && t % 5 === 0) B.dribble(D.mouth(L, new THREE.Vector3()), 1, [0.0015, 0.004]);
+      if (k > 60 && t % 41 === 0) au.fatal?.('drip', d.pc);
+    }
+    for (const c of D.coughs) if (t === c) {
+      const mo = D.mouth(L, new THREE.Vector3());
+      au.fatal?.('cough', mo, { last: c === D.coughs[1] });
+      B.spray(mo, _v.set(0, 1, 0).addScaledVector(d.ax, -0.3).normalize(), c === D.coughs[0] ? 26 : 14, { speed: [0.5, 1.7], spread: 0.45, size: [0.0015, 0.005] });
+      B.puff(mo, 2, { size: [0.02, 0.06], speed: 0.25, life: 0.8, alpha: 0.3 });
+    }
+    // Rafa to the edge
+    for (const s of D.steps) if (t === s) au.fatal?.('runstep', W.pos, { v: 1.5 });
+  },
+  draw(d, t, alpha) {
+    const D = this, F = d.F, P = d.pit;
+    // (the pit's and the crack's shaders are built behind the black at the start)
+    if (t < 10) { P.setOpen(0.02); P.setCrack(0.01); }
+    else {
+      const x = Math.min(1, Math.max(0, (t - D.open[0]) / (D.open[1] - D.open[0])));
+      P.setOpen(1 - Math.pow(1 - x, 2.2));
+      P.setCrack(t < D.crack[0] ? 0 : 1 - Math.pow(1 - Math.min(1, (t - D.crack[0]) / (D.crack[1] - D.crack[0])), 1.8));
+    }
+    P.draw(alpha);
+    // the wounds and the blood down the spikes
+    const kl = ss(F.land, F.land + 110, t), on = t >= F.land;
+    P.heroes.forEach((h, i) => {
+      const p = P.toWorld(h.u, h.v, 0, _v);
+      d.soak.set(i, p.x, p.z, on ? 0.035 + D.wound[i] * (0.35 + 0.65 * kl) : 0);
+      h.U.uBlood.value = on ? 0.3 + 0.85 * ss(F.land, F.land + 230, t) : 0;
+    });
+    d.soak.back(on ? 0.85 * ss(F.land + 10, F.land + 200, t) : 0);
+    // the blood he coughs up, round his mouth and down his chin
+    if (t >= D.coughs[0]) { const mo = D.mouth(d.L, _v); d.soak.set(5, mo.x, mo.z, 0.018 + 0.03 * ss(D.coughs[0], D.coughs[1] + 40, t), mo.y + 0.004); }
+    else d.soak.set(5, 0, 0, 0);
+  },
+  ctx(d) {
+    const L = d.L, P = d.pit, h = P.heroes[0];
+    return { pc: d.pc.clone(), ax: d.ax.clone(), sd: d.sd.clone(), L0: d.L0.clone(), body: L.boneWorld('spine04', new THREE.Vector3()), chestTip: P.toWorld(h.u, h.v, h.tipY) };
+  },
+  lHead: (d) => null,
+  mid: (d) => null,
+  shots: [
+    // him, three quarters from his front: loosening up, the slaps on the belly
+    [0, (c, t) => ({ tp: c.at(c.wp, 2.0 - 0.25 * t, -1.0, 1.5), tl: c.wp.clone().setY(1.28), fov: 38, focus: c.wHead })],
+    // the stamp: low from his right, the loser beyond (the crack runs from his foot to him)
+    [66, (c, t) => ({ tp: c.at(c.wp, -1.25, 1.2, 1.85), tl: c.at(c.wp, 1.15, 0, 0.35), fov: 50, focus: c.wHead })],
+    // it gives way: high from the side, the loser at its edge
+    [97, (c, t) => ({ tp: c.pc.clone().addScaledVector(c.ax, -0.6).addScaledVector(c.sd, 2.9).setY(2.7 + 0.2 * t), tl: c.pc.clone().addScaledVector(c.ax, -0.45).setY(-0.1), fov: 46, focus: c.lHead })],
+    // he looks back: from beyond the pit, over the spikes, his face
+    [114, (c, t) => ({ tp: c.pc.clone().addScaledVector(c.ax, 1.9 - 0.15 * t).addScaledVector(c.sd, -0.65).setY(2.8 - 0.1 * t), tl: c.L0.clone().addScaledVector(c.ax, 0.8).setY(0.5), fov: 54, focus: c.lHead })],
+    // Rafa: a grin, set to charge
+    [134, (c, t) => ({ tp: c.at(c.wp, 1.15, -0.35, 1.52), tl: c.wHead.clone().setY(c.wHead.y - 0.08), fov: 30, focus: c.wHead })],
+    // the charge: from the side, both in frame
+    [152, (c, t) => { const mid = c.wp.clone().lerp(c.L0, 0.5); return { tp: mid.clone().addScaledVector(c.sd, 3.3).addScaledVector(c.ax, -0.3).setY(1.15), tl: mid.setY(0.95), fov: 40, focus: c.lHead }; }],
+    // the bump in slow motion: close, at belly height
+    [181, (c, t) => { const p = c.L0.clone().addScaledVector(c.ax, -0.25); return { tp: p.clone().addScaledVector(c.sd, 2.4).addScaledVector(c.ax, 0.45).setY(1.2), tl: p.setY(1.05), fov: 40, focus: p }; }],
+    // the flight: wide from the side, up and over and down into the pit
+    [197, (c, t) => ({ tp: c.pc.clone().addScaledVector(c.ax, -0.9).addScaledVector(c.sd, 3.4).setY(1.9), tl: c.body.clone().lerp(c.pc.clone().setY(-0.5), 0.35), fov: 46, focus: c.body })],
+    // on the spikes: from above, a slow push in
+    [224, (c, t) => ({ tp: c.body.clone().addScaledVector(c.sd, 1.6 - 0.3 * t).addScaledVector(c.ax, -0.35).setY(1.05 - 0.15 * t), tl: c.body.clone().setY(c.body.y + 0.05), fov: 40, focus: c.body })],
+    // close: the spike out of his chest, the coughs
+    [256, (c, t) => ({ tp: c.chestTip.clone().addScaledVector(c.sd, 0.75).addScaledVector(c.ax, -0.2).setY(c.chestTip.y + 0.45), tl: c.chestTip.clone().lerp(c.lHead, 0.4), fov: 36, focus: c.chestTip })],
+    // from down in the pit: Rafa comes to the edge and looks down, his line
+    [304, (c, t) => { const tp = c.pc.clone().addScaledVector(c.ax, 0.97).addScaledVector(c.sd, -0.08).setY(-0.6); return { tp, tl: tp.clone().addScaledVector(c.ax, -1).setY(tp.y + 0.47), fov: 56, focus: c.wHead }; }],
+    // the name of it: craning up over the pit
+    [434, (c, t) => ({ tp: c.pc.clone().addScaledVector(c.sd, 1.9 + 0.5 * t).addScaledVector(c.ax, 1.3).setY(2.8 + 1.0 * t), tl: c.pc.clone().addScaledVector(c.ax, -0.45).setY(-0.5), fov: 40, lam: 2 })],
+  ],
+};
+
+const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI, alejandro: ALEJANDRO, rafa: RAFA };
 export function fatalOf(id) { return MOVES[id] || null; }
 
 export class FatalityDirector {

@@ -51,6 +51,8 @@ export class ContactShadows {
         if (!foot) { d.visible = false; continue; }
         foot.getWorldPosition(_p);
         if (toe) toe.getWorldPosition(_t); else _t.copy(_p).add(new THREE.Vector3(0, 0, 0.15));
+        // (a foot below the ground, down a pit: no shadow on the ground over it)
+        if (Math.min(_p.y, _t.y) < groundY - 0.05) { d.visible = false; continue; }
         const h = Math.max(0, Math.min(_p.y, _t.y) - groundY - 0.06);
         const k01 = Math.min(1, h / 0.35);
         d.visible = k01 < 1;

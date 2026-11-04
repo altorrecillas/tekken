@@ -320,6 +320,8 @@ export class Match {
     W.pos.set(side * F.dist / 2, 0, 0); L.pos.set(-side * F.dist / 2, 0, 0);
     W.yaw = side < 0 ? Math.PI / 2 : -Math.PI / 2; L.yaw = -W.yaw;
     W.setState('fatal'); W.play('fatal', 1);
+    // (where they stood as it started: what fatal.move and fatal.fling count from)
+    this.fatalW0 = W.pos.clone(); this.fatalL0 = L.pos.clone(); L.fatalFloor = undefined; W.fatalFloor = undefined;
     L.setState('fatalV'); L.play('fatalDaze', 1);
     for (const f of this.fighters) { f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate(); f.prevPose.set(f.pose); }
     this.phase = 'fatal'; this.pt = 0; this.fatalBy = W.index;
@@ -337,11 +339,64 @@ export class Match {
     // (the loser's clips on their frames: styles.js fatal.victim, [frame, clip, blend]; still: the frame from which he
     // no longer moves, when he is drawn by something else, cut in two)
     for (const [at, clip, bl] of F.victim || [[F.fear, 'fatalFear', 10]]) if (this.pt === at) L.play(clip, bl);
+    // (the winner's own clips on their frames, if his move has more than one: fatal.winner, [frame, clip, blend])
+    for (const [at, clip, bl] of F.winner || []) if (this.pt === at) W.play(clip, bl);
     for (const f of this.fighters) {
       if (f === L && F.still != null && this.pt > F.still) continue;
-      f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.animate();
+      f.prevPos.copy(f.pos); f.prevYaw = f.yaw;
+      if (f === W && F.orbit) this.fatalOrbit(W, L, F);
+      if (f === W && F.move) this.fatalMove(W, F);
+      if (f === L && F.fling) this.fatalFling(W, L, F);
+      f.animate();
     }
     if (!this.endSent && (this.pt >= F.len || (this.pt > F.title + 60 && (W.inp.pressed || L.inp.pressed)))) { this.endSent = true; this.game.onMatchEnd(this); }
+  }
+
+  // the winner's own steps in a move (styles.js fatal.move: [frame, metres] keys along the way he faces, from where the
+  // move put him), and the loser thrown through the air (fatal.fling {from, to, dist, h, yEnd, floor}: back along the
+  // way the winner faces, dist metres, h over the line between, landing at height yEnd; from `from` on, his floor is
+  // `floor`, a pit's bottom). Both from the frame alone: nothing new to keep for a rewind
+  fatalMove(W, F) {
+    const K = F.move, t = this.pt;
+    if (!this.fatalW0) return;
+    let d = K[0][1];
+    for (let i = 1; i < K.length; i++) if (t <= K[i][0]) { const k = (t - K[i - 1][0]) / (K[i][0] - K[i - 1][0]); const e = k * k * (3 - 2 * k); d = K[i - 1][1] + (K[i][1] - K[i - 1][1]) * (K[i][2] === 'lin' ? k : e); break; } else d = K[i][1];
+    const y = W.yaw;
+    W.pos.set(this.fatalW0.x + Math.sin(y) * d, 0, this.fatalW0.z + Math.cos(y) * d);
+  }
+  fatalFling(W, L, F) {
+    const G = F.fling, t = this.pt;
+    if (!this.fatalL0) return;
+    L.fatalFloor = t >= G.from ? G.floor : undefined;
+    if (t < G.from) return;
+    const k = Math.min(1, (t - G.from) / (G.to - G.from));
+    const kh = 1 - Math.pow(1 - k, 1.5);
+    const y = W.yaw, d = G.dist * kh;
+    L.pos.set(this.fatalL0.x + Math.sin(y) * d, G.yEnd * k * k + 4 * G.h * k * (1 - k), this.fatalL0.z + Math.cos(y) * d);
+  }
+
+  // a move in which the winner runs round the loser (styles.js fatal.orbit): his place on a circle (or a spiral) round
+  // him and his heading along it, from the frame's distance R and speed v (m/s, both [frame, value] keys, linear in
+  // between); his stride's pace follows the speed (cadence: m/s at the clip's own pace, and its top). Everything from
+  // the frame number alone: nothing new to keep for a rewind
+  fatalOrbit(W, L, F) {
+    const O = F.orbit, t = this.pt;
+    if (t < O.from) return;
+    const at = (K, x) => { if (x <= K[0][0]) return K[0][1]; for (let i = 1; i < K.length; i++) if (x <= K[i][0]) return K[i - 1][1] + (K[i][1] - K[i - 1][1]) * (x - K[i - 1][0]) / (K[i][0] - K[i - 1][0]); return K[K.length - 1][1]; };
+    // where he started from: the side startFatal put him on, opposite the loser
+    const th0 = L.pos.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    let th = th0;
+    for (let k = O.from + 1; k <= t; k++) th += at(O.v, k) / 60 / Math.max(0.2, at(O.R, k));
+    const R = at(O.R, t);
+    W.pos.set(L.pos.x + Math.sin(th) * R, 0, L.pos.z + Math.cos(th) * R);
+    // heading: from facing the loser he turns along the circle as he sets off, and back to him as he stops
+    const along = th + Math.PI / 2, facing = th + Math.PI;
+    const kOn = Math.min(1, (t - O.from) / (O.turn || 10)), kOff = O.face != null ? Math.min(1, Math.max(0, (t - O.face) / 20)) : 0;
+    const e = (k) => k * k * (3 - 2 * k);
+    W.yaw = facing + (along - facing) * e(kOn) * (1 - e(kOff));
+    // (kept within one turn: the drawing turns the short way from one frame to the next)
+    W.yaw = Math.atan2(Math.sin(W.yaw), Math.cos(W.yaw));
+    if (F.cadence && W.clipName === 'fatal_run') W.cfRate = Math.min(F.cadence[1], Math.max(0.35, at(O.v, t) / F.cadence[0]));
   }
 
   separate() {

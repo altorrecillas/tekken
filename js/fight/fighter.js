@@ -654,7 +654,8 @@ export class Fighter {
       this.rig.obstacleLimbs = standing ? (this._obstLimbs || (this._obstLimbs = ['hand.L', 'hand.R', 'farm.L', 'farm.R'].map(n => st.seg[n]))) : null;
       this.rig.obstacleStrike = this._obstStrike || (this._obstStrike = ['head', 'neck', 'upper', 'chest', 'belly', 'hips', 'uarm.L', 'uarm.R', 'farm.L', 'farm.R', 'hand.L', 'hand.R', 'thigh.L', 'thigh.R', 'shin.L', 'shin.R'].map(n => st.seg[n]));
     } else { this.rig.obstacles = null; this.rig.obstacleList = null; this.rig.obstacleLimbs = null; }
-    this.rig.floorY = -this.pos.y;
+    // (the floor under him: the ground, or wherever a finishing move puts it, a pit's bottom: fatalFloor, world y)
+    this.rig.floorY = (this.fatalFloor ?? 0) - this.pos.y;
     // throws: hands grip the other fighter's body (bone + offset in his character space)
     const G = this.rig.grip;
     G.L.w = 0; G.R.w = 0;
