@@ -864,7 +864,19 @@ class Game {
     const info = rnd
       ? { sub: 'QUE DECIDA LA SUERTE', nm: 'ALEATORIO', dsc: this.mode === 'arcade' ? 'Un escenario al azar en cada combate del arcade.' : 'Un escenario al azar. La ruleta elige por ti.', tags: ['SORPRESA', `${STAGE_KEYS.length} ESCENARIOS`] }
       : { sub: def.sub, nm: def.name, dsc: def.desc || '', tags: def.tags || [] };
-    root.querySelector('.ss-info').innerHTML = `<div class="sub">${info.sub}</div><div class="nm">${info.nm}</div><div class="dsc">${info.dsc}</div><div class="tags">${info.tags.map((t) => `<span>${t}</span>`).join('')}</div>${who}`;
+    // the button that starts the fight on the stage shown (the roulette's, on ALEATORIO), pulsing in its colour, with
+    // the key (or the second tap) that does the same under it; nothing on the phone of a guest online (the host picks)
+    let go = '';
+    if (this.stageHost()) {
+      const busy = s.rolling || s.done, touch = document.body.classList.contains('touchui');
+      const label = s.done ? '¡A LUCHAR!' : s.rolling ? 'GIRANDO…' : rnd ? 'GIRAR LA RULETA' : '¡A LUCHAR!';
+      const k1 = keyLabel(KEYMAPS.p1.b1.find(Boolean) || '');
+      const hint = touch ? 'o toca otra vez la tarjeta' : `o pulsa ${k1} / INTRO`;
+      go = `<button class="ss-go${busy ? ' busy' : ''}"><span>${label}</span><b>▶</b></button>${busy ? '' : `<div class="ss-gohint">${hint}</div>`}`;
+    }
+    root.querySelector('.ss-info').innerHTML = `<div class="sub">${info.sub}</div><div class="nm">${info.nm}</div><div class="dsc">${info.dsc}</div><div class="tags">${info.tags.map((t) => `<span>${t}</span>`).join('')}</div>${who}${go}`;
+    const btn = root.querySelector('.ss-go');
+    if (btn) btn.onclick = (e) => { e.stopPropagation(); this.confirmStage(); };
   }
   // keys: left / right move, a punch (or Enter) picks, back goes back to the fighters
   stageInput(keys, M, pads) {
@@ -917,6 +929,7 @@ class Game {
     const s = this.ss;
     s.done = true;
     this.stagePick = key; this.stageRandom = random;
+    this.refreshStageSel(true);
     this.audio.play('uiok');
     // (the stage is built now, behind this screen, while ¡A LUCHAR! plays: the loading that follows is shorter)
     this.prebuildStage(key);

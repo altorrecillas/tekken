@@ -162,6 +162,19 @@ button { touch-action: manipulation; }
 .ss-info .tags span { font-family: 'Teko'; font-size: 18px; letter-spacing: .16em; padding: 1px 10px 0; color: #fff; background: rgba(0,0,0,.45); border: 1px solid color-mix(in srgb, var(--acc) 70%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 25%, transparent); }
 .ss-info .tags span:first-child { background: var(--acc); color: #111; border-color: var(--acc); }
 .ss-info .who { margin-top: 14px; font-family: 'Teko'; font-size: 18px; letter-spacing: .14em; color: #aaa; }
+.ss-go { margin-top: 22px; display: inline-flex; align-items: center; gap: 14px; font-family: 'Bebas'; font-size: 46px; letter-spacing: .08em; line-height: 1; padding: 12px 30px 8px 26px; color: #0b0b10; cursor: pointer; border: 0;
+  background: linear-gradient(180deg, #ffffff 0%, var(--acc) 58%, color-mix(in srgb, var(--acc) 65%, #000) 100%); transform: skewX(-12deg);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--acc) 70%, transparent), 0 6px 0 #000; animation: ssGo 1.1s ease-in-out infinite; }
+.ss-go > * { transform: skewX(12deg); }
+.ss-go b { font-size: .62em; animation: ssGoArrow 1.1s ease-in-out infinite; }
+.ss-go:hover { filter: brightness(1.12); animation-duration: .6s; }
+.ss-go:active { transform: skewX(-12deg) translateY(3px); box-shadow: 0 0 18px var(--acc), 0 3px 0 #000; }
+.ss-go.busy { animation: none; cursor: default; filter: saturate(.8); }
+.ss-go.busy b { display: none; }
+@keyframes ssGo { 50% { box-shadow: 0 0 38px var(--acc), 0 0 70px color-mix(in srgb, var(--acc) 40%, transparent), 0 6px 0 #000; transform: skewX(-12deg) scale(1.05); } }
+@keyframes ssGoArrow { 50% { transform: skewX(12deg) translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .ss-go, .ss-go b { animation: none; } }
+.ss-gohint { margin-top: 10px; font-family: 'Teko'; font-size: 18px; letter-spacing: .14em; color: rgba(255,255,255,.6); text-shadow: 0 1px 2px #000; }
 .ss-row { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); display: flex; gap: 10px; }
 .ss-card { position: relative; width: min(15vw, 200px, calc((92vw - (var(--n, 6) - 1) * 10px) / var(--n, 6))); aspect-ratio: 16/10; background: #111; clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%); cursor: pointer; overflow: hidden; transition: transform .15s; }
 .ss-card img, .ss-card .mos { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(.7) brightness(.6); transition: filter .15s; }
@@ -696,6 +709,7 @@ body.touchui #fatalBtn .h { display: none; }
   #ssBack { font-size: 18px; padding: 3px 12px; min-height: 36px; top: max(8px, env(safe-area-inset-top)); }
   .ss-match { top: 12%; font-size: 15px; gap: 8px; } .ss-match img, .ss-match .q { width: 24px; height: 24px; border-width: 1.5px; } .ss-match em { font-size: 18px; }
   .ss-main { top: 21%; width: 94vw; } .ss-frame { flex-basis: 52%; } .ss-frame .num { font-size: 13px; }
+  .ss-go { font-size: 24px; padding: 6px 16px 3px 14px; margin-top: 9px; gap: 8px; box-shadow: 0 0 12px color-mix(in srgb, var(--acc) 70%, transparent), 0 4px 0 #000; } .ss-gohint { font-size: 12px; margin-top: 4px; }
   .ss-info .sub { font-size: 14px; } .ss-info .nm { font-size: min(6vw, 40px); margin-bottom: 4px; } .ss-info .dsc { font-size: 12px; } .ss-info .tags { margin-top: 6px; gap: 4px; } .ss-info .tags span { font-size: 12px; padding: 0 6px; } .ss-info .who { font-size: 12px; margin-top: 6px; }
   .ss-row { bottom: 4%; gap: 6px; } .ss-card { width: min(13vw, 110px, calc((94vw - (var(--n, 6) - 1) * 6px) / var(--n, 6))); } .ss-card .nm { font-size: 11px; } .ss-card > b { font-size: 30px; } .ss-card.on { transform: translateY(-5px) scale(1.05); }
   #ssHint { display: none; }
