@@ -11,9 +11,19 @@ import * as THREE from 'three';
 
 function rng(seed) { let s = seed | 0; return () => { s = (s + 0x6D2B79F5) | 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
+// (the funnel's wall not a clean cone: it bulges and pinches in rolls that climb it and turn with the wind, so that its
+// outline wavers instead of drawing two straight lines)
 const WALL_VS = `
+uniform float uTime, uSpin, uSeed;
 varying vec2 vUv; varying vec3 vN; varying vec3 vW;
-void main() { vUv = uv; vN = normalize( mat3( modelMatrix ) * normal ); vec4 w = modelMatrix * vec4( position, 1.0 ); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+void main() {
+  vUv = uv;
+  vec3 p = position;
+  float w = sin( uv.y * 11.0 - uTime * 2.3 + uSeed * 5.0 ) * 0.07 + sin( uv.x * 18.85 + uv.y * 5.0 - uSpin * 1.7 + uSeed ) * 0.05 + sin( uv.x * 37.7 - uv.y * 9.0 + uTime * 4.0 ) * 0.025;
+  p.xz *= 1.0 + w * smoothstep( 0.0, 0.15, uv.y );
+  vN = normalize( mat3( modelMatrix ) * normal );
+  vec4 wp = modelMatrix * vec4( p, 1.0 ); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
 const WALL_FS = `
 uniform float uTime, uSpin, uI, uRed, uLayer, uSeed;
 varying vec2 vUv; varying vec3 vN; varying vec3 vW;
@@ -30,13 +40,14 @@ void main() {
   // (the wrap seam: blend u with u - 1)
   float n2 = fbm( vec2( ( u - 1.0 ) * 7.0 - uSpin * ( 0.9 + 0.25 * uLayer ) + v * 2.2, v * 2.4 - uTime * 0.7 + uSeed ) * vec2( 1.0, 0.55 ) );
   n = mix( n, n2, smoothstep( 0.9, 1.0, u ) );
-  float a = smoothstep( 0.42, 0.78, n * 0.75 + streak * 0.45 );
+  float a = smoothstep( 0.48, 0.86, n * 0.75 + streak * 0.45 );
   // thicker low down, thin and frayed at the top, gone at the very bottom edge
   a *= smoothstep( 0.0, 0.08, v ) * ( 1.0 - smoothstep( 0.55, 1.0, v ) ) * ( 1.15 - 0.5 * v );
   // edge-on it is thicker (seen through more of it)
   vec3 V = normalize( cameraPosition - vW );
   float rim = 1.0 - abs( dot( V, vN ) );
-  a *= ( 0.35 + 0.9 * rim * rim ) * uI;
+  // (but the very edge fades: a hard rim drew the cone's outline)
+  a *= ( 0.35 + 0.9 * rim * rim * ( 1.0 - smoothstep( 0.78, 1.0, rim ) ) ) * uI;
   vec3 dust = mix( vec3( 0.36, 0.33, 0.28 ), vec3( 0.62, 0.57, 0.49 ), streak );
   vec3 blood = mix( vec3( 0.14, 0.006, 0.008 ), vec3( 0.38, 0.03, 0.03 ), streak );
   vec3 c = mix( dust, blood, uRed * ( 0.75 + 0.25 * n ) );

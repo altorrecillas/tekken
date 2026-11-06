@@ -45,23 +45,32 @@ void main() {
   gl_FragColor = vec4( c, vA * ( 1.0 - smoothstep( 0.7, 1.0, d ) ) / ( 1.0 + vH * 0.35 ) );
 }`;
 const MIST_VS = `
-attribute vec3 iPos, iPrev; attribute vec2 iSA;
+attribute vec3 iPos, iPrev; attribute vec3 iSA;
 uniform float uAlpha;
-varying vec2 vQ; varying float vA;
+varying vec2 vQ; varying float vA; varying float vS;
 void main() {
   vec4 mv = viewMatrix * vec4( mix( iPrev, iPos, uAlpha ), 1.0 );
   mv.xy += position.xy * iSA.x * 2.0;
   gl_Position = projectionMatrix * mv;
-  vQ = position.xy * 2.0; vA = iSA.y;
+  vQ = position.xy * 2.0; vA = iSA.y; vS = iSA.z;
 }`;
+// a puff of blood mist: not a round blob but a ragged cloud, each its own (seed: turned and shaped differently), denser
+// and darker in the middle, wisps of brighter red where it is thin
 const MIST_FS = `
-varying vec2 vQ; varying float vA;
+varying vec2 vQ; varying float vA; varying float vS;
 float h( vec2 p ) { p = fract( p * vec2( 123.34, 456.21 ) ); p += dot( p, p + 45.32 ); return fract( p.x * p.y ); }
+float n2( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( h( i ), h( i + vec2( 1.0, 0.0 ) ), f.x ), mix( h( i + vec2( 0.0, 1.0 ) ), h( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }
 void main() {
   float d = length( vQ );
   if ( d > 1.0 ) discard;
-  float a = exp( -d * d * 3.2 ) * ( 0.75 + 0.25 * h( floor( vQ * 6.0 ) + vA ) );
-  gl_FragColor = vec4( vec3( 0.16, 0.006, 0.008 ), a * vA );
+  float c = cos( vS * 6.2832 ), s = sin( vS * 6.2832 );
+  vec2 q = mat2( c, s, -s, c ) * vQ;
+  float f = n2( q * 2.2 + vS * 17.0 ) * 0.55 + n2( q * 5.0 + vS * 31.0 ) * 0.3 + n2( q * 11.0 + vS * 7.0 ) * 0.15;
+  float core = exp( -d * d * 2.6 );
+  float a = core * smoothstep( 0.22, 0.78, f + core * 0.35 - d * 0.25 );
+  vec3 col = mix( vec3( 0.34, 0.025, 0.03 ), vec3( 0.13, 0.004, 0.007 ), smoothstep( 0.25, 0.85, a ) );
+  gl_FragColor = vec4( col, a * vA );
 }`;
 
 // the splats' shapes (white, alpha = how thick): 0 a round splat with drops flung round it, 1 a splat drawn out
@@ -118,7 +127,7 @@ export class Blood {
     this.dropU = { uAlpha: { value: 1 }, uShutter: { value: 1 / 60 }, uLight: { value: new THREE.Vector3(0.3, 0.6, 0.75).normalize() } };
     this.dropMesh = new THREE.Mesh(this.dg, new THREE.ShaderMaterial({ uniforms: this.dropU, vertexShader: DROP_VS, fragmentShader: DROP_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     this.dropMesh.frustumCulled = false; this.dropMesh.renderOrder = 12;
-    [this.mg, this.mA] = mk(MAXM, [['iPos', 3], ['iPrev', 3], ['iSA', 2]]);
+    [this.mg, this.mA] = mk(MAXM, [['iPos', 3], ['iPrev', 3], ['iSA', 3]]);
     this.mistU = { uAlpha: { value: 1 } };
     this.mistMesh = new THREE.Mesh(this.mg, new THREE.ShaderMaterial({ uniforms: this.mistU, vertexShader: MIST_VS, fragmentShader: MIST_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     this.mistMesh.frustumCulled = false; this.mistMesh.renderOrder = 11;
@@ -127,8 +136,9 @@ export class Blood {
     // splats on the floor: wet, glossy, dark
     this.decals = [0, 1, 2, 3].map((k) => {
       const mat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(0.11, 0.003, 0.005), map: splatTexture(k, 11 + k * 7), transparent: true, depthWrite: false,
-        roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.06, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+        color: new THREE.Color(0.13, 0.004, 0.006), map: splatTexture(k, 11 + k * 7), transparent: true, depthWrite: false,
+        // (the sky in it toned down: under a blue sky a pool read lilac rather than blood; the lights' glints stay)
+        roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.06, metalness: 0, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
       });
       const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2);
       const im = new THREE.InstancedMesh(g, mat, MAXDEC);
@@ -182,7 +192,7 @@ export class Blood {
     for (let i = 0; i < n; i++) {
       if (this.mist.length >= MAXM) this.mist.shift();
       const v = new THREE.Vector3(R() - 0.5, R() * 0.6, R() - 0.5).normalize().multiplyScalar(speed * (0.3 + R()));
-      this.mist.push({ p: p.clone(), prev: p.clone(), v, s0: size[0] * (0.7 + 0.6 * R()), s1: size[1] * (0.8 + 0.5 * R()), a: alpha ?? (0.32 + R() * 0.2), life: life * (0.7 + 0.6 * R()), age: 0 });
+      this.mist.push({ p: p.clone(), prev: p.clone(), v, s0: size[0] * (0.7 + 0.6 * R()), s1: size[1] * (0.8 + 0.5 * R()), a: (alpha ?? (0.32 + R() * 0.2)) * 1.35, life: life * (0.7 + 0.6 * R()), age: 0, seed: R() });
     }
   }
   gore(p, dir, n, kind = 'flesh') {
@@ -274,7 +284,7 @@ export class Blood {
     for (let i = 0; i < M.length; i++) {
       const m = M[i], t = m.age / m.life;
       MA.iPos.setXYZ(i, m.p.x, m.p.y, m.p.z); MA.iPrev.setXYZ(i, m.prev.x, m.prev.y, m.prev.z);
-      MA.iSA.setXY(i, m.s0 + (m.s1 - m.s0) * Math.sqrt(t), m.a * Math.min(1, t * 8) * (1 - t) * (1 - t));
+      MA.iSA.setXYZ(i, m.s0 + (m.s1 - m.s0) * Math.sqrt(t), m.a * Math.min(1, t * 8) * (1 - t) * (1 - t), m.seed ?? 0.5);
     }
     this.mg.instanceCount = M.length;
     for (const k in MA) MA[k].needsUpdate = true;

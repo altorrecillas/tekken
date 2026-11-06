@@ -57,6 +57,10 @@ try {
   await p.click('#title .menu button[data-act="arcade"]');
   await waitFor(() => window.__game.state === 'select', null, 20000, 'select');
   await p.keyboard.press('KeyU');
+  // (then the stage select: the stage under the cursor picked)
+  await waitFor(() => window.__game.state === 'stage', null, 20000, 'stage select');
+  await p.waitForTimeout(300);
+  await p.keyboard.press('KeyU');
   await waitFor(() => window.__game.state === 'fight' && window.__game.match?.phase === 'intro', null, 120000, 'arcade fight');
   await p.waitForTimeout(800);
   await p.keyboard.press('KeyU'); // (skips the intro)

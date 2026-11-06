@@ -16,6 +16,8 @@ const key = async (k) => { await p.keyboard.down(k); await p.waitForTimeout(250)
 let d = await waitState('title'); console.log('1 title ok', d.screens);
 await key('Enter'); d = await waitState('select'); console.log('2 select ok', d.screens);
 await key('KeyD'); await key('KeyD'); await key('KeyU');
+d = await waitState('stage'); console.log('3 stage select ok', d.screens);
+await key('KeyD'); await key('KeyU');
 d = await waitState('fight'); console.log('3 fight started', d.phase, d.f && d.f.map(x=>x.id));
 await p.waitForTimeout(8000);
 await key('Escape'); d = await waitState('pause'); console.log('4 paused', d.screens);

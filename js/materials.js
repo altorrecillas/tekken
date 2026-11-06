@@ -193,7 +193,7 @@ export function addFighterKey(mat, key = FIGHTER_KEY) {
 
 // how much of the fill light each kind of surface takes: it is there to open up faces; a white garment given the
 // whole of it glowed in the close-ups
-const FILL_SHARE = { skin: 1, eye: 1, haircards: 0.7, hair: 0.7, beard: 0.7, cloth: 0.3 };
+const FILL_SHARE = { skin: 1, eye: 1, haircards: 0.7, hair: 0.7, beard: 0.7, cloth: 0.3, metal: 0.35, synth: 0.3, glow: 0 };
 export function makeFighterMaterial(def, base, loadTex, partName, key) {
   const m = makeFighterMaterialBase(def, base, loadTex, partName);
   if (m && m.userData) m.userData.fill = FILL_SHARE[def.type] ?? 0.5;
@@ -278,6 +278,43 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
       m.customProgramCacheKey = () => 'hairsway';
       return m;
     }
+    // Orión's (tools/pipeline/robotgen.py): brushed, polished silver plates and chrome; the dark woven undersuit; the
+    // red glow of his eyes
+    case 'metal': {
+      const m = new THREE.MeshPhysicalMaterial({
+        map: def.map ? loadTex(url(def.map)) : null, color: def.color ? new THREE.Color(...def.color) : 0xffffff,
+        metalness: 1, roughness: def.roughMap ? 1.0 : (def.roughness ?? 0.25),
+        clearcoat: 0.45, clearcoatRoughness: 0.12, envMapIntensity: 1.25,
+        polygonOffset: !def.head, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+      });
+      if (def.normalMap) { m.normalMap = loadTex(url(def.normalMap), false); m.normalScale = new THREE.Vector2(0.8, 0.8); }
+      if (def.roughMap) m.roughnessMap = loadTex(url(def.roughMap), false);
+      // (lights set into the plates: neon strips)
+      if (def.emissiveMap) { m.emissiveMap = loadTex(url(def.emissiveMap)); m.emissive = new THREE.Color(...(def.emissive || [1, 1, 1])); m.emissiveIntensity = def.emissiveIntensity ?? 2.0; }
+      m.userData.metal = true;
+      // (his costumes: the plates blued black, or gold, js/fight/costumes.js; the same uniforms as a garment's)
+      const cos = m.userData.costume = { mode: { value: 0 }, a: { value: new THREE.Vector3(0, 1, 1) }, b: { value: new THREE.Vector4(1, 1, 1, 0.5) } };
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uCosMode = cos.mode; sh.uniforms.uCosA = cos.a; sh.uniforms.uCosB = cos.b;
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + COSTUME_GLSL)
+          .replace('#include <color_fragment>', '#include <color_fragment>\n\tif ( uCosMode > 0.5 ) diffuseColor.rgb = pdbCostume( diffuseColor.rgb );');
+      };
+      m.customProgramCacheKey = () => 'metalCos';
+      return m;
+    }
+    case 'synth': {
+      const m = new THREE.MeshPhysicalMaterial({
+        map: def.map ? loadTex(url(def.map)) : null, roughness: 0.5, metalness: 0.35,
+        sheen: 0.35, sheenRoughness: 0.5, sheenColor: new THREE.Color(0.25, 0.27, 0.32), specularIntensity: 0.6,
+      });
+      if (def.normalMap) { m.normalMap = loadTex(url(def.normalMap), false); m.normalScale = new THREE.Vector2(0.7, 0.7); }
+      return m;
+    }
+    case 'glow':
+      return new THREE.MeshStandardMaterial({
+        color: 0x110000, roughness: 0.2, metalness: 0,
+        emissive: new THREE.Color(...(def.color || [1, 0.1, 0.05])), emissiveMap: def.map ? loadTex(url(def.map)) : null, emissiveIntensity: def.intensity ?? 2.2,
+      });
     case 'cloth': {
       const m = new THREE.MeshPhysicalMaterial({
         map: def.map ? loadTex(url(def.map)) : null,

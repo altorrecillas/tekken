@@ -296,8 +296,8 @@ export class Rig {
       this._setLocalRaw(NECK[i], _q2);
     }
     if (b.jaw) { eulerQuat(p[POSE.jaw[0]], 0, 0, _q2); this._setLocalRaw('jaw', _q2); }
-    // eyelids: natural blinking (visual only) plus an explicit closure (hurt / KO)
-    if (b['orbicularis03.L']) {
+    // eyelids: natural blinking (visual only) plus an explicit closure (hurt / KO); a machine never blinks
+    if (b['orbicularis03.L'] && !this.noBlink) {
       const now = performance.now() / 1000;
       if (this._blinkAt === undefined) this._blinkAt = now + 0.5 + Math.random() * 3;
       let blink = 0;

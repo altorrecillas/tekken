@@ -33,25 +33,35 @@ const vec3 EV_CHEST = vec3( ${chest.x.toFixed(3)}, ${chest.y.toFixed(3)}, ${ches
         float evT = uEvGone * 1.08 - 0.04;
         if ( evH2 < evT ) discard;
         float evRim = 1.0 - smoothstep( 0.0, 0.05, evH2 - evT );
-        // cuts: short slashes every which way, more and longer as the wind works
-        float evCutM = 0.0;
+        // cuts: short slashes every which way, more and longer as the wind works; each a wound, not a stroke: pointed
+        // at both ends and widest in the middle, dark and deep inside, fresh red at its lips, and a trickle of blood
+        // running down from it
+        float evCutM = 0.0, evCore = 0.0, evDrip = 0.0;
         if ( uEvCut > 0.0 ) {
           vec2 q = vec2( atan( vEvP.x, vEvP.z ) * 0.42, vEvP.y ) * 34.0;
           vec2 c = floor( q );
-          for ( int i = -1; i <= 1; i++ ) for ( int j = -1; j <= 1; j++ ) {
+          for ( int i = -1; i <= 1; i++ ) for ( int j = -1; j <= 2; j++ ) {
             vec2 cc = c + vec2( float( i ), float( j ) );
             if ( evH( cc ) > uEvCut * 0.85 ) continue;
-            vec2 d = q - cc - vec2( evH( cc + 3.1 ), evH( cc + 7.3 ) );
+            vec2 d0 = q - cc - vec2( evH( cc + 3.1 ), evH( cc + 7.3 ) );
             float a = evH( cc + 9.7 ) * 3.1416;
-            d = mat2( cos( a ), sin( a ), -sin( a ), cos( a ) ) * d;
+            vec2 d = mat2( cos( a ), sin( a ), -sin( a ), cos( a ) ) * d0;
             float len = 0.35 + 0.9 * evH( cc + 1.9 ) * uEvCut;
-            evCutM = max( evCutM, ( 1.0 - smoothstep( 0.03, 0.07, abs( d.y ) ) ) * ( 1.0 - smoothstep( len * 0.8, len, abs( d.x ) ) ) );
+            float t = clamp( abs( d.x ) / len, 0.0, 1.0 ), w = ( 0.025 + 0.06 * uEvCut ) * ( 1.0 - t * t );
+            float m = ( 1.0 - smoothstep( w * 0.7, w + 0.012, abs( d.y ) ) ) * step( t, 0.999 );
+            evCutM = max( evCutM, m );
+            evCore = max( evCore, ( 1.0 - smoothstep( w * 0.25, w * 0.55, abs( d.y ) ) ) * step( t, 0.95 ) );
+            // (the trickle: from under the wound's middle, straight down, wavering, as long as the wound has bled)
+            float dl = ( 0.4 + 1.6 * evH( cc + 5.3 ) ) * smoothstep( 0.2, 0.9, uEvCut );
+            float dx = d0.x + 0.03 * sin( d0.y * 9.0 + evH( cc ) * 6.0 );
+            evDrip = max( evDrip, ( 1.0 - smoothstep( 0.025, 0.05, abs( dx ) ) ) * step( d0.y, 0.0 ) * ( 1.0 - smoothstep( dl * 0.7, dl, -d0.y ) ) );
           }
         }
         float evSoak = smoothstep( 0.3, 1.0, uEvCut ) * smoothstep( 0.45, 0.75, evN( vEvP * 9.0 ) + 0.3 * uEvCut + 0.9 * uEvGone );
-        float evB = max( max( evRim, evCutM ), evSoak );`)
+        float evB = max( max( max( evRim, evCutM ), evSoak ), evDrip * 0.9 );`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        diffuseColor.rgb = mix( diffuseColor.rgb, mix( vec3( 0.13, 0.005, 0.007 ), vec3( 0.32, 0.03, 0.03 ), evRim ), evB * 0.985 );
+        diffuseColor.rgb = mix( diffuseColor.rgb, mix( vec3( 0.13, 0.005, 0.007 ), vec3( 0.32, 0.03, 0.03 ), max( evRim, evCutM * ( 1.0 - evCore ) ) ), evB * 0.985 );
+        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.045, 0.0, 0.002 ), evCore * 0.95 );
         // seen through the holes: the meat inside
         if ( ! gl_FrontFacing ) diffuseColor.rgb = mix( vec3( 0.1, 0.004, 0.006 ), vec3( 0.28, 0.025, 0.025 ), evNz );`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix( roughnessFactor, 0.28, max( evB, gl_FrontFacing ? 0.0 : 1.0 ) );')

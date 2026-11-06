@@ -670,6 +670,9 @@ export class Fighter {
         this.worldToChar(w, G[s].p); G[s].w = g[2];
       }
     }
+    // a finishing move's hold (Match.fatalGripAt: a handlebar, a saddle; his own axes)
+    const FG = this.state === 'fatal' ? this.fatalGrip : null;
+    if (FG) for (const s of ['L', 'R']) if (FG[s].w > 0) { G[s].p.copy(FG[s].p); G[s].w = Math.min(1, FG[s].w); }
     this.rig.apply(p, true);
   }
 
@@ -748,6 +751,8 @@ export class Fighter {
     const dt = this._faceT != null ? Math.min(0.1, Math.max(0, t - this._faceT)) : 1;
     this._faceT = t;
     const W = this.rig.faceW || (this.rig.faceW = { pain: 0, effort: 0, smile: 0 });
+    // (a machine's chrome face shows nothing: Orión, mesh.json robot)
+    if (this.ch.meta?.robot) { W.pain = W.effort = W.smile = 0; return; }
     for (const [k, v] of [['pain', pain], ['effort', effort], ['smile', smile]]) W[k] += (v - W[k]) * (1 - Math.exp(-(v > W[k] ? 22 : 7) * dt));
   }
 
@@ -760,7 +765,9 @@ export class Fighter {
     const prop = this.ch.winProp;
     if (prop) prop.visible = this.state === 'win' && this.clipName === 'win' && this.cf >= (prop.userData.from || 0);
     // eyes squeeze while taking a hit, shut when knocked out
-    this.rig.lidClose = this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : this.state === 'fatalV' ? 0.2 : 0;
+    this.rig.lidClose = this.ch.meta?.robot ? 0 : this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : this.state === 'fatalV' ? 0.2 : 0;
+    // (his mouth a plate on a hinge: it moves a little as he speaks, no more)
+    if (this.ch.meta?.robot) { const j = POSE.jaw[0]; this.renderPose[j] = Math.min(this.renderPose[j], 0.12); this.rig.noBlink = true; }
     this.updateFace(alpha);
     this.rig.apply(this.renderPose);
     const g = this.ch.group;

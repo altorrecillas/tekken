@@ -319,7 +319,7 @@ export class Match {
     for (const f of this.fighters) { f.reset(); f.ragdoll = null; f.snapPose = true; f.snapSmooth = true; }
     W.pos.set(side * F.dist / 2, 0, 0); L.pos.set(-side * F.dist / 2, 0, 0);
     W.yaw = side < 0 ? Math.PI / 2 : -Math.PI / 2; L.yaw = -W.yaw;
-    W.setState('fatal'); W.play('fatal', 1);
+    W.setState('fatal'); W.play('fatal', 1); W.fatalGrip = null;
     // (where they stood as it started: what fatal.move and fatal.fling count from)
     this.fatalW0 = W.pos.clone(); this.fatalL0 = L.pos.clone(); L.fatalFloor = undefined; W.fatalFloor = undefined;
     L.setState('fatalV'); L.play('fatalDaze', 1);
@@ -347,6 +347,8 @@ export class Match {
       if (f === W && F.orbit) this.fatalOrbit(W, L, F);
       if (f === W && F.move) this.fatalMove(W, F);
       if (f === L && F.fling) this.fatalFling(W, L, F);
+      if (f === W && F.ride) this.fatalRide(W, F);
+      if (f === W) W.fatalGrip = F.grip ? this.fatalGripAt(F.grip) : null;
       f.animate();
     }
     if (!this.endSent && (this.pt >= F.len || (this.pt > F.title + 60 && (W.inp.pressed || L.inp.pressed)))) { this.endSent = true; this.game.onMatchEnd(this); }
@@ -373,6 +375,61 @@ export class Match {
     const kh = 1 - Math.pow(1 - k, 1.5);
     const y = W.yaw, d = G.dist * kh;
     L.pos.set(this.fatalL0.x + Math.sin(y) * d, G.yEnd * k * k + 4 * G.h * k * (1 - k), this.fatalL0.z + Math.cos(y) * d);
+  }
+
+  // a ride (styles.js fatal.ride): his place on a smooth curve through keys [frame, along, side] (metres from where he
+  // started, along the way he faced then and to his right): a Hermite curve in time, its speed continuous, at rest at
+  // the first and last keys and at any key marked 0 ([frame, along, side, 0]); his heading from keys [frame, turn]
+  // (radians from how he faced, eased in between: yaw); his pedalling's pace follows his speed on the clips that pedal
+  // (cadence: [m/s at the clip's own pace, lowest, highest], clips: their names). From the frame number alone
+  fatalRide(W, F) {
+    const R = F.ride, t = this.pt;
+    if (!this.fatalW0 || t < R.keys[0][0]) return;
+    const q = this.ridePos(R, t), W0 = this.fatalW0, L0 = this.fatalL0;
+    const y0 = Math.atan2(L0.x - W0.x, L0.z - W0.z), fx = Math.sin(y0), fz = Math.cos(y0);
+    // (his right: -x of his own axes)
+    const rx = -fz, rz = fx;
+    W.pos.set(W0.x + fx * q.a + rx * q.s, 0, W0.z + fz * q.a + rz * q.s);
+    let turn = 0;
+    const Y = R.yaw;
+    if (Y && Y.length) {
+      turn = Y[0][1];
+      for (let i = 1; i < Y.length; i++) if (t <= Y[i][0]) { const k = Math.max(0, (t - Y[i - 1][0]) / (Y[i][0] - Y[i - 1][0])); turn = Y[i - 1][1] + (Y[i][1] - Y[i - 1][1]) * k * k * (3 - 2 * k); break; } else turn = Y[i][1];
+    }
+    W.yaw = Math.atan2(Math.sin(y0 + turn), Math.cos(y0 + turn));
+    if (R.cadence && R.clips?.includes(W.clipName)) { const C = R.cadence, v = Math.hypot(q.va, q.vs) * 60; W.cfRate = Math.min(C[2], Math.max(C[1], v / C[0])); }
+  }
+  // the ride's place (a: along, s: side, m) and speed (va, vs: m per frame) at frame t
+  ridePos(R, t) {
+    const K = R.keys, n = K.length;
+    if (t <= K[0][0]) return { a: K[0][1], s: K[0][2], va: 0, vs: 0 };
+    if (t >= K[n - 1][0]) return { a: K[n - 1][1], s: K[n - 1][2], va: 0, vs: 0 };
+    let i = 0;
+    while (i < n - 2 && t > K[i + 1][0]) i++;
+    const tan = (j, c) => (j <= 0 || j >= n - 1 || K[j][3] === 0 ? 0 : (K[j + 1][c] - K[j - 1][c]) / (K[j + 1][0] - K[j - 1][0]));
+    const h = K[i + 1][0] - K[i][0], u = (t - K[i][0]) / h, u2 = u * u, u3 = u2 * u;
+    const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+    const d00 = (6 * u2 - 6 * u) / h, d10 = (3 * u2 - 4 * u + 1), d01 = (-6 * u2 + 6 * u) / h, d11 = (3 * u2 - 2 * u);
+    const P = (c) => h00 * K[i][c] + h10 * h * tan(i, c) + h01 * K[i + 1][c] + h11 * h * tan(i + 1, c);
+    const D = (c) => d00 * K[i][c] + d10 * tan(i, c) + d01 * K[i + 1][c] + d11 * tan(i + 1, c);
+    return { a: P(1), s: P(2), va: D(1), vs: D(2) };
+  }
+  // the winner's hands held on something (styles.js fatal.grip: { L, R: [[frame, x, y, z, weight], ...] }, his own
+  // axes, the wrist's place; linear in between): a handlebar, a saddle
+  fatalGripAt(G) {
+    const t = this.pt, out = this._fg || (this._fg = { L: { p: new THREE.Vector3(), w: 0 }, R: { p: new THREE.Vector3(), w: 0 } });
+    for (const s of ['L', 'R']) {
+      const K = G[s], o = out[s];
+      o.w = 0;
+      if (!K || !K.length || t < K[0][0] || t > K[K.length - 1][0]) continue;
+      for (let i = 1; i < K.length; i++) {
+        if (t > K[i][0]) continue;
+        const k = (t - K[i - 1][0]) / Math.max(1, K[i][0] - K[i - 1][0]), A = K[i - 1], B = K[i];
+        o.p.set(A[1] + (B[1] - A[1]) * k, A[2] + (B[2] - A[2]) * k, A[3] + (B[3] - A[3]) * k); o.w = A[4] + (B[4] - A[4]) * k;
+        break;
+      }
+    }
+    return out;
   }
 
   // a move in which the winner runs round the loser (styles.js fatal.orbit): his place on a circle (or a spiral) round

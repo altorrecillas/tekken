@@ -32,6 +32,10 @@ const bar = await g(() => document.querySelector('#select .stagebar')?.textConte
 ok(/DIFICULTAD NORMAL/.test(bar || ''), 'select bar shows difficulty: ' + bar);
 // (desktop: one click picks the fighter; touch screens need a second tap)
 await p.click('#select .card[data-id="zapponi"]');
+// the stage select: La Portería (the first card) picked with a click; the arcade then goes round the stages in order
+await waitFor(() => window.__game?.state === 'stage', 30000, 'stage select');
+ok(await g(() => document.querySelectorAll('#stagesel .ss-card').length) === await g(() => window.__game.stageItems().length), 'the stage select shows every stage and ALEATORIO');
+await p.click('#stagesel .ss-card[data-key="porche"]');
 let ends = 0;
 // record every loading card shown (a MutationObserver: polling can miss a short load)
 await g(() => { window.__cards = []; const f = document.querySelector('#fade'); new MutationObserver(() => { if (f.classList.contains('busy')) window.__cards.push(document.querySelector('#fadeStep').textContent + ' | ' + document.querySelector('#fadeVs').textContent); }).observe(f, { attributes: true, attributeFilter: ['class'] }); });

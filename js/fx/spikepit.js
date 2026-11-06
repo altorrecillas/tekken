@@ -335,9 +335,23 @@ export class SpikePit {
     for (let i = 0; i < n; i++) {
       const ph = R() * Math.PI * 2, r = pitR(ph) * k * (0.9 + 0.1 * R());
       const p = this.toWorld(Math.cos(ph) * r * this.a, Math.sin(ph) * r * this.b, -0.02);
-      const s = 0.03 + R() * 0.07;
-      const m = new THREE.Mesh(this.rubbleGeo || (this.rubbleGeo = new THREE.DodecahedronGeometry(1, 0)), mat);
-      m.scale.set(s, s * (0.5 + R() * 0.5), s * (0.7 + R() * 0.5)); m.castShadow = true;
+      const s = 0.04 + R() * 0.09;
+      // (broken slabs of the floor: flat, their edges ragged, three shapes)
+      if (!this.rubbleGeos) {
+        this.rubbleGeos = [0, 1, 2].map((k) => {
+          const g = new THREE.BoxGeometry(1, 1, 1, 2, 1, 2).toNonIndexed(), p = g.attributes.position, r2 = rng(31 + k), seen = new Map();
+          for (let j = 0; j < p.count; j++) {
+            const key = `${p.getX(j).toFixed(3)},${p.getY(j).toFixed(3)},${p.getZ(j).toFixed(3)}`;
+            if (!seen.has(key)) seen.set(key, [(r2() - 0.5) * 0.35, (r2() - 0.5) * 0.25, (r2() - 0.5) * 0.35]);
+            const o = seen.get(key);
+            p.setXYZ(j, p.getX(j) + o[0], p.getY(j) * (p.getY(j) > 0 ? 1 : 1 + o[1]) , p.getZ(j) + o[2]);
+          }
+          g.computeVertexNormals();
+          return g;
+        });
+      }
+      const m = new THREE.Mesh(this.rubbleGeos[i % 3], mat);
+      m.scale.set(s, s * (0.28 + R() * 0.2), s * (0.65 + R() * 0.45)); m.castShadow = true; m.receiveShadow = true;
       this.scene.add(m);
       this.rubble.push({ m, p, prev: p.clone(), v: new THREE.Vector3((R() - 0.5) * 0.4, -R() * 0.5, (R() - 0.5) * 0.4), w: new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).multiplyScalar(10), q: new THREE.Quaternion(), r: s, rest: false });
     }
@@ -362,7 +376,7 @@ export class SpikePit {
     this.patched = [];
     this.depth?.dispose();
     for (const c of this.rubble) this.scene.remove(c.m);
-    this.rubble = []; this.rubbleGeo?.dispose();
+    this.rubble = []; for (const g of this.rubbleGeos || []) g.dispose();
     this.scene.remove(this.group);
     if (this.crackMesh) this.scene.remove(this.crackMesh);
     for (const m of this.mats) m.dispose(); for (const g of this.geos) g.dispose(); for (const t of this.textures) t?.dispose();

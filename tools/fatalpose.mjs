@@ -51,6 +51,7 @@ for (let t = 1; t <= +to; t++) {
   if (t < +from || (t % +stepArg && !ws.length)) continue;
   for (const f of m.fighters) { f.syncRender(1); f.ch.group.updateMatrixWorld(true); }
   for (const S of ws) want(S);
+  if (process.env.CH) { const { POSE } = await import(GAME + '/js/anim/rig.js'); console.log(String(t).padStart(5), W.clipName, process.env.CH.split(',').map((n) => n + ' ' + Array.from(W.pose.subarray(POSE[n][0], POSE[n][0] + POSE[n][1])).map((a) => a.toFixed(2)).join(',')).join('  ')); continue; }
   const B = (n) => toW(W.ch.bones[n].getWorldPosition(new THREE.Vector3()));
   if (process.env.LOSER) {
     const fw = new THREE.Vector3(Math.sin(W.yaw), 0, Math.cos(W.yaw)), side = new THREE.Vector3(-fw.z, 0, fw.x), L0 = m.fatalL0 || L.pos;

@@ -53,6 +53,13 @@ const TRIALS = {
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
     ['LARIAT', 'Su lariat (1 + 2): conéctalo.', ['1+2']],
   ],
+  orion: [
+    ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
+    ['TRIPLE', 'Dos jabs y el directo, cada uno en cuanto toca el anterior.', ['1', '1', '2']],
+    ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
+    ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
+    ['LARIAT', 'Su lariat (1 + 2): conéctalo.', ['1+2']],
+  ],
   dani: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
     ['GANCHO AL HÍGADO', 'Su gancho bajo (abajo + 2) lo levanta: remata con 1, 2 cuando caiga.', ['d+2', '1', '2']],

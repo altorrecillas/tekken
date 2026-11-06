@@ -15,8 +15,10 @@ const waitState = async (s, to=300000) => { const t0=Date.now(); while(Date.now(
 const key = async (k) => { await p.keyboard.down(k); await p.waitForTimeout(250); await p.keyboard.up(k); await p.waitForTimeout(700); };
 let d = await waitState('title'); console.log('1 title ok, stage', d.stage);
 await key('ArrowDown'); await key('Enter'); d = await waitState('select'); console.log('2 versus select ok');
-await key('KeyS'); const bar = await p.evaluate(() => document.querySelector('#select .stagebar').textContent); console.log('3 stage bar:', bar.trim());
+const bar = await p.evaluate(() => document.querySelector('#select .stagebar').textContent); console.log('3 mode bar:', bar.trim());
 await key('KeyU'); await key('ArrowRight'); await key('Numpad4');
+d = await waitState('stage'); console.log('3b stage select');
+await key('KeyD'); await key('KeyD'); await key('KeyU');
 d = await waitState('fight'); console.log('4 fight started on', d.stage, d.f && d.f.map(x=>x.id));
 await p.waitForTimeout(6000);
 await key('Escape'); d = await waitState('pause'); console.log('5 paused');

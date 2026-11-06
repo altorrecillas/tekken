@@ -92,9 +92,12 @@ function stringTextures() {
   const g = c.getContext('2d');
   g.fillStyle = '#000'; g.fillRect(0, 0, N, N);
   const a = document.createElement('canvas'); a.width = a.height = N;
-  const ga = a.getContext('2d'); ga.fillStyle = '#000'; ga.fillRect(0, 0, N, N);
+  // (a faint film between the strings: from a little way off a string bed reads as a fine grey mesh, not as nothing,
+  // once the lines are averaged away)
+  const ga = a.getContext('2d'); ga.fillStyle = '#2e2e2e'; ga.fillRect(0, 0, N, N);
+  g.fillStyle = '#bdb9ad'; g.fillRect(0, 0, N, N);
   // uv: u across the head (z), v along it (y); the head's oval fills the square
-  const mains = 16, crosses = 19, sw = 4.2;
+  const mains = 16, crosses = 19, sw = 8;
   ga.fillStyle = '#fff'; g.fillStyle = '#f2efe2';
   for (let i = 0; i < mains; i++) { const x = (i + 0.5) / mains * N; ga.fillRect(x - sw / 2, 0, sw, N); g.fillRect(x - sw / 2, 0, sw, N); }
   for (let j = 0; j < crosses; j++) { const y = (j + 0.5) / crosses * N; ga.fillRect(0, y - sw / 2, N, sw); g.fillRect(0, y - sw / 2, N, sw); }
@@ -103,7 +106,7 @@ function stringTextures() {
   for (let i = 0; i < mains; i++) for (let j = 0; j < crosses; j++) if ((i + j) % 2) g.fillRect((i + 0.5) / mains * N - sw / 2, (j + 0.5) / crosses * N - sw / 2, sw, sw);
   // the stencil: a bold Z in the middle, only where there is string
   g.save(); g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = '#5a6068'; g.font = `bold ${N * 0.56}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#3c4148'; g.font = `bold ${N * 0.56}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.translate(N / 2, N / 2); g.scale(1, -1); g.fillText('Z', 0, N * 0.02);
   g.restore();
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;

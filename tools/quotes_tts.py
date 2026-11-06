@@ -24,7 +24,19 @@ QUOTES = {
     'zapponi': ('¡Espectacular, vale!', 'es_ES-sharvard-medium', 0, 1.05, 0.90),
     'dani': ('Más sabe el zorro por viejo que por zorro.', 'es_ES-davefx-medium', 0, 1.00, 0.90),
     'noemi': ('Te falta tomar áloe vera.', 'es_ES-sharvard-medium', 1, 0.95, 1.00),
+    'orion': ('Clave incorrecta.', 'es_ES-davefx-medium', 0, 1.15, 0.84),
 }
+# fighters who are machines: their voice robotic (ROBOT_FX after the voice's own chain)
+ROBOT = {'orion'}
+# a robot's voice: ring-modulated (half of it, against a low hum), a metal comb (a short echo fed back), shifted a little
+# off its own pitch, a touch of bit-crush, its band narrowed like a speaker's
+def robot_fx(src, dst):
+    fc = ('[0:a]asplit=2[d][w];sine=frequency=58:sample_rate=44100,volume=1.0[s];[w][s]amultiply[rm];'
+          '[d][rm]amix=inputs=2:weights=0.55 0.6:normalize=0,'
+          'aecho=0.9:0.75:7|13:0.45|0.3,afreqshift=shift=-28,acrusher=bits=9:mode=log:aa=1:mix=0.18,'
+          'highpass=f=180,lowpass=f=7000,equalizer=f=1300:width_type=o:width=1:g=4,'
+          'acompressor=threshold=-20dB:ratio=4:attack=3:release=80:makeup=2[out]')
+    subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', src, '-filter_complex', fc, '-map', '[out]', '-ac', '1', '-shortest', dst], check=True)
 # the presentation's lines, said in the fighter's own voice above (while the camera is on him before the first round)
 INTROS = {
     'alejandro': 'Calienta bien, que esto va a ser rápido.',
@@ -34,6 +46,7 @@ INTROS = {
     'zapponi': '¡Esto va a ser espectacular, vale!',
     'dani': 'Ponte los guantes, chaval.',
     'noemi': 'Voy cargadita de áloe vera, cuidado conmigo.',
+    'orion': 'Necesito la clave.',
 }
 
 # the line said in the fighter's PUÑETALITY
@@ -43,9 +56,11 @@ FATALS = {
     'dani': 'Juego, set y partido.',
     'alejandro': 'Récord personal.',
     'rafa': 'Te dije que iría despacito.',
+    'zapponi': '¡Eso sí que ha sido espectacular, vale!',
+    'orion': 'Acceso denegado. Borrando usuario.',
 }
 # the announcer's call as the finishing move ends (spelt as it is said: «pu-ñe-TÁ-li-ti»)
-ANNOUNCER = {'punetality': 'Puñetáliti.'}
+ANNOUNCER = {'punetality': 'Puñetáliti.', 'win_orion': '¡Gana Orión!'}
 
 
 def volume(path):
@@ -67,6 +82,10 @@ def make(vid, voices, tmp, intro=False, fatal=False):
              'acompressor=threshold=-20dB:ratio=3:attack=5:release=90:makeup=2,'
              'aecho=0.85:0.5:28|52:0.14|0.07,adelay=40,apad=pad_dur=0.2')
     subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af', chain, '-ac', '1', pre], check=True)
+    if vid in ROBOT:
+        rob = os.path.join(tmp, vid + '_rob.wav')
+        robot_fx(pre, rob)
+        pre = rob
     mean, peak = volume(pre)
     gain = min(-18.0 - mean, -1.5 - peak)  # like the announcer (about -18 dB), never past -1.5 dB peak
     out = os.path.join(GAME, 'assets/voice/%s_%s.mp3' % ('intro' if intro else 'fatal' if fatal else 'quote', vid))

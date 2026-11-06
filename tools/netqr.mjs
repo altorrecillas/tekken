@@ -100,6 +100,9 @@ try {
   await Promise.all([H, G].map((p) => waitFor(p, () => window.__game.state === 'select', null, 20000, 'select')));
   await H.keyboard.press('KeyU');
   await G.keyboard.press('KeyD'); await G.waitForTimeout(150); await G.keyboard.press('KeyU');
+  // (the stage select: the host takes the one under his cursor)
+  await waitFor(H, () => window.__game.state === 'stage', null, 20000, 'stage select');
+  await H.waitForTimeout(300); await H.keyboard.press('KeyU');
   await Promise.all([H, G].map((p) => waitFor(p, () => window.__online.phase === 'fight' && !!window.__online.session, null, 120000, 'fight')));
   await H.waitForTimeout(1500);
   await H.keyboard.press('KeyU');

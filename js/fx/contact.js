@@ -51,6 +51,8 @@ export class ContactShadows {
         if (!foot) { d.visible = false; continue; }
         foot.getWorldPosition(_p);
         if (toe) toe.getWorldPosition(_t); else _t.copy(_p).add(new THREE.Vector3(0, 0, 0.15));
+        // (drawn by something else, cut in two: where its half has that foot now)
+        if (f.drawnBy?.carryPoint) { f.drawnBy.carryPoint(_p, s); f.drawnBy.carryPoint(_t, s); }
         // (a foot below the ground, down a pit: no shadow on the ground over it)
         if (Math.min(_p.y, _t.y) < groundY - 0.05) { d.visible = false; continue; }
         const h = Math.max(0, Math.min(_p.y, _t.y) - groundY - 0.06);

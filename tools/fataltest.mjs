@@ -63,12 +63,29 @@ try {
   await waitFor(() => window.__game.match.phase === 'fatal', null, 10000, 'the move starting');
   check(true, 'a click on the button starts the move');
   check(await p.evaluate(() => !document.querySelector('#fatalBtn.on')), 'the button goes away');
-  const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len, hit: s.hit, burst: s.burst, evap: s.evap, land: s.land }; });
+  const F = await p.evaluate(() => { const s = window.__game.match.fighters[0].style.fatal; return { cut: s.cut, title: s.title, len: s.len, hit: s.hit, burst: s.burst, evap: s.evap, land: s.land, ash: s.ash }; });
   const at = async (f, name) => {
     await waitFor((f) => window.__game.match.pt >= f || window.__game.state === 'results', f, 240000, 'frame ' + f);
     await p.screenshot({ path: path.join(OUT, `fatal_${WHO}_${name}.png`) });
   };
-  if (WHO === 'rafa') {
+  if (WHO === 'orion') {
+    await at(240, 'beams');
+    const be = await p.evaluate(() => { const f = window.__game.fatal; return { on: f.beams.beams[0].m.visible && f.beams.beams[1].m.visible, char: +f.burn.U.uBnChar.value.toFixed(2), flames: f.fl.ps.length, clip: window.__game.match.fighters[1].clipName }; });
+    check(be.on && be.char > 0.3 && be.flames > 10 && be.clip === 'fatalBeamHit', `the beams from his eyes burn the loser (burn ${be.char}, ${be.flames} flames)`);
+    await at(F.ash[1] + 10, 'ash');
+    const as = await p.evaluate(() => { const f = window.__game.fatal; return { ash: +f.burn.U.uBnAsh.value.toFixed(2), pile: +f.pile.mesh.scale.x.toFixed(2), beams: f.beams.beams[0].m.visible }; });
+    check(as.ash > 0.99 && as.pile > 0.8 && !as.beams, `the loser has crumbled to a pile of ash (${as.pile}), the beams off`);
+  } else if (WHO === 'zapponi') {
+    await at(140, 'helmet');
+    const hb = await p.evaluate(() => { const f = window.__game.fatal; return { bike: !!f.bk?.group.visible, helmet: !!f.hel?.group.visible }; });
+    check(hb.bike && hb.helmet, 'his bike has rolled up to him and his helmet is on');
+    await at(F.cut + 30, 'split');
+    const sp = await p.evaluate(() => { const g = window.__game, f = g.fatal, L = g.match.fighters[1]; return { cut: f.hv.cut, drawn: L.drawnBy === f.hv, th: f.hv.H.map((h) => +h.th.toFixed(2)), drops: f.blood.drops.length }; });
+    check(sp.cut && sp.drawn && sp.th[0] > 0.4 && sp.th[1] > 0.4, `the loser is split down his middle, the halves falling to either side (${sp.th.join(', ')} rad), ${sp.drops} drops of blood in the air`);
+    await at(410, 'stop');
+    const st = await p.evaluate(() => { const g = window.__game, m = g.match, W = m.fighters[0]; return { clip: W.clipName, d: +Math.hypot(W.pos.x - m.fatalW0.x, W.pos.z - m.fatalW0.z).toFixed(2), onBike: g.fatal.bk.group.parent === W.ch.group }; });
+    check(st.clip === 'fatal_look' && st.d > 4 && st.onBike, `he has stopped on his bike past the loser (${st.d} m from where he started) and looks back`);
+  } else if (WHO === 'rafa') {
     await at(132, 'pit');
     const pi = await p.evaluate(() => { const f = window.__game.fatal; return { open: f.pit.U.uPitOpen.value, holed: f.pit.patched.length, crack: f.pit.crackU.uGrow.value }; });
     check(pi.open > 0.99 && pi.holed > 0 && pi.crack > 0.99, `the ground has cracked and given way behind the loser (${pi.holed} floor meshes holed)`);

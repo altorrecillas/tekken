@@ -49,6 +49,14 @@ export const ENDINGS = {
       'Esa misma tarde sale a correr por el paseo con los chavales del barrio, que no consiguen seguirle. —¡Corre feliz, chaval! —les grita sin girarse.',
     ],
   },
+  orion: {
+    title: 'ACCESO CONCEDIDO',
+    text: [
+      'Orión se queda inmóvil en medio del barrio. Sus ojos rojos recorren la calle, de un portal a otro.',
+      '—Clave correcta. Acceso concedido —dice al fin, y el neón de su pecho parpadea: RyC.',
+      'Desde esa noche, nadie del barrio olvida su contraseña. Por si acaso.',
+    ],
+  },
   noemi: {
     title: 'AVISO RECIBIDO',
     text: [

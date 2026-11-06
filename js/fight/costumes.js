@@ -40,6 +40,12 @@ export const COSTUMES = {
     { name: 'PIJAMA AZUL', parts: { jacket: { dye: [0.58, 0.76, 0.94], base: 0.85 }, top: { dye: [0.16, 0.24, 0.5], base: 0.34 }, pants: { dye: [0.2, 0.3, 0.62], base: 0.0072 } } },
     { name: 'CAMPEÓN', champ: true, parts: { jacket: { dye: [0.86, 0.66, 0.2], base: 0.85 }, top: { dye: [0.08, 0.08, 0.09], base: 0.34 }, pants: { dye: [0.08, 0.08, 0.09], base: 0.0072 } } },
   ],
+  // (his plates and his chrome head: blued black, or gold)
+  orion: [
+    { name: 'ORIGINAL' },
+    { name: 'PAVONADO', parts: { armor: { dye: [0.13, 0.13, 0.15], base: 0.38 }, skull: { dye: [0.13, 0.13, 0.15], base: 0.4 }, head: { dye: [0.16, 0.16, 0.18], base: 0.42 } } },
+    { name: 'CAMPEÓN', champ: true, parts: { armor: { dye: [0.86, 0.66, 0.2], base: 0.38 }, skull: { dye: [0.86, 0.66, 0.2], base: 0.4 }, head: { dye: [0.9, 0.72, 0.28], base: 0.42 } } },
+  ],
 };
 
 export const costumesOf = (id) => COSTUMES[id] || [{ name: 'ORIGINAL' }];

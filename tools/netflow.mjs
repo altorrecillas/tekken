@@ -125,16 +125,23 @@ try {
   for (let i = 0; i < 3; i++) { await H.keyboard.press('KeyD'); await H.waitForTimeout(150); }
   await waitFor(G, () => window.__game.sel.i[0] === 3, null, 5000, 'the host\'s cursor on the guest');
   check(true, 'the guest sees the host\'s cursor move');
-  await H.keyboard.press('KeyW'); // stage
-  const hostStage = await H.evaluate(() => window.__game.stagePick);
-  await waitFor(G, (st) => window.__game.stagePick === st, hostStage, 5000, 'stage on the guest');
-  check(true, `the host's stage reaches the guest (${hostStage})`);
   await G.evaluate(() => { const c = document.querySelector('#select .card[data-id="zapponi"]'); c.click(); });
   await G.waitForTimeout(200);
   await G.evaluate(() => { const c = document.querySelector('#select .card[data-id="zapponi"]'); if (!window.__game.sel.done[1]) c.click(); });
   await waitFor(H, () => window.__game.sel.done[1] && window.__game.sel.i[1] === window.__game.roster.indexOf('zapponi'), null, 5000, 'guest pick on host');
   check(true, 'the guest picks Zapponi and the host sees it ready');
   await shot(H, 'net_select_host.png');
+  await H.keyboard.press('KeyU');
+
+  // ---------------------------------------------------------------- the stage select (the host picks, the guest watches)
+  await Promise.all([H, G].map((p) => waitFor(p, () => window.__game.state === 'stage', null, 20000, 'stage select')));
+  check(true, 'both phones go on to the stage select once both have picked');
+  await H.waitForTimeout(300);
+  await H.keyboard.press('KeyD');
+  const hostStage = await H.evaluate(() => window.__game.stageItems()[window.__game.ss.cur]);
+  await waitFor(G, (st) => window.__game.stageItems()[window.__game.ss.cur] === st, hostStage, 5000, 'the host\'s stage cursor on the guest');
+  check(true, `the guest sees the host's stage cursor move (${hostStage})`);
+  await shot(G, 'net_stage_guest.png');
   await H.keyboard.press('KeyU');
 
   // ---------------------------------------------------------------- the fight

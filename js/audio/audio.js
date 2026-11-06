@@ -6,14 +6,14 @@ const ANN_TEXT = {
   round1: 'Ronda uno', round2: 'Ronda dos', round3: 'Ronda tres', round4: 'Ronda cuatro', round5: 'Ronda cinco',
   final: '¡Ronda final!', fight: '¡A luchar!', ko: 'K.O.', time: '¡Tiempo!', perfect: '¡Perfecto!', draw: '¡Empate!',
   win_alejandro: '¡Gana Alejandro!', win_arnau: '¡Gana Arnau!', win_camilo: '¡Gana Camilo!', win_rafa: '¡Gana Rafa!', win_zapponi: '¡Gana Zaponi!',
-  win_dani: '¡Gana Dani!', win_noemi: '¡Gana Noemí!',
+  win_dani: '¡Gana Dani!', win_noemi: '¡Gana Noemí!', win_orion: '¡Gana Orión!',
   punetality: '¡Puñetality!',
 };
 
 // background music: Kevin MacLeod (incompetech.com), CC BY 4.0 (see README; made by tools/music_build.py). Each stage
 // has a style of its own and several tracks that follow each other (a new fight starts on the next one), and an
 // angrier track for the final round: El Porche urban funk and hip hop, the rooftop Latin disco and salsa, the 10K
-// finish line rock, the festival club and dance
+// finish line rock, the festival club and dance, the neon district dark synth, inside the PC electro
 const M = (n) => `assets/music/${n}.mp3`;
 const MUSIC = {
   menu: [M('menu')], training: [M('training')], ending: [M('ending')],
@@ -21,10 +21,12 @@ const MUSIC = {
   terrace: [M('terrace_a'), M('terrace_b'), M('terrace_c')],
   street: [M('street_a'), M('street_b'), M('street_c')],
   festival: [M('festival_a'), M('festival_b'), M('festival_c'), M('festival_d')],
+  neon: [M('neon_a'), M('neon_b'), M('neon_c')],
+  pc: [M('pc_a'), M('pc_b'), M('pc_c')],
 };
-const FINAL = { porche: M('porche_final'), terrace: M('terrace_final'), street: M('street_final'), festival: M('festival_final') };
+const FINAL = { porche: M('porche_final'), terrace: M('terrace_final'), street: M('street_final'), festival: M('festival_final'), neon: M('neon_final'), pc: M('pc_final') };
 // each track's tempo and first beat (s), measured by tools/music_build.py: the festival's lights and dancers keep time
-const BEATS = { menu: [122, 0.441], training: [101, 0.546], ending: [110, 0.499], porche_a: [95, 0.61], porche_b: [121.32, 0.203], porche_c: [120, 0.128], porche_final: [116, 0.476], terrace_a: [117, 0.464], terrace_b: [100, 0.418], terrace_c: [115, 0.464], terrace_final: [117.82, 0.476], street_a: [124, 0.337], street_b: [85, 0.308], street_c: [128, 0.238], street_final: [104.5, 0.255], festival_a: [94, 0.43], festival_b: [88, 0.284], festival_c: [117, 0.464], festival_d: [140, 0.819], festival_final: [106.98, 0.505] };
+const BEATS = { menu: [122, 0.441], training: [101, 0.546], ending: [110, 0.499], porche_a: [95, 0.61], porche_b: [121.32, 0.203], porche_c: [120, 0.128], porche_final: [116, 0.476], terrace_a: [117, 0.464], terrace_b: [100, 0.418], terrace_c: [115, 0.464], terrace_final: [117.82, 0.476], street_a: [124, 0.337], street_b: [85, 0.308], street_c: [128, 0.238], street_final: [104.5, 0.255], festival_a: [94, 0.43], festival_b: [88, 0.284], festival_c: [117, 0.464], festival_d: [140, 0.819], festival_final: [106.98, 0.505], neon_a: [120, 0.459], neon_b: [124, 0.435], neon_c: [160, 0.145], neon_final: [155, 0.139], pc_a: [120, 0.453], pc_b: [128.38, 0.035], pc_c: [122, 0.447], pc_final: [140, 0.819] };
 
 // each stage's background loop (see ambience) and its level under the music; a crowd cheers on a knockout
 const AMBIENCE = {
@@ -32,6 +34,8 @@ const AMBIENCE = {
   festival: { file: 'assets/sfx/crowd_loop.mp3', gain: 0.2, crowd: true },
   porche: { file: 'assets/sfx/amb_porche.mp3', gain: 0.32 },
   terrace: { file: 'assets/sfx/amb_terrace.mp3', gain: 0.3 },
+  neon: { file: 'assets/sfx/amb_neon.mp3', gain: 0.34 },
+  pc: { file: 'assets/sfx/amb_pc.mp3', gain: 0.3 },
 };
 // each stage's acoustics (setSpace): reverb tail length (s), how bright it stays (1 = like the dry sound), how much
 // of a blow goes in, and the early reflections [ms, level] of what stands around
@@ -40,11 +44,17 @@ const SPACES = {
   terrace: { tail: 0.55, bright: 0.7, send: 0.12, early: [[9, 0.3], [27, 0.12]] },
   street: { tail: 1.35, bright: 0.75, send: 0.2, early: [[18, 0.25], [64, 0.2], [128, 0.32], [170, 0.12]] },
   festival: { tail: 1.6, bright: 0.5, send: 0.23, early: [[26, 0.3], [44, 0.22], [95, 0.14]] },
+  // (a street between towers, wet: hard close walls, a long bright tail)
+  neon: { tail: 1.5, bright: 0.8, send: 0.25, early: [[14, 0.45], [29, 0.35], [52, 0.25], [88, 0.18]] },
+  // (inside a metal case: close hard walls all round, a short bright ring)
+  pc: { tail: 0.85, bright: 0.95, send: 0.22, early: [[5, 0.5], [11, 0.42], [19, 0.32], [31, 0.22]] },
 };
 
 // fighters' shouts: recorded voices (assets/voice/fx, see voices.json) and a pitch per fighter
 const FIGHTER_VOICE = { alejandro: ['vb', 1.0], arnau: ['h1', 1.05], camilo: ['h0', 1.0], rafa: ['h2', 0.93], zapponi: ['h3', 0.87],
-  dani: ['vb', 0.9], noemi: ['f1', 0.97] };
+  dani: ['vb', 0.9], noemi: ['f1', 0.97],
+  // (Orión, a machine: a deep voice made robotic as it plays, js/audio/audio.js robotFx)
+  orion: ['h3', 0.8, 'robot'] };
 
 export class Audio {
   constructor() {
@@ -656,9 +666,11 @@ export class Audio {
       this.noise(t, 1.2, { type: 'highpass', f0: 3500, gain: 0.04, attack: 0.2, out, rev: 0.2 });
     } else if (kind === 'skid') {
       // trainers skidding on the ground: a rubbery squeal and grit
-      this.tone(t, 0.55, { type: 'sawtooth', f0: 1150, f1: 820, gain: 0.05, attack: 0.02, out, rev: 0.2 });
-      this.noise(t, 0.6, { type: 'bandpass', f0: 2600, f1: 1200, q: 1.2, gain: 0.22, attack: 0.02, out, rev: 0.2 });
-      this.noise(t, 0.5, { type: 'lowpass', f0: 700, gain: 0.18, attack: 0.02, out, rev: 0.15 });
+      // (long: a tyre locked and sliding)
+      const L = o.long ? 1.5 : 1;
+      this.tone(t, 0.55 * L, { type: 'sawtooth', f0: 1150, f1: 820, gain: 0.05, attack: 0.02, out, rev: 0.2 });
+      this.noise(t, 0.6 * L, { type: 'bandpass', f0: 2600, f1: 1200, q: 1.2, gain: 0.22, attack: 0.02, out, rev: 0.2 });
+      this.noise(t, 0.5 * L, { type: 'lowpass', f0: 700, gain: 0.18, attack: 0.02, out, rev: 0.15 });
     } else if (kind === 'pat') {
       // a slap on a big belly: the flat smack of the palms and the low, round answer of it
       const g = o.last ? 0.8 : 1;
@@ -722,11 +734,168 @@ export class Audio {
       // a drop into the pool at the pit's bottom: a small wet plink, echoing
       const f = 900 + Math.random() * 500;
       this.tone(t, 0.12, { type: 'sine', f0: f, f1: f * 2.1, gain: 0.05, attack: 0.002, out, rev: 0.8 });
+    } else if (kind === 'whistle') {
+      // a whistle through two fingers: a shrill rising note, a dip, up again
+      const w = c.createOscillator(), wg = c.createGain(), bp = c.createBiquadFilter();
+      w.type = 'sine'; bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 2;
+      w.frequency.setValueAtTime(1900, t); w.frequency.exponentialRampToValueAtTime(3100, t + 0.18); w.frequency.setValueAtTime(2900, t + 0.3); w.frequency.exponentialRampToValueAtTime(2300, t + 0.4); w.frequency.exponentialRampToValueAtTime(3300, t + 0.62);
+      wg.gain.setValueAtTime(0.0001, t); wg.gain.exponentialRampToValueAtTime(0.16, t + 0.04); wg.gain.setValueAtTime(0.16, t + 0.28); wg.gain.exponentialRampToValueAtTime(0.05, t + 0.38); wg.gain.exponentialRampToValueAtTime(0.18, t + 0.45); wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+      w.connect(wg).connect(out); w.start(t); w.stop(t + 0.8);
+      const r = c.createGain(); r.gain.value = 0.35; wg.connect(r).connect(this.revSend);
+      this.noise(t, 0.7, { type: 'bandpass', f0: 3000, q: 4, gain: 0.03, attack: 0.03, out, rev: 0.3 });
+    } else if (kind === 'bikeroll') {
+      // a bike rolling in on its own: tyres on the ground, the freewheel ticking, slowing down
+      const d = o.dur ?? 1.2;
+      this.noise(t, d, { type: 'bandpass', f0: 1200, f1: 400, q: 0.8, gain: 0.12, attack: 0.15, out, rev: 0.2 });
+      for (let k = 0; k < 26; k++) { const tk = t + d * (1 - Math.pow(1 - k / 26, 1.6)); this.noise(tk, 0.012, { type: 'highpass', f0: 5000, gain: 0.07 * (1 - k / 40), out, rev: 0.1 }); }
+    } else if (kind === 'click') {
+      // the helmet's buckle clicking shut
+      this.noise(t, 0.015, { type: 'highpass', f0: 3500, gain: 0.35, out, rev: 0.1 });
+      this.noise(t + 0.025, 0.012, { type: 'bandpass', f0: 2400, q: 3, gain: 0.25, out, rev: 0.1 });
+    } else if (kind === 'knock') {
+      // knuckles on a helmet: a hollow plastic tok
+      this.tone(t, 0.09, { type: 'sine', f0: 820, f1: 560, gain: 0.22, attack: 0.001, out, rev: 0.2 });
+      this.noise(t, 0.03, { type: 'bandpass', f0: 1800, q: 2, gain: 0.25, out, rev: 0.15 });
+    } else if (kind === 'saddle') {
+      // landing on the saddle: the bike takes his weight, a creak and a thump of the tyres
+      if (rec) this.take('thudM', t, { out, gain: 0.5, rate: 0.8, rev: 0.2 });
+      this.tone(t, 0.25, { f0: 90, f1: 50, gain: 0.3, out, rev: 0.2 });
+      this.noise(t + 0.03, 0.18, { type: 'bandpass', f0: 700, f1: 500, q: 6, gain: 0.08, out, rev: 0.2 });
+    } else if (kind === 'bell') {
+      // a bike's bell: ring-ring, bright and ringing on
+      for (let k = 0; k < 2; k++) for (const [f, g, dd] of [[3150, 0.09, 0.9], [4720, 0.05, 0.7], [7350, 0.025, 0.4]]) this.tone(t + k * 0.13, dd, { type: 'sine', f0: f, f1: f * 0.997, gain: g, attack: 0.002, out, rev: 0.35 });
+      for (let k = 0; k < 2; k++) this.noise(t + k * 0.13, 0.02, { type: 'highpass', f0: 4000, gain: 0.1, out, rev: 0.1 });
+    } else if (kind === 'rideOn') {
+      // the bike under way: tyres on the ground and the chain, louder and brighter with the speed (rideLevel)
+      this.fatal('rideOff', null, { fast: true });
+      const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = 0.9;
+      const hp = c.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 3800; hp.Q.value = 2;
+      const g = c.createGain(); g.gain.value = 0.0001; const gc = c.createGain(); gc.gain.value = 0.0001;
+      src.connect(bp).connect(g).connect(out); src.connect(hp).connect(gc).connect(out);
+      src.start(t);
+      this.rideNodes = { src, bp, g, gc };
+    } else if (kind === 'rideLevel') {
+      const N = this.rideNodes; if (!N) return;
+      const v = Math.min(12, o.v ?? 0) / 12;
+      N.g.gain.setTargetAtTime(0.0001 + 0.22 * v, t, 0.08);
+      N.bp.frequency.setTargetAtTime(350 + 1400 * v, t, 0.1);
+      N.gc.gain.setTargetAtTime(0.0001 + 0.05 * v * (o.pedal ? 1 : 0.4), t, 0.1);
+    } else if (kind === 'rideOff') {
+      const N = this.rideNodes; if (!N) return;
+      this.rideNodes = null;
+      const k = o.fast ? 0.05 : 0.35;
+      N.g.gain.setTargetAtTime(0.0001, t, k); N.gc.gain.setTargetAtTime(0.0001, t, k);
+      N.src.stop(t + k * 6);
+    } else if (kind === 'zoom') {
+      // the bike going through at forty an hour, right past the ear
+      const src = c.createBufferSource(); src.buffer = this.noiseBuf;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4; bp.frequency.setValueAtTime(900, t); bp.frequency.exponentialRampToValueAtTime(2600, t + 0.35); bp.frequency.exponentialRampToValueAtTime(500, t + 0.9);
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.45, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      src.connect(bp).connect(g).connect(out); src.start(t); src.stop(t + 1.2);
+    } else if (kind === 'split') {
+      // a body split down its middle: a long wet rip, bone giving all the way up, a deep blow
+      this.noise(t, 0.55, { type: 'bandpass', f0: 500, f1: 2600, q: 1.2, gain: 0.55, attack: 0.01, out, rev: 0.35 });
+      for (let k = 0; k < 12; k++) this.noise(t + k * 0.03 + Math.random() * 0.012, 0.03, { type: 'bandpass', f0: 1500 + Math.random() * 2800, q: 2.5, gain: 0.45 - k * 0.025, out, rev: 0.3 });
+      if (rec) { this.take('slap', t, { out, gain: 1.3, rate: 0.45, rev: 0.5 }); this.take('thudH', t, { out, gain: 1.2, rate: 0.55, rev: 0.6 }); this.take('punchH', t + 0.04, { out, gain: 0.9, rate: 0.6, rev: 0.5 }); }
+      this.tone(t, 1.2, { f0: 56, f1: 26, gain: 1.0, out, dist: true, rev: 0.7 });
+      for (let k = 0; k < 5; k++) this.noise(t + 0.08 + k * 0.07, 0.07, { type: 'lowpass', f0: 500 + Math.random() * 300, q: 6, gain: 0.3, attack: 0.01, out, rev: 0.25 });
+    } else if (kind === 'scan') {
+      // Orión's scan: a soft electronic sweep down and up, ticking
+      this.tone(t, 0.75, { type: 'sine', f0: 2400, f1: 900, gain: 0.05, attack: 0.02, out, rev: 0.15 });
+      this.tone(t + 0.75, 0.6, { type: 'sine', f0: 900, f1: 2400, gain: 0.05, attack: 0.02, out, rev: 0.15 });
+      for (let k = 0; k < 10; k++) this.tone(t + k * 0.13, 0.025, { type: 'square', f0: 3200, f1: 3200, gain: 0.018, attack: 0.001, out, rev: 0.05 });
+    } else if (kind === 'charge') {
+      // the eyes charging: a whine rising for a second, a low hum swelling under it
+      this.tone(t, 0.95, { type: 'sawtooth', f0: 180, f1: 2600, gain: 0.07, attack: 0.5, out, rev: 0.2 });
+      this.tone(t, 0.95, { type: 'sine', f0: 60, f1: 95, gain: 0.25, attack: 0.6, out, rev: 0.1 });
+      this.noise(t + 0.3, 0.6, { type: 'bandpass', f0: 2000, f1: 6000, q: 4, gain: 0.05, attack: 0.4, out, rev: 0.2 });
+    } else if (kind === 'beamOn') {
+      // the beams: a crack as they fire, then a harsh buzzing roar (two detuned saws through a growling filter) and the
+      // hiss of what they burn; stopped by beamOff
+      this.fatal('beamOff', null, { fast: true });
+      this.noise(t, 0.35, { type: 'lowpass', f0: 6000, f1: 300, gain: 0.5, attack: 0.002, out, rev: 0.5 });
+      this.tone(t, 0.5, { f0: 120, f1: 40, gain: 0.6, out, dist: true, rev: 0.4 });
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.08);
+      const lp = c.createBiquadFilter(); lp.type = 'bandpass'; lp.frequency.value = 900; lp.Q.value = 1.4;
+      const oscs = [110, 111.7, 220.6].map((f) => { const o2 = c.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = f; o2.connect(lp); o2.start(t); return o2; });
+      const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 23; lg.gain.value = 400; lfo.connect(lg).connect(lp.frequency); lfo.start(t);
+      const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3000; const gh = c.createGain(); gh.gain.value = 0.05;
+      src.connect(hp).connect(gh).connect(g); src.start(t);
+      lp.connect(g).connect(this.sfxBus);
+      const r = c.createGain(); r.gain.value = 0.25; g.connect(r).connect(this.revSend);
+      this.beamNodes = { g, stop: [...oscs, lfo, src] };
+    } else if (kind === 'beamOff') {
+      const N = this.beamNodes; if (!N) return;
+      this.beamNodes = null;
+      const k = o.fast ? 0.04 : 0.12;
+      N.g.gain.setTargetAtTime(0.0001, t, k);
+      for (const n of N.stop) n.stop(t + k * 8);
+      if (!o.fast) this.tone(t, 0.4, { type: 'sawtooth', f0: 900, f1: 80, gain: 0.06, out, rev: 0.3 });
+    } else if (kind === 'ignite') {
+      // catching fire: a whoosh of air drawn in and a soft boom
+      const p = o.small ? 0.45 : 1;
+      this.noise(t, 0.7, { type: 'bandpass', f0: 300, f1: 1800, q: 0.7, gain: 0.4 * p, attack: 0.12, out, rev: 0.4 });
+      this.tone(t + 0.1, 0.6, { f0: 70, f1: 38, gain: 0.45 * p, out, rev: 0.3 });
+    } else if (kind === 'fireOn') {
+      // the fire: a roar (low noise, its weight following fireLevel) and crackles scattered through it
+      this.fatal('fireOff', null, { fast: true });
+      const src = c.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 0.8;
+      const g = c.createGain(); g.gain.value = 0.0001;
+      const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 3.3; lg.gain.value = 120; lfo.connect(lg).connect(lp.frequency); lfo.start(t);
+      src.connect(lp).connect(g).connect(this.sfxBus); src.start(t);
+      const r = c.createGain(); r.gain.value = 0.2; g.connect(r).connect(this.revSend);
+      this.fireNodes = { src, lp, g, lfo, I: 0.3, out };
+    } else if (kind === 'fireLevel') {
+      const N = this.fireNodes; if (!N) return;
+      const I = o.I ?? 0.5; N.I = I;
+      N.g.gain.setTargetAtTime(0.0001 + 0.32 * I, t, 0.2);
+      N.lp.frequency.setTargetAtTime(300 + 1400 * I, t, 0.2);
+      // (crackles: a few sharp pops each time)
+      for (let k = 0; k < Math.round(1 + I * 4); k++) this.noise(t + Math.random() * 0.1, 0.012 + Math.random() * 0.02, { type: 'bandpass', f0: 1500 + Math.random() * 4000, q: 3, gain: 0.05 + Math.random() * 0.08 * I, out, rev: 0.15 });
+    } else if (kind === 'fireOff') {
+      const N = this.fireNodes; if (!N) return;
+      this.fireNodes = null;
+      const k = o.fast ? 0.05 : 0.8;
+      N.g.gain.setTargetAtTime(0.0001, t, k);
+      N.src.stop(t + k * 6); N.lfo.stop(t + k * 6);
+    } else if (kind === 'crumble') {
+      // the charred body falling in on itself: a dry collapse, grit pouring, a soft thud
+      const p = o.small ? 0.5 : 1;
+      this.noise(t, 1.3, { type: 'bandpass', f0: 2500, f1: 700, q: 0.6, gain: 0.22 * p, attack: 0.05, out, rev: 0.3 });
+      this.tone(t + 0.05, 0.5, { f0: 90, f1: 40, gain: 0.35 * p, out, rev: 0.3 });
+      for (let k = 0; k < 14 * p; k++) this.noise(t + Math.random() * 1.1, 0.03, { type: 'bandpass', f0: 1500 + Math.random() * 3000, q: 2, gain: 0.04 + Math.random() * 0.05, out, rev: 0.2 });
+    } else if (kind === 'halfthud') {
+      // half a body landing on the ground: a heavy wet slap
+      const p = o.power ?? 1;
+      if (rec) { this.take('thudH', t, { out, gain: 1.0 * p, rate: 0.7, rev: 0.4 }); this.take('slap', t + 0.01, { out, gain: 0.8 * p, rate: 0.6, rev: 0.35 }); }
+      this.tone(t, 0.45, { f0: 75, f1: 34, gain: 0.6 * p, out, dist: true, rev: 0.4 });
+      this.noise(t, 0.3, { type: 'lowpass', f0: 1200, f1: 200, gain: 0.35 * p, out, rev: 0.3 });
     } else if (kind === 'summon') {
       // the leaf growing out of the hilt: a rising shimmer
       this.noise(t, 0.7, { type: 'bandpass', f0: 600, f1: 5200, q: 3, gain: 0.16, attack: 0.25, out, rev: 0.5 });
       for (let k = 0; k < 6; k++) this.tone(t + k * 0.07, 0.5, { type: 'sine', f0: 1320 * Math.pow(1.122, k), f1: 1320 * Math.pow(1.122, k), gain: 0.035, attack: 0.02, out, rev: 0.6 });
     }
+  }
+  // a machine's voice, as it plays (his lines are made robotic beforehand, tools/quotes_tts.py): half of it ring-
+  // modulated against a low hum, a short metal comb (a few ms of echo fed back), a speaker's band. Returns the input
+  // node; its oscillator stops after `dur` s
+  robotFx(out, t, dur) {
+    const c = this.ctx;
+    const inp = c.createGain(), dry = c.createGain(), ring = c.createGain();
+    dry.gain.value = 0.55; ring.gain.value = 0;
+    const osc = c.createOscillator(); osc.frequency.value = 58;
+    const depth = c.createGain(); depth.gain.value = 0.9; osc.connect(depth).connect(ring.gain); osc.start(t); osc.stop(t + dur);
+    const comb = c.createDelay(0.05); comb.delayTime.value = 0.007;
+    const fb = c.createGain(); fb.gain.value = 0.45; comb.connect(fb).connect(comb);
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.55;
+    const lift = c.createGain(); lift.gain.value = 1.6;
+    inp.connect(dry); inp.connect(ring);
+    for (const n of [dry, ring]) { n.connect(comb); n.connect(bp); }
+    comb.connect(bp); bp.connect(lift).connect(out);
+    return inp;
   }
   // fighters' shouts (recorded): kind 'attack' (effort), 'hurt', 'hurtBig', 'ko', 'win'. Each fighter has a voice of
   // his own and a pitch; a clip is never repeated twice running, and a new shout cuts that fighter's previous one.
@@ -750,7 +919,8 @@ export class Audio {
     src.playbackRate.value = rate * (0.97 + Math.random() * 0.06);
     const g = c.createGain(); g.gain.value = kind === 'hurt' ? 0.85 : kind === 'win' ? 1.1 : 1.0;
     const out = this.pan(f.pos?.x);
-    src.connect(g).connect(out).connect(this.voiceBus);
+    if (FIGHTER_VOICE[f.id]?.[2] === 'robot') { const fx = this.robotFx(out, t, list[i].duration / src.playbackRate.value + 0.3); src.connect(g).connect(fx); out.connect(this.voiceBus); }
+    else src.connect(g).connect(out).connect(this.voiceBus);
     const r = c.createGain(); r.gain.value = kind === 'ko' ? 0.22 : 0.12; g.connect(r).connect(this.revSend);
     try { this.voiceSrc[f.id]?.stop(); } catch (e) { /* already ended */ }
     this.voiceSrc[f.id] = src;

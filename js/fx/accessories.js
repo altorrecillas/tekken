@@ -285,9 +285,10 @@ export class Accessories {
     lens.rotation.x = Math.PI / 2; lens.position.set(-0.022, 0.056, -0.008);
     const lens2 = lens.clone(); lens2.position.set(-0.014, 0.046, -0.008);
     grp.add(body, screen, cam, lens, lens2);
-    // in the palm: lengthwise along the hand, the screen facing out of it (the fingers close round its sides)
-    grp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, dir, z));
-    grp.position.copy(W).addScaledVector(dir, 0.112).addScaledVector(palm, 0.024).sub(W);
+    // in the palm: lengthwise along the hand, the screen facing out of it, its bottom on the heel of the hand and its
+    // top tilted up off the fingers (flat over the whole hand, the relaxed fingers' curl went through it)
+    grp.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, dir, z)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), cfg.tilt ?? 0.3));
+    grp.position.copy(W).addScaledVector(dir, cfg.along ?? 0.09).addScaledVector(palm, cfg.lift ?? 0.034).sub(W);
     grp.visible = false;
     grp.userData.from = cfg.from || 0;
     grp.traverse((o) => { if (o.isMesh) o.castShadow = true; });

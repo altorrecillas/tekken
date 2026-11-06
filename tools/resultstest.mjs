@@ -41,6 +41,10 @@ try {
   await p.click('#title .menu button[data-act="arcade"]');
   await waitFor(() => window.__game.state === 'select', null, 20000, 'select');
   await p.keyboard.press('KeyU');
+  // (then the stage select: the stage under the cursor picked)
+  await waitFor(() => window.__game.state === 'stage', null, 20000, 'stage select');
+  await p.waitForTimeout(300);
+  await p.keyboard.press('KeyU');
   await waitFor(() => window.__game.state === 'fight' && window.__game.match?.phase === 'intro', null, 120000, 'arcade fight');
   // the player's fighter becomes a CPU player too (through the recorder, like the real controls); every frame's
   // health and position are noted to be compared with the replay

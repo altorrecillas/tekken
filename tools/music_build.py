@@ -1,13 +1,15 @@
 """The game's music (assets/music) from Kevin MacLeod's originals (incompetech.com, CC BY 4.0; see CREDITS.txt).
 Each stage has a style of its own and several tracks, so a fight is not one loop played over and over: El Porche
-urban funk and hip hop, the rooftop Latin disco and salsa, the 10K finish line rock, the festival club and dance;
+urban funk and hip hop, the rooftop Latin disco and salsa, the 10K finish line rock, the festival club and dance,
+the neon district (cyberpunk) dark synth and electro, inside the PC chiptune-flavoured electro;
 plus an angrier track for the final round of every stage, the menus, training and the arcade ending.
 Every track: a long quiet intro cut to its last 4 seconds (a track can start in the middle of a round, when the one
 before ends), the faded ending cut short with a quick fade of its own (the next track comes in sooner), 32 Hz
 high-pass, loudness normalized to -16 LUFS in two passes (true peak -1.5 dB), 128 kbps MP3.
 It also measures each track's tempo and first beat and prints the BEATS table of js/audio/audio.js (the festival's
 lights and dancers keep the music's time).
-usage: python3 tools/music_build.py <folder with the original mp3s and incompetech's pieces.json>   (writes assets/music/*.mp3)
+usage: python3 tools/music_build.py <folder with the original mp3s and incompetech's pieces.json> [names...]   (writes assets/music/*.mp3;
+       with names, only those tracks: e.g. neon_a neon_final)
 The originals: https://incompetech.com/music/royalty-free/mp3-royaltyfree/<title>.mp3"""
 import json, os, re, subprocess, sys
 
@@ -26,6 +28,8 @@ TRACKS = {
     'street_a': 'Hotrock', 'street_b': 'Exhilarate', 'street_c': 'Exit the Premises', 'street_final': 'Summon the Rawk',
     'festival_a': 'Pamgaea', 'festival_b': 'District Four', 'festival_c': 'Who Likes to Party', 'festival_d': 'Club Diver',
     'festival_final': 'Cut and Run',
+    'neon_a': 'Voltaic', 'neon_b': 'Cephalopod', 'neon_c': 'Cyborg Ninja', 'neon_final': 'Volatile Reaction',
+    'pc_a': 'Digital Lemonade', 'pc_b': 'Ouroboros', 'pc_c': 'Raving Energy', 'pc_final': 'Darkling',
 }
 KEEP_INTRO = {'menu', 'training', 'ending'}  # (these start from the top: nothing plays before them)
 
@@ -83,13 +87,15 @@ def beat(path, bpm0):
     return [round(b if b >= 85 else b * 2, 2), round(off, 3)]
 
 
-def build(src_dir):
+def build(src_dir, only=()):
     os.makedirs(OUT, exist_ok=True)
     # incompetech's catalogue (its tempos): https://incompetech.com/music/royalty-free/pieces.json, next to the originals
     cp = os.path.join(src_dir, 'pieces.json')
     cat = {p['title']: p for p in json.load(open(cp))} if os.path.exists(cp) else {}
     beats = {}
     for name, title in TRACKS.items():
+        if only and name not in only:
+            continue
         src = os.path.join(src_dir, title + '.mp3')
         start, end = span(src, name in KEEP_INTRO)
         fade_in = 0.05 if start == 0 else 0.6
@@ -110,4 +116,4 @@ def build(src_dir):
 
 
 if __name__ == '__main__':
-    build(sys.argv[1])
+    build(sys.argv[1], sys.argv[2:])

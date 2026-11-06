@@ -471,8 +471,10 @@ export function buildClips(style) {
     [3, { rootPos: [0, -0.12, -0.16], rootRot: [0.6, 0, 0], spine: [0.5, 0, 0], neck: [0.4, 0, 0], handL: [0.3, -0.2, 0.5], handR: [0.3, -0.18, 0.48], fistL: 0.1, fistR: 0.1, twistL: 0.3, twistR: 0.3, wristL: [0, 0], wristR: [0, 0],
       footL: [0.14, 0.3, 0.38], footR: [0.16, 0.34, 0.3], kneeL: [0.1, 0.5, 1], kneeR: [0.1, 0.5, 1], jaw: 0.75 }, 'snap'],
     [9, { rootPos: [0, -0.16, -0.16], rootRot: [0.5, 0.04, 0.06], spine: [0.45, 0.05, 0.04], neck: [0.3, 0.1, 0.05], handL: [0.4, 0.05, 0.55], handR: [0.38, 0.12, 0.5], footL: [0.16, 0.52, 0.6], footR: [0.2, 0.46, 0.55], kneeL: [0.1, 0.3, 1], kneeR: [0.1, 0.3, 1] }, 'out'],
+    // (held folded a little longer: open too soon, he looked as if he were jumping a hurdle)
+    [13, { rootPos: [0, -0.2, -0.16], rootRot: [0.42, 0.05, 0.07], spine: [0.42, 0.06, 0.05], footL: [0.16, 0.5, 0.64], footR: [0.2, 0.44, 0.6] }, 'inout'],
     // opening out as he turns over backwards, the arms flung up and back
-    [16, { rootPos: [0, -0.3, -0.16], rootRot: [-0.15, 0.06, 0.08], spine: [0.05, 0.08, 0.06], neck: [-0.1, 0.15, 0.05], handL: [0.7, 0.5, 0.15], handR: [0.65, 0.6, 0.0], footL: [0.18, 0.4, 0.62], footR: [0.22, 0.3, 0.58], kneeL: [0.1, 0.5, 0.8], kneeR: [0.1, 0.5, 0.8] }, 'inout'],
+    [18, { rootPos: [0, -0.3, -0.16], rootRot: [-0.15, 0.06, 0.08], spine: [0.05, 0.08, 0.06], neck: [-0.1, 0.15, 0.05], handL: [0.7, 0.5, 0.15], handR: [0.65, 0.6, 0.0], footL: [0.18, 0.4, 0.62], footR: [0.22, 0.3, 0.58], kneeL: [0.1, 0.5, 0.8], kneeR: [0.1, 0.5, 0.8] }, 'inout'],
     // onto his back as he comes down, the legs still towards Rafa, the arms reaching
     [23, { rootPos: [0, -0.55, -0.17], rootRot: [-0.95, 0.05, -0.08], spine: [-0.15, -0.08, -0.08], neck: [-0.3, -0.15, 0], handL: [0.65, 0.55, 0.2], handR: [0.75, 0.3, 0.25], footL: [0.2, 0.05, 0.62], footR: [0.22, 0.2, 0.56], kneeL: [0.1, 0.8, 0.5], kneeR: [0.1, 0.6, 0.6] }, 'inout'],
     [32, { rootPos: [0, -0.8, -0.2], rootRot: [-1.45, 0, 0.05], spine: [-0.25, 0, 0], neck: [-0.5, 0, 0], handL: [0.65, 0.15, 0.3], handR: [0.6, 0.25, 0.25], footL: [0.2, -0.05, 0.62], footR: [0.24, 0.1, 0.6], kneeL: [0.1, 1, 0.3], kneeR: [0.1, 1, 0.3], jaw: 0.8 }, 'inout'],
@@ -492,6 +494,79 @@ export function buildClips(style) {
     [70, { ...IMP, rootPos: [0, -0.92, -0.2], neck: [0.42, 0.3, 0.12], jaw: 0.4 }, 'inout'],
     [76, { ...IMP, rootPos: [0, -0.92, -0.2], neck: [0.38, 0.3, 0.12], footR: [0.26, -0.3, 0.55], jaw: 0.6 }, 'out'],
     [110, { ...IMP, rootPos: [0, -0.93, -0.2], neck: [0.45, 0.32, 0.14], fistL: 0.1, fistR: 0.1, jaw: 0.35 }, 'inout'],
+  ]);
+  // ... a bicycle with no one on it rolls past him on his left: he leans away from it, the left knee up, the hands up at
+  // it, and back to afraid
+  clips.fatalFlinch = C([
+    [0, FEAR0],
+    [5, { rootPos: [-0.06, -0.12, -0.1], rootRot: [-0.1, -0.3, 0.06], spine: [-0.15, -0.15, 0.08], neck: [0.05, 0.75, 0.05], handL: [0.3, 0.05, 0.38], handR: [0.05, 0.1, 0.42],
+      footL: [0.13, 0.2, 0.1], kneeL: [0.2, 0.3, 1], jaw: 0.5 }, 'out'],
+    [18, { ...FEAR0, neck: [0.1, 0.6, 0.05] }, 'inout'],
+    [30, FEAR0, 'inout'],
+  ]);
+  // ... he watches the rider go off: the hands lowered, not sure what is going on
+  const WATCH = { ...FEAR0, rootPos: [0, -0.07, -0.05], rootRot: [-0.03, 0.05, 0], spine: [-0.04, 0.05, 0], handL: [0.24, -0.5, 0.16], handR: [0.24, -0.47, 0.17], twistL: 0.3, twistR: 0.3, wristL: [0.2, 0], wristR: [0.2, 0], jaw: 0.08 };
+  clips.fatalWatch = C([
+    [0, WATCH],
+    [24, { ...WATCH, handL: [0.3, -0.42, 0.22], handR: [0.3, -0.4, 0.22], twistL: 1.2, twistR: 1.2, neck: [0.05, 0.1, 0.12] }, 'inout'],
+    [44, { ...WATCH, neck: [0.1, 0.05, -0.04] }, 'inout'],
+  ]);
+  // ... and braces as it comes straight at him: square to it, the hands up apart, palms out, mouth open (both sides
+  // alike: it is cut down his middle), a tremble
+  const BRACE = { rootPos: [0, -0.13, -0.07], rootRot: [-0.07, 0, 0], spine: [-0.12, 0, 0], neck: [0.04, 0, 0],
+    handL: [0.36, 0.06, 0.3], handR: [0.36, 0.06, 0.3], aimL: 1, aimR: 1, fistL: 0.05, fistR: 0.05, twistL: 1.1, twistR: 1.1, wristL: [0.9, 0], wristR: [0.9, 0],
+    poleL: [0.6, -1, -0.1], poleR: [0.6, -1, -0.1], clavL: [0.08, 0], clavR: [0.08, 0],
+    footL: [0.16, 0.071, 0.0], footR: [0.16, 0.071, 0.0], footRotL: [0, 0.18, 0], footRotR: [0, 0.18, 0], kneeL: [0.12, 0, 1], kneeR: [0.12, 0, 1], toeL: 0, toeR: 0, jaw: 0.55 };
+  clips.fatalBrace = C([
+    [0, BRACE],
+    [3, { ...BRACE, rootPos: [0, -0.135, -0.072], handL: [0.365, 0.065, 0.305], handR: [0.365, 0.065, 0.305], jaw: 0.6 }, 'sine'],
+    [6, BRACE, 'sine'],
+  ], { loop: true });
+  // ... struck in the chest by Orión's eye beams: thrown back onto his heels, arched, the arms flung out and back, the
+  // head back, the mouth wide; held there, shaking, while they burn into him
+  const BEAMHIT = { rootPos: [0, -0.1, -0.13], rootRot: [-0.22, 0, 0], spine: [-0.32, 0, 0], neck: [-0.42, 0, 0],
+    handL: [0.62, -0.05, -0.12], handR: [0.62, -0.05, -0.12], aimL: 1, aimR: 1, fistL: 0.05, fistR: 0.05, twistL: 0.4, twistR: 0.4, wristL: [-0.5, 0], wristR: [-0.5, 0],
+    poleL: [0.6, -0.6, -0.6], poleR: [0.6, -0.6, -0.6], footL: [0.15, 0.071, 0.06], footR: [0.15, 0.071, -0.12], footRotL: [0, 0.15, 0], footRotR: [0, 0.25, 0], kneeL: [0.15, 0, 1], kneeR: [0.18, 0, 1], jaw: 0.85 };
+  clips.fatalBeamHit = C([
+    [0, FEAR0],
+    [3, { ...BEAMHIT, rootPos: [0, -0.08, -0.16], spine: [-0.4, 0, 0], neck: [-0.5, 0, 0] }, 'snap'],
+    [10, BEAMHIT, 'out'],
+    // (shaking for as long as the beams are on him: a tremble every three frames, the body sinking a little)
+    ...Array.from({ length: 40 }, (_, k) => [13 + k * 3, {
+      ...BEAMHIT, rootPos: [(k % 3 - 1) * 0.01, -0.1 - k * 0.0012, -0.13 + (k % 2) * 0.006], neck: [-0.42 + (k % 2) * 0.05, ((k * 7) % 5 - 2) * 0.03, ((k * 3) % 5 - 2) * 0.02],
+      handL: [0.62 + (k % 2) * 0.03, -0.05 - (k % 3) * 0.02, -0.12], handR: [0.62 - (k % 2) * 0.03, -0.05 + (k % 3 - 1) * 0.02, -0.12], jaw: 0.8 + (k % 2) * 0.12,
+    }, 'sine']),
+  ]);
+  // ... on fire: flailing, beating at the flames, turning this way and that, staggering, screaming
+  const BURN0 = { rootPos: [0.04, -0.12, -0.04], rootRot: [0.08, 0.35, 0.06], spine: [0.15, 0.3, 0.1], neck: [-0.25, 0.3, 0.2],
+    handL: [0.45, 0.55, 0.15], aimL: 1, handR: [0.1, -0.15, 0.35], aimR: 1, fistL: 0.1, fistR: 0.2, twistL: 0.5, twistR: 0.9, wristL: [-0.3, 0], wristR: [0.4, 0],
+    poleL: [0.8, 0.1, -0.3], poleR: [0.3, -1, 0], footL: [0.15, 0.071, 0.1], footR: [0.17, 0.071, -0.1], footRotL: [0, 0.2, 0], footRotR: [0, 0.35, 0], kneeL: [0.2, 0, 1], kneeR: [0.2, 0, 1], jaw: 0.9 };
+  clips.fatalBurning = C([
+    [0, BURN0],
+    [10, { rootPos: [-0.05, -0.16, 0.02], rootRot: [0.15, -0.3, -0.08], spine: [0.3, -0.35, -0.12], neck: [0.1, -0.4, -0.25],
+      handL: [0.05, -0.2, 0.38], handR: [0.5, 0.5, 0.05], twistL: 0.9, twistR: 0.4, wristL: [0.4, 0], wristR: [-0.3, 0], poleL: [0.3, -1, 0], poleR: [0.8, 0.1, -0.3],
+      footL: [0.17, 0.12, 0.0], footR: [0.15, 0.071, -0.16], kneeL: [0.25, 0.3, 1], jaw: 0.7 }, 'sine'],
+    [20, { rootPos: [0.02, -0.13, -0.06], rootRot: [0.02, 0.15, 0.1], spine: [0.05, 0.2, 0.15], neck: [-0.45, 0.15, 0.25],
+      handL: [0.5, 0.7, 0.05], handR: [0.45, 0.65, 0.1], twistL: 0.3, twistR: 0.3, wristL: [-0.4, 0], wristR: [-0.4, 0], poleL: [0.8, 0.2, -0.4], poleR: [0.8, 0.2, -0.4],
+      footL: [0.15, 0.071, 0.08], footR: [0.17, 0.12, -0.04], kneeL: [0.2, 0, 1], kneeR: [0.25, 0.3, 1], jaw: 1.0 }, 'sine'],
+    [30, { rootPos: [-0.03, -0.15, 0.0], rootRot: [0.12, -0.15, -0.05], spine: [0.22, -0.1, -0.1], neck: [0.0, -0.2, -0.15],
+      handL: [0.12, -0.1, 0.32], handR: [0.08, 0.0, 0.36], twistL: 0.9, twistR: 0.9, wristL: [0.4, 0], wristR: [0.4, 0], poleL: [0.3, -1, 0], poleR: [0.3, -1, 0],
+      footL: [0.15, 0.071, 0.12], footR: [0.17, 0.071, -0.12], kneeL: [0.25, 0, 1], kneeR: [0.2, 0, 1], jaw: 0.8 }, 'sine'],
+    [40, BURN0, 'sine'],
+  ], { loop: true });
+  // ... down on his knees, charred: the arms up to the sky a moment, the head back, then sagging, still
+  const KNEELB = { ...KNEEL, rootPos: [0, -0.4, -0.05], rootRot: [0.02, 0, 0], spine: [-0.1, 0, 0], neck: [-0.55, 0, 0],
+    handL: [0.4, 0.62, 0.15], handR: [0.4, 0.62, 0.15], fistL: 0.3, fistR: 0.3, twistL: 0.3, twistR: 0.3, wristL: [-0.3, 0], wristR: [-0.3, 0], poleL: [0.8, 0.2, -0.3], poleR: [0.8, 0.2, -0.3], jaw: 1.0 };
+  const KNEELS = { ...KNEEL, rootPos: [0, -0.42, -0.06], rootRot: [0.18, 0, 0], spine: [0.3, 0, 0.04], neck: [0.45, 0.05, 0.1],
+    handL: [0.35, -0.5, 0.25], handR: [0.33, -0.48, 0.28], fistL: 0.5, fistR: 0.5, twistL: 0.2, twistR: 0.2, wristL: [0.3, 0], wristR: [0.3, 0], jaw: 0.5 };
+  clips.fatalBurnKneel = C([
+    [0, BURN0],
+    [8, { ...BURN0, rootPos: [0.02, -0.25, -0.04], kneeL: [0.1, -0.1, 1], kneeR: [0.1, -0.1, 1], footL: [0.13, 0.09, 0.0], footR: [0.15, 0.09, -0.18] }, 'in'],
+    [16, { ...KNEELB, rootPos: [0, -0.43, -0.05] }, 'in'],
+    [20, KNEELB, 'out'],
+    [40, { ...KNEELB, neck: [-0.5, 0.05, 0.05], handL: [0.42, 0.58, 0.18] }, 'sine'],
+    [62, KNEELS, 'inout'],
+    [70, { ...KNEELS, rootPos: [0, -0.43, -0.06] }, 'sine'],
   ]);
   // the winner's own move (styles.js fatal.clip)
   if (style.fatal?.clip) clips.fatal = C(style.fatal.clip);

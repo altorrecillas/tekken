@@ -79,7 +79,10 @@ void splitClip() {
 float splitStain() {
   if ( vUp > 0.5 ) return 0.0;
   float sd = splitDist(), d = abs( sd );
-  float line = ( 1.0 - smoothstep( 0.002, 0.0055, d ) ) * uSplitLine;
+  // (at least a couple of pixels wide at a fighting distance, beaded with blood here and there: a thinner line broke
+  // up into dashes between the pixels)
+  float bead = spN( vec2( atan( dot( vSplitW - uCapC, uCapV ), dot( vSplitW - uCapC, uCapU ) ) * 40.0, 1.3 ) );
+  float line = ( 1.0 - smoothstep( 0.0035 + 0.004 * bead * uSplitLine, 0.0075 + 0.006 * bead * uSplitLine, d ) ) * uSplitLine;
   vec3 r = vSplitW - uCapC;
   float th = atan( dot( r, uCapV ), dot( r, uCapU ) );
   float band = ( 1.0 - smoothstep( 0.002 + 0.016 * uSplitBleed, 0.006 + 0.022 * uSplitBleed, d ) ) * smoothstep( 0.0, 0.15, uSplitBleed );

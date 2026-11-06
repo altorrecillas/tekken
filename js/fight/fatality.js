@@ -20,6 +20,10 @@ import { GibBody } from '../fx/gibs.js';
 import { Tornado, Afterimages } from '../fx/tornado.js';
 import { Evaporate } from '../fx/evaporate.js';
 import { SpikePit, BodySoak } from '../fx/spikepit.js';
+import { makeBicycle, makeHelmet, poseBicycle, BIKE } from '../fx/bicycle.js';
+import { Halves } from '../fx/halves.js';
+import { Burn } from '../fx/burn.js';
+import { EyeBeams, Sprites, AshPile } from '../fx/eyebeam.js';
 import { HAND_SCALE } from '../anim/body.js';
 import { POSE } from '../anim/rig.js';
 
@@ -158,8 +162,8 @@ const NOEMI = {
     g.camCtl.shake(0.55);
     // the first burst: a fine spray along the sweep, a red mist, a few bits
     const front = d.W.pos.clone().sub(L.pos).setY(0).normalize();
-    B.spray(p, d.slideDir.clone().addScaledVector(front, 0.3).setY(0.15).normalize(), 90, { speed: [1.5, 5], spread: 0.4, size: [0.0015, 0.005] });
-    B.spray(p, front.clone().setY(0.2).normalize(), 30, { speed: [1, 3], spread: 0.6, size: [0.002, 0.006] });
+    B.spray(p, d.slideDir.clone().addScaledVector(front, 0.3).setY(0.15).normalize(), 110, { speed: [1.5, 5.5], spread: 0.4, size: [0.002, 0.0065], bright: 0.7 });
+    B.spray(p, front.clone().setY(0.2).normalize(), 36, { speed: [1, 3], spread: 0.6, size: [0.002, 0.007], bright: 0.5 });
     B.puff(p, 10, { size: [0.06, 0.16], speed: 0.5, life: 1.4 });
     B.gore(p, d.slideDir, 7);
     d.sw.U.blood.value = 0.55;
@@ -244,7 +248,8 @@ const NOEMI = {
     // her, three quarters from her right (the loser just out of the frame on the left), a slow push in
     [0, (c, t) => ({ tp: c.at(c.wp, 1.15 - 0.1 * t, 2.0 - 0.2 * t, 1.38), tl: c.wHead.clone().addScaledVector(c.right, 0.15).setY(c.wHead.y - 0.3), fov: 32, focus: c.wHead })],
     // the draw and the salute: from her right, wider, so the hand, the blade's flat and her face are all in it
-    [40, (c, t) => ({ tp: c.at(c.wp, 1.15 - 0.15 * t, 1.55 - 0.15 * t, 1.38), tl: c.wHead.clone().lerp(c.prop, 0.5).setY(Math.max(1.1, c.wHead.y * 0.5 + c.prop.y * 0.5)), fov: 33, focus: c.prop })],
+    // (well round to her right: from in front the blade, held up before her face, hid it)
+    [40, (c, t) => ({ tp: c.at(c.wp, 0.78 - 0.1 * t, 1.62 - 0.12 * t, 1.4), tl: c.wHead.clone().lerp(c.prop, 0.5).setY(Math.max(1.1, c.wHead.y * 0.5 + c.prop.y * 0.5)), fov: 33, focus: c.prop })],
     // her line: her face and, low in front, the blade pointed at the loser
     [82, (c, t) => ({ tp: c.at(c.wp, 1.22 - 0.1 * t, 0.62, c.wHead.y - 0.08), tl: c.wHead.clone().addScaledVector(c.right, 0.1).setY(c.wHead.y - 0.2), fov: 30, focus: c.wHead })],
     [140, (c, t) => ({ tp: c.at(c.wp, -0.7 + 0.06 * t, 0.5, 1.6), tl: c.lp.clone().setY(1.28 - 0.05 * t), fov: 29, focus: c.lHead })],
@@ -256,7 +261,7 @@ const NOEMI = {
     // behind him with the sword
     [232, (c, t) => ({ tp: c.at(c.lp, 2.4 + 0.2 * t, -0.5, 1.4 + 0.15 * t), tl: c.lp.clone().addScaledVector(c.right, -0.3).setY(0.95 - 0.2 * t), fov: 36, focus: c.lp.clone().setY(0.9) })],
     // she flicks the blood off the blade: a medium shot of her, what is left of him on the floor beside her
-    [342, (c, t) => ({ tp: c.at(c.wp, 1.8 - 0.1 * t, 1.1, 1.25), tl: c.wHead.clone().setY(c.wHead.y - 0.4), fov: 32, focus: c.wHead })],
+    [342, (c, t) => ({ tp: c.at(c.wp, 1.95 - 0.1 * t, 1.15, 1.35), tl: c.wHead.clone().setY(c.wHead.y - 0.32), fov: 35, focus: c.wHead })],
     [384, (c, t) => ({ tp: c.mid.clone().addScaledVector(c.right, 2.4 + 1.0 * t).addScaledVector(c.wf, 0.4).setY(1.35 + 1.3 * t), tl: c.mid.clone().addScaledVector(c.right, -0.2).setY(0.55 - 0.15 * t), fov: 36, lam: 2.5 })],
   ],
 };
@@ -582,7 +587,11 @@ const DANI = {
     B.spray(c, new THREE.Vector3(0, -0.2, 0).normalize(), 220, { speed: [1, 6], spread: 1.5, size: [0.003, 0.01] });
     B.spray(c, b.dir.clone().setY(0.1).normalize(), 320, { speed: [3, 10], spread: 0.65, size: [0.002, 0.008], bright: 0.6 });
     // the red cloud he becomes, thick at first, spreading and thinning
-    for (let i = 0; i < 6; i++) B.puff(c, 7, { size: [0.25, 0.8], speed: 1.8, life: 2.6, alpha: 0.75 });
+    // (from points all through where his trunk was, each its own size and pace: from one point they made a red ball)
+    for (let i = 0; i < 12; i++) {
+      const a = i * 2.39996, r = 0.08 + 0.18 * ((i * 7) % 5) / 4;
+      B.puff(c.clone().add(new THREE.Vector3(Math.cos(a) * r, ((i * 5) % 7) / 7 * 0.4 - 0.15, Math.sin(a) * r)), 3, { size: [0.14 + 0.06 * (i % 3), 0.45 + 0.15 * (i % 4)], speed: 1.2 + 0.25 * (i % 4), life: 2.0 + 0.3 * (i % 3), alpha: 0.42 });
+    }
     B.gore(c, UP, 34);
     B.gore(c, b.dir.clone().setY(0.4), 16, 'bone');
     d.lens.splash(9, 1.25);
@@ -817,7 +826,8 @@ const RAFA = {
     const foot = W.boneWorld('foot.R', new THREE.Vector3()).setY(0).addScaledVector(d.ax, 0.16);
     d.stompP = foot.clone();
     d.pit.crack(foot, d.pit.toWorld(-D.pitA * 0.55, 0.04, 0), 7);
-    d.rubbleMat = new THREE.MeshStandardMaterial({ color: 0x6f6a64, roughness: 0.95, map: d.pit.textures[0] });
+    // (the slab's own colour, dark like a road or a pavement, with the stone's grain)
+    d.rubbleMat = new THREE.MeshStandardMaterial({ color: 0x55524f, roughness: 0.95, map: d.pit.textures[0] });
     d.soak = new BodySoak(d.L);
     d.cfPrev = -1; d.thuds = 0;
   },
@@ -980,13 +990,470 @@ const RAFA = {
     // close: the spike out of his chest, the coughs
     [256, (c, t) => ({ tp: c.chestTip.clone().addScaledVector(c.sd, 0.75).addScaledVector(c.ax, -0.2).setY(c.chestTip.y + 0.45), tl: c.chestTip.clone().lerp(c.lHead, 0.4), fov: 36, focus: c.chestTip })],
     // from down in the pit: Rafa comes to the edge and looks down, his line
-    [304, (c, t) => { const tp = c.pc.clone().addScaledVector(c.ax, 0.97).addScaledVector(c.sd, -0.08).setY(-0.6); return { tp, tl: tp.clone().addScaledVector(c.ax, -1).setY(tp.y + 0.47), fov: 56, focus: c.wHead }; }],
+    [304, (c, t) => { const tp = c.pc.clone().addScaledVector(c.ax, 0.97).addScaledVector(c.sd, -0.08).setY(-0.6); return { tp, tl: tp.clone().addScaledVector(c.ax, -1).setY(tp.y + 0.46), fov: 46, focus: c.wHead }; }],
     // the name of it: craning up over the pit
     [434, (c, t) => ({ tp: c.pc.clone().addScaledVector(c.sd, 1.9 + 0.5 * t).addScaledVector(c.ax, 1.3).setY(2.8 + 1.0 * t), tl: c.pc.clone().addScaledVector(c.ax, -0.45).setY(-0.5), fov: 40, lam: 2 })],
   ],
 };
 
-const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI, alejandro: ALEJANDRO, rafa: RAFA };
+// ------------------------------------------------------------------ Zapponi: the bike
+// A whistle: his bike rolls in on its own past the loser and stops by him. A helmet from behind his back, the strap
+// done up, two knocks on it, a finger at the loser. He hops on and rides off, comes round in a skid, rings his bell
+// and sprints straight at him (Match.fatalRide): through him at forty an hour, and the loser comes apart down his
+// middle (js/fx/halves.js), a half falling to each side. A skid to a stop, a look back over his shoulder: his line.
+const ZAPPONI = {
+  whistle: 37, rollIn: [34, 104], knocks: [155, 161], click: 146, hop: [178, 194], land: 193, bells: [254, 259],
+  skids: [[232, 252], [334, 366]], ride: [194, 366],
+  // the bike rolling in on its own (along from where he stood, the side it is on, and how far off it starts)
+  bikeSide: 0.5, bikeFrom: 5.0,
+  // blood on his front: his chest and belly, his face (rest pose, m)
+  spat: { m: [0, 1.25, 0.32, 0.34], a: [0, 1.62, 0.1, 0.11], b: [0, 0.6, 0.2, 0.3] },
+  setup(d) {
+    const D = this, g = d.g, m = d.m, W = d.W, L = d.L;
+    d.L0 = (m.fatalL0 || L.pos).clone().setY(0); d.W0 = (m.fatalW0 || W.pos).clone().setY(0);
+    d.ax = d.L0.clone().sub(d.W0).normalize(); d.sd = new THREE.Vector3(-d.ax.z, 0, d.ax.x);
+    // the bike (in the scene until he is on it, then his)
+    d.bk = makeBicycle(); g.scene.add(d.bk.group);
+    d.bk.group.visible = false;
+    // the helmet, made to his head (its cranium above the eyes, the chin), carried by the head bone once on
+    const ch = W.ch, R = ch.rest, head = R.head.head.clone();
+    const hm = ch.meshes.head || ch.meshes.body, P = hm.geometry.attributes.position, eyeY = (R['eye.L'] || R.head).head.y;
+    const cr = { min: new THREE.Vector3(9, 9, 9), max: new THREE.Vector3(-9, -9, -9) }, v = new THREE.Vector3();
+    let chin = null;
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i);
+      if (v.y > eyeY - 0.005 && v.y < eyeY + 0.3) { cr.min.min(v); cr.max.max(v); }
+      if (Math.abs(v.x) < 0.015 && v.z > head.z && v.y > eyeY - 0.2 && v.y < eyeY - 0.05 && (!chin || v.y < chin.y)) chin = v.clone();
+    }
+    d.hel = makeHelmet(head, cr, chin || head.clone().add(new THREE.Vector3(0, -0.085, 0.07)));
+    d.hel.group.matrixAutoUpdate = false; d.hel.group.visible = false; g.scene.add(d.hel.group);
+    // the loser, as two halves from now on (whole until the cut)
+    d.hv = new Halves(g.scene, L); d.hv.begin();
+    d.wheel = 0; d.rearLock = 0; d.prevWp = W.pos.clone(); d.crank = 0; d.cutDone = false; d.hitN = 0; d.rideSnd = false;
+  },
+  dispose(d) {
+    const g = d.g;
+    if (d.bk) { d.bk.group.parent?.remove(d.bk.group); for (const mt of d.bk.mats) mt.dispose(); for (const gg of d.bk.geos) gg.dispose(); for (const t of d.bk.textures) t.dispose(); }
+    if (d.hel) { g.scene.remove(d.hel.group); for (const mt of d.hel.mats) mt.dispose(); for (const gg of d.hel.geos) gg.dispose(); for (const t of d.hel.textures) t.dispose(); }
+    d.hv?.restore();
+    if (d.W) { d.W.ch.group.rotation.z = 0; }
+    g.audio.fatal?.('rideOff', null, { fast: true });
+  },
+  // where the bike is while it rolls in on its own (world, its heading), t: the frame
+  bikeAlone(d, t, out) {
+    const D = this, [t0, t1] = D.rollIn;
+    const u = Math.min(1, Math.max(0, (t - t0) / (t1 - t0))), along = D.bikeFrom * (1 - u) * (1 - u);
+    out.copy(d.W0).addScaledVector(d.ax, along).addScaledVector(d.sd, D.bikeSide);
+    return along;
+  },
+  frame(d, t) {
+    const D = this, F = d.F, W = d.W, L = d.L, B = d.blood, au = d.g.audio, cam = d.g.camCtl, hv = d.hv;
+    if (t === D.whistle) au.fatal?.('whistle', W.pos);
+    if (t === D.rollIn[0]) au.fatal?.('bikeroll', d.L0, { dur: 1.2 });
+    if (t === D.click) au.fatal?.('click', W.pos);
+    for (const k of D.knocks) if (t === k) au.fatal?.('knock', W.pos);
+    if (t === D.land) { au.fatal?.('saddle', W.pos); cam.shake(0.08); }
+    for (const b of D.bells) if (t === b) au.fatal?.('bell', W.pos);
+    // the ride: its sound with the speed, the wheels' turn with the way gone
+    const sp = W.pos.distanceTo(d.prevWp) * 60; d.prevWp.copy(W.pos);
+    if (t > D.ride[0] && t < D.ride[1]) {
+      d.wheel += sp / 60 / BIKE.R;
+      if (!d.rideSnd) { au.fatal?.('rideOn', W.pos); d.rideSnd = true; }
+      if (t % 3 === 0) au.fatal?.('rideLevel', W.pos, { v: sp, pedal: W.clipName === 'fatal_ride' || W.clipName === 'fatal_sprint' ? 1 : 0 });
+    }
+    if (t === D.ride[1]) au.fatal?.('rideOff', W.pos);
+    for (const [a, b] of D.skids) {
+      if (t === a) au.fatal?.('skid', W.pos, { long: true });
+      if (t > a && t < b - 4 && t % 2 === 0) D.dust(d, W.pos.clone().addScaledVector(D.wfv(W), -0.4), 2, sp);
+    }
+    if (t === 262) au.voice?.(W, 'attack');
+    // the cut: as the front wheel reaches him
+    if (t === F.cut) D.cut(d);
+    hv.step();
+    if (d.cutDone) D.bleed(d, t);
+    // the rider's front, the bike, the helmet: spattered as he goes through
+    if (t === F.cut + 2) { d.spat.amount.value = 1; d.bk.U.blood.value = 0.85; d.hel.U.blood.value = 0.45; }
+  },
+  wfv(W) { return new THREE.Vector3(Math.sin(W.yaw), 0, Math.cos(W.yaw)); },
+  dust(d, p, n, v) {
+    const fx = d.g.fx;
+    if (!fx?.smoke) return;
+    const c = (fx.dustColor || new THREE.Color(0.75, 0.68, 0.58)).clone().multiplyScalar(fx.dustLight ?? 0.8);
+    for (let i = 0; i < n; i++) fx.smoke.add({ p: new THREE.Vector3(p.x + (Math.random() - 0.5) * 0.2, 0.05, p.z + (Math.random() - 0.5) * 0.2), vel: new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.3 + Math.random() * 0.4, (Math.random() - 0.5) * 0.8),
+      age: 0, life: 0.7 + Math.random() * 0.6, s0: 0.15, s1: 0.6 + Math.min(0.4, v * 0.05), a0: 0.2, c, drag: 2.2, fadeIn: true, fadePow: 1.5 });
+  },
+  cut(d) {
+    const g = d.g, W = d.W, L = d.L, hv = d.hv, B = d.blood, au = g.audio;
+    hv.doCut();
+    L.drawnBy = hv;
+    d.cutDone = true; d.cutT = d.t;
+    // pushed apart by the bike going through (the halves part ahead of the handlebars)
+    hv.push(7.5, 1.1);
+    au.fatal?.('split', L.pos); au.fatal?.('zoom', L.pos);
+    au.voice?.(L, 'ko');
+    g.effects.hitFlash = Math.max(g.effects.hitFlash, 0.5); g.effects.radial = Math.max(g.effects.radial || 0, 0.7);
+    g.camCtl.shake(0.7);
+    // the points of the cut, up his middle (as he stood): the blood bursts from them, the way the bike went and out to
+    // both sides
+    const B_ = L.ch.bones, wp = (n) => B_[n].getWorldPosition(new THREE.Vector3());
+    const O = hv.O, fw = hv.fw, n0 = hv.n0;
+    const sp = ['root', 'spine04', 'spine02', 'neck01', 'head'].map((n) => wp(n).sub(n0.clone().multiplyScalar(n0.dot(wp(n)) - n0.dot(O))));
+    sp.push(sp[sp.length - 1].clone().add(new THREE.Vector3(0, 0.12, 0)));
+    d.cutPts = [];
+    for (const p of sp) for (const ff of [-0.06, 0.04, 0.12]) d.cutPts.push(p.clone().addScaledVector(fw, ff));
+    const away = d.ax.clone();
+    for (const p of d.cutPts) {
+      for (const s of [1, -1]) B.spray(p, away.clone().multiplyScalar(0.7).addScaledVector(n0, s * 0.7).setY(0.25).normalize(), 20, { speed: [2, 6.5], spread: 0.35, size: [0.0018, 0.0085] });
+      B.spray(p, away.clone().setY(0.2).normalize(), 12, { speed: [4, 9], spread: 0.15, size: [0.0015, 0.005] });
+    }
+    // a cloud of it hanging where he was, blown on the way the bike went
+    for (let i = 0; i < 6; i++) B.puff(sp[i % sp.length].clone().addScaledVector(away, 0.12), 3, { size: [0.07, 0.22], speed: 1.6, life: 1.0, alpha: 0.32 });
+    B.gore(sp[1], away, 6, 'flesh'); B.gore(sp[2], away, 5, 'flesh'); B.gore(sp[5], away, 4, 'brain'); B.gore(sp[4], away, 3, 'bone');
+  },
+  // the blood once he is in two: from each half's cut as they part and fall (pulses), the splash where each lands, the
+  // pools spreading, what drips off
+  bleed(d, t) {
+    const D = this, hv = d.hv, B = d.blood, au = d.g.audio, k = t - d.cutT;
+    for (const h of hv.H) {
+      const nOut = h.L.clone().negate().applyAxisAngle(h.ax, h.th);
+      if (k < 40 && t % 1 === 0) {
+        const pw = 1 - k / 40;
+        for (let i = 0; i < 3; i++) {
+          const p = hv.carry(d.cutPts[(t * 7 + i * 5) % d.cutPts.length], h.side);
+          B.spray(p, nOut.clone().add(new THREE.Vector3(0, 0.6, 0)).normalize(), Math.round(6 * pw + 2), { speed: [1 + 2 * pw, 2.5 + 3 * pw], spread: 0.4, size: [0.002, 0.006], bright: 1 });
+        }
+      }
+      if (h.hit) {
+        h.hit = false; d.hitN++;
+        au.fatal?.('halfthud', hv.carry(hv.O, h.side), { power: 1 });
+        d.g.camCtl.shake(0.35);
+        const c = hv.carry(hv.O.clone().setY(1.0), h.side).setY(0.05);
+        B.spray(c, new THREE.Vector3(0, 1, 0), 70, { speed: [1, 3], spread: 1.0, size: [0.002, 0.007] });
+        B.puff(c, 3, { size: [0.06, 0.16], speed: 0.6, life: 0.8, alpha: 0.25 });
+        B.splat(c, 1.1, 3, 0, 220);
+        B.splat(hv.carry(hv.O.clone().setY(1.5), h.side).setY(0), 0.7, 3, 0.4, 260);
+        D.dust(d, c, 6, 2);
+      }
+      if (h.down && t % 3 === 0 && k < 300) B.dribble(hv.carry(d.cutPts[(t * 11) % d.cutPts.length], h.side), 1, [0.003, 0.007]);
+      if (h.down && k > 30 && k < 260 && t % 16 === 0) au.fatal?.('spurt', hv.carry(hv.O, h.side), { power: 0.35 });
+    }
+  },
+  draw(d, t, alpha) {
+    const D = this, F = d.F, W = d.W, L = d.L, bk = d.bk, hv = d.hv, g = d.g;
+    // the bike: rolling in on its own, leaning on him, then his
+    const onHim = t >= D.hop[1];
+    if (onHim && bk.group.parent !== W.ch.group) { bk.group.parent?.remove(bk.group); W.ch.group.add(bk.group); bk.group.position.set(0, 0, 0); bk.group.rotation.set(0, 0, 0); bk.group.scale.set(1, 1, 1).divide(W.ch.group.scale); }
+    bk.group.visible = t >= D.rollIn[0];
+    if (!onHim) {
+      const p = new THREE.Vector3(), along = D.bikeAlone(d, t, p);
+      const yaw = Math.atan2(-d.ax.x, -d.ax.z);
+      bk.group.position.copy(p);
+      // (a wobble as it rolls, then leant over against his hip until he gets on)
+      const u = Math.min(1, Math.max(0, (t - D.rollIn[0]) / (D.rollIn[1] - D.rollIn[0])));
+      const wob = Math.sin(t * 0.45) * 0.05 * (1 - u), lean = 0.2 * ss(D.rollIn[1] - 2, D.rollIn[1] + 8, t) * (1 - ss(D.hop[0] + 4, D.hop[1] - 2, t));
+      bk.group.rotation.set(0, yaw + wob * 0.4, lean + wob, 'YXZ');
+      d.wheelAlone = D.bikeFrom - along;
+      poseBicycle(bk, d.wheelAlone / BIKE.R, 0.6);
+    } else {
+      // the cranks follow his feet (the one on its pedal), the wheels the way gone (the back one locked in a skid)
+      const side = W.clipName === 'fatal_skid' ? 'L' : 'R';
+      const fb = W.ch.bones['foot.' + side];
+      if (fb) {
+        const a = W.ch.group.worldToLocal(fb.getWorldPosition(new THREE.Vector3()));
+        const cy = BIKE.bb.y + BIKE.ankle.y - a.y, cz = a.z - BIKE.bb.z - BIKE.ankle.z;
+        let c = Math.atan2(cy, cz);
+        if (side === 'L') c -= Math.PI;
+        if (!['fatal_stop', 'fatal_look'].includes(W.clipName) || side === 'R') d.crank = c;
+      }
+      const skid = D.skids.some(([a, b]) => t > a + 2 && t < b);
+      if (!skid) d.rearLock = d.wheel;
+      poseBicycle(bk, d.wheel, d.crank);
+      bk.rear.rotation.x = skid ? d.rearLock : d.wheel;
+      // leaning the whole of him and the bike: into the turns, rocked under him in the sprint, onto the foot put down
+      const yawRate = ((W.yaw - W.prevYaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI, v = W.pos.distanceTo(W.prevPos) * 60;
+      let lean = Math.max(-0.35, Math.min(0.35, -Math.atan(v * yawRate * 60 / G) * 0.8));
+      if (W.clipName === 'fatal_sprint') lean += Math.sin((W.cf / 20) * Math.PI * 2) * 0.09;
+      // (the skids: the bike slides round rather than leaning, over onto the foot put out)
+      const [s1, s2] = D.skids;
+      if (t > s1[0] && t < s1[1]) lean = 0.28 * ss(s1[0], s1[0] + 6, t) * (1 - ss(s1[1] - 6, s1[1], t));
+      if (t > s2[0] && t < s2[1] + 4) lean = -0.25 * ss(s2[0] + 8, s2[0] + 18, t) + 0.15 * ss(s2[1] - 4, s2[1] + 4, t);
+      // (positive: over to his right; the foot put down is his left)
+      if (W.clipName === 'fatal_set' && t < 262) lean = -0.11;
+      if (['fatal_stop', 'fatal_look'].includes(W.clipName)) lean = -0.1;
+      d.lean = (d.lean ?? 0) + (lean - (d.lean ?? 0)) * 0.25;
+      W.ch.group.rotation.z = d.lean;
+      W.ch.group.updateMatrixWorld(true);
+    }
+    // the helmet: hidden behind his back, out in his hands, over his head and down onto it
+    const hb = W.ch.bones.head, hel = d.hel.group;
+    hel.visible = t >= 112;
+    if (hel.visible) {
+      W.ch.group.updateMatrixWorld(true);
+      const Mh = hb.matrixWorld.clone();
+      if (t < 132) {
+        const wl = W.ch.bones['wrist.L'].getWorldPosition(new THREE.Vector3()), wr = W.ch.bones['wrist.R'].getWorldPosition(new THREE.Vector3());
+        const mid = wl.lerp(wr, 0.5).add(new THREE.Vector3(0, 0.06, 0));
+        const q = new THREE.Quaternion().setFromAxisAngle(UP, W.yaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.5 * (1 - ss(118, 128, t))));
+        const Mc = new THREE.Matrix4().compose(mid, q, new THREE.Vector3(1, 1, 1)).multiply(new THREE.Matrix4().makeTranslation(-d.hel.center.x, -d.hel.center.y, -d.hel.center.z));
+        const k = ss(124, 132, t);
+        const pa = new THREE.Vector3(), qa = new THREE.Quaternion(), sa = new THREE.Vector3(), pb = new THREE.Vector3(), qb = new THREE.Quaternion();
+        Mc.decompose(pa, qa, sa); Mh.decompose(pb, qb, sa);
+        hel.matrix.compose(pa.lerp(pb, k), qa.slerp(qb, k), new THREE.Vector3(1, 1, 1));
+      } else hel.matrix.copy(Mh);
+      hel.matrixWorldNeedsUpdate = true;
+      for (const o of hel.userData.straps || []) o.visible = t >= 140;
+    }
+    // the halves
+    if (d.cutDone) {
+      const k = t - d.cutT;
+      hv.setLine(1, 0.8 + Math.max(0, k) * 0.7, Math.min(1, 0.3 * ss(0, 4, k) + 0.7 * ss(4, 160, k)));
+    }
+    hv.sync(alpha, g.camera, _v.set(0.3, 1, 0.4).normalize());
+  },
+  ctx(d) {
+    const W = d.W;
+    return { L0: d.L0.clone(), W0: d.W0.clone(), ax: d.ax.clone(), sd: d.sd.clone(), wc: W.ch.group.position.clone().setY(0) };
+  },
+  lp: (d) => d.L0.clone(),
+  lHead: (d) => null,
+  mid: (d) => null,
+  shots: [
+    // him, three quarters from the front: his neck, the whistle
+    [0, (c, t) => ({ tp: c.at(c.wp, 2.0 - 0.2 * t, -0.8, 1.5), tl: c.wp.clone().setY(1.3), fov: 36, focus: c.wHead })],
+    // from behind the loser: his bike rolls past him, on its own, to Zapponi
+    [40, (c, t) => ({ tp: c.L0.clone().addScaledVector(c.ax, 1.6).addScaledVector(c.sd, -0.9).setY(1.05), tl: c.W0.clone().addScaledVector(c.sd, 0.25).setY(0.85), fov: 42, focus: c.lHead })],
+    // the bike comes up to him and he stops it by the saddle
+    [80, (c, t) => ({ tp: c.W0.clone().addScaledVector(c.sd, 2.7).addScaledVector(c.ax, 0.5).setY(1.1), tl: c.W0.clone().addScaledVector(c.sd, 0.3).setY(0.85), fov: 42, focus: c.wHead })],
+    // the helmet: from behind his back, on, the strap, two knocks
+    [108, (c, t) => ({ tp: c.W0.clone().addScaledVector(c.ax, 1.35 - 0.15 * t).addScaledVector(c.sd, -0.45).setY(1.68), tl: c.wHead.clone().setY(c.wHead.y - 0.08), fov: 32, focus: c.wHead })],
+    // over his shoulder, his finger at the loser
+    [164, (c, t) => ({ tp: c.W0.clone().addScaledVector(c.ax, -0.95).addScaledVector(c.sd, -0.5).setY(1.75), tl: c.L0.clone().setY(1.25), fov: 40, focus: c.lHead })],
+    // the hop on, wide from his left
+    [176, (c, t) => ({ tp: c.W0.clone().addScaledVector(c.sd, -2.9).addScaledVector(c.ax, 0.2).setY(1.2), tl: c.W0.clone().addScaledVector(c.sd, 0.3).setY(0.95), fov: 45, focus: c.wHead })],
+    // off he goes: from behind the loser, low
+    [196, (c, t) => ({ tp: c.L0.clone().addScaledVector(c.ax, 1.7).addScaledVector(c.sd, -1.0).setY(1.65), tl: c.wc.clone().lerp(c.L0, 0.25).setY(0.9), fov: 40, focus: c.wHead })],
+    // round in a skid: low, by the ground, the dust
+    [230, (c, t) => ({ tp: c.W0.clone().addScaledVector(c.ax, -2.2).addScaledVector(c.sd, -2.7).setY(0.55), tl: c.wc.clone().setY(0.85), fov: 52, focus: c.wHead })],
+    // facing him now: the bell, up on the pedals
+    [252, (c, t) => ({ tp: c.wc.clone().addScaledVector(c.ax, 1.9).addScaledVector(c.sd, 0.55).setY(1.0), tl: c.wHead.clone().setY(c.wHead.y - 0.25), fov: 34, focus: c.wHead })],
+    // the sprint: alongside him, a little ahead
+    [266, (c, t) => ({ tp: c.wc.clone().addScaledVector(c.sd, -2.4).addScaledVector(c.ax, 0.9).setY(1.0), tl: c.wc.clone().addScaledVector(c.ax, 0.7).setY(0.9), fov: 44, focus: c.wHead })],
+    // from behind the loser as it comes at him: through him, the halves falling to either side, past the lens
+    [304, (c, t) => ({ tp: c.L0.clone().addScaledVector(c.ax, 2.6).addScaledVector(c.sd, 0.8).setY(0.9), tl: c.L0.clone().addScaledVector(c.ax, -1.0).setY(1.12), fov: 46, focus: c.L0.clone().setY(1.1) })],
+    // the two halves on the ground, cut faces up
+    [333, (c, t) => ({ tp: c.L0.clone().addScaledVector(c.ax, -1.45 - 0.15 * t).addScaledVector(c.sd, 0.3).setY(1.55 + 0.15 * t), tl: c.L0.clone().addScaledVector(c.ax, 0.15).setY(0.05), fov: 52, focus: c.L0.clone().setY(0.1) })],
+    // stopped: low, in front of him
+    [366, (c, t) => ({ tp: c.at(c.wp, 1.9, -0.6, 0.9), tl: c.wHead.clone().setY(c.wHead.y - 0.3), fov: 38, focus: c.wHead })],
+    // the look back, his line
+    [384, (c, t) => ({ tp: c.at(c.wp, 0.75, -1.15, 1.55), tl: c.wHead.clone().setY(c.wHead.y - 0.06), fov: 30, focus: c.wHead })],
+    // the name of it: craning up over the halves, him beyond
+    [526, (c, t) => ({ tp: c.L0.clone().addScaledVector(c.sd, 1.5).addScaledVector(c.ax, -1.0).setY(3.0 + 1.0 * t), tl: c.L0.clone().addScaledVector(c.ax, 0.6).setY(0.2), fov: 42, lam: 2 })],
+  ],
+};
+
+// ------------------------------------------------------------------ Orión: the eye beams
+// He scans the loser with a red fan of light from his eyes, says his line, charges his eyes (sparks of light drawn into
+// them, the glow swelling) and fires: two beams into the chest, swept up to the face and down to the belly and back.
+// Where they are, the skin and clothes glow red-hot; the burn spreads from where they struck (js/fx/burn.js), black and
+// cracked with embers, a line of fire at its edge, and he catches fire (js/fx/eyebeam.js: flames, smoke, embers,
+// sparks where the beams strike). The beams go off; he burns, flailing, falls to his knees, charred, and crumbles from
+// the head down into a pile of glowing ash; Orión wags his finger at it.
+const ORION = {
+  scan: [8, 44], charge: [118, 172], on: [172, 300],
+  // the burn's spread (0..1.1), the embers' heat, keys [frame, value]
+  CHAR: [[172, 0], [184, 0.1], [230, 0.42], [300, 0.86], [350, 1.1]],
+  HEAT: [[172, 0], [196, 0.7], [236, 1], [404, 1], [440, 0.8], [540, 0.4], [640, 0.2]],
+  // where the beams are on him: [frame, bone, metres up from it] (the aim glides between them)
+  AIM: [[172, 'spine02', 0.0], [200, 'spine02', 0.02], [226, 'head', 0.07], [256, 'spine04', 0.0], [278, 'spine02', 0.0], [300, 'spine02', 0.0]],
+  // the bones the fire is seen on (and the flames' size there)
+  FIRE: [['spine02', 1.3], ['spine03', 1.3], ['spine04', 1.2], ['spine01', 1.1], ['neck01', 0.9], ['head', 1.0], ['upperarm01.L', 0.9], ['upperarm01.R', 0.9], ['lowerarm01.L', 0.7], ['lowerarm01.R', 0.7],
+    ['wrist.L', 0.5], ['wrist.R', 0.5], ['upperleg01.L', 0.9], ['upperleg01.R', 0.9], ['lowerleg01.L', 0.7], ['lowerleg01.R', 0.7], ['spine05', 1.1]],
+  screams: [[176, 'hurtBig'], [214, 'hurtBig'], [262, 'hurtBig'], [306, 'ko'], [352, 'hurtBig']],
+  spat: { m: [0, -9, 0.01, 0.01], a: [0, -9, 0.01, 0.01], b: [0, -9, 0.01, 0.01] },
+  setup(d) {
+    const g = d.g, L = d.L, W = d.W;
+    d.burn = new Burn(L);
+    d.beams = new EyeBeams(g.scene);
+    d.fl = new Sprites(g.scene, 'fire', 520); d.sm = new Sprites(g.scene, 'smoke', 220); d.em = new Sprites(g.scene, 'ember', 420);
+    d.pile = new AshPile(g.scene, L.pos.clone());
+    // the fire's light on everything round him (made now: a light added later would make every shader be built again)
+    d.fireL = new THREE.PointLight(new THREE.Color(1.0, 0.45, 0.12), 0, 7, 1.7); g.scene.add(d.fireL);
+    // his eyes: brighter as they charge (their material, put back afterwards)
+    d.eyeMats = [];
+    for (const mesh of Object.values(W.ch.meshes)) if (/eye/i.test(mesh.name) && mesh.material?.emissive) d.eyeMats.push([mesh.material, mesh.material.emissiveIntensity]);
+    // (where each fire bone is in his rest pose, how far from where the beams first strike)
+    const hit = d.burn.U.uBnHit.value;
+    d.fireB = ORION.FIRE.filter(([b]) => L.ch.bones[b] && L.ch.rest[b]).map(([b, k]) => ({ b, k, d: L.ch.rest[b].head.clone().sub(hit).multiply(new THREE.Vector3(1, 0.75, 1.3)).length(), y: L.ch.rest[b].head.y }));
+    d.hairGone = false; d.coverage = 0;
+    d.warmed = false;
+  },
+  dispose(d) {
+    d.burn?.restore(); d.beams?.dispose(); d.fl?.dispose(); d.sm?.dispose(); d.em?.dispose(); d.pile?.dispose();
+    if (d.fireL) { d.g.scene.remove(d.fireL); d.fireL.dispose?.(); }
+    for (const [m, v] of d.eyeMats || []) m.emissiveIntensity = v;
+    const au = d.g.audio; au.fatal?.('beamOff', null, { fast: true }); au.fatal?.('fireOff', null, { fast: true });
+  },
+  // the point the beams strike now: on the front of his body (towards Orión) at the aim's bone; and its rest-pose point
+  aimAt(d, t, out, restOut) {
+    const A = ORION.AIM, L = d.L;
+    let i = 0; while (i < A.length - 1 && t > A[i + 1][0]) i++;
+    const a = A[i], b = A[Math.min(i + 1, A.length - 1)], k = b[0] > a[0] ? ss(a[0], b[0], t) : 0;
+    const pa = L.ch.bones[a[1]].getWorldPosition(_v).add(_w.set(0, a[2], 0)), pb = L.ch.bones[b[1]].getWorldPosition(new THREE.Vector3()).add(_w.set(0, b[2], 0));
+    out.copy(pa).lerp(pb, k);
+    // (out of the body to its front: towards his eyes)
+    const toW = d.W.pos.clone().sub(L.pos).setY(0).normalize();
+    out.addScaledVector(toW, 0.13);
+    if (restOut) restOut.copy(L.ch.rest[a[1]].head).add(_w.set(0, a[2], 0.1)).lerp(_v.copy(L.ch.rest[b[1]].head).add(_w.set(0, b[2], 0.1)), k);
+    return out;
+  },
+  eyes(d) {
+    const W = d.W, wf = d.wf(new THREE.Vector3());
+    return ['eye.L', 'eye.R'].map((n, i) => (W.ch.bones[n] ? W.ch.bones[n].getWorldPosition(new THREE.Vector3()) : W.pos.clone().setY(1.75).addScaledVector(d.right(new THREE.Vector3()), i ? 0.03 : -0.03)).addScaledVector(wf, 0.035));
+  },
+  frame(d, t) {
+    const D = ORION, F = d.F, W = d.W, L = d.L, au = d.g.audio;
+    const dt = 1 / 60;
+    if (t === 2 && !d.warmed) { d.warmed = true; d.fl.warm(); d.sm.warm(); d.em.warm(); }
+    if (t === D.scan[0]) au.fatal?.('scan', W.pos);
+    if (t === D.charge[0]) au.fatal?.('charge', W.pos);
+    // the charge: sparks of red light drawn in to his eyes from all round his head
+    if (t > D.charge[0] && t < D.charge[1]) {
+      const eyes = D.eyes(d), c = eyes[0].clone().add(eyes[1]).multiplyScalar(0.5), k = (t - D.charge[0]) / (D.charge[1] - D.charge[0]);
+      for (let i = 0; i < 1 + Math.round(k * 3); i++) {
+        const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), r = 0.35 + Math.random() * 0.3;
+        d.em.emit(c.clone().addScaledVector(dir, r), dir.multiplyScalar(-r / 0.35), 0.025 + 0.02 * k, 0.33, { drag: 0, bright: 1.2 });
+      }
+    }
+    if (t === D.on[0] - 2) au.fatal?.('beamOn', W.pos);
+    if (t === D.on[0]) { d.g.camCtl.shake(0.5); d.g.effects.hitFlash = Math.max(d.g.effects.hitFlash, 0.4); }
+    for (const [f, v] of D.screams) if (t === f) au.voice?.(L, v);
+    const on = t >= D.on[0] && t < D.on[1];
+    // sparks and smoke where the beams strike
+    if (on) {
+      const p = D.aimAt(d, t, new THREE.Vector3());
+      const toW = W.pos.clone().sub(L.pos).setY(0).normalize();
+      for (let i = 0; i < 4; i++) {
+        const v = toW.clone().multiplyScalar(1.5 + Math.random() * 2.5).add(new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2.5, (Math.random() - 0.5) * 3));
+        d.em.emit(p, v, 0.018 + Math.random() * 0.014, 0.4 + Math.random() * 0.5, { grav: 9, drag: 0.4, floor: 0.01, bright: 1.4 });
+      }
+      if (t % 2 === 0) d.sm.emit(p.clone().addScaledVector(toW, 0.05), new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.5, (Math.random() - 0.5) * 0.2), 0.12, 1.6, { grow: 3, up: 0.3, drag: 0.6 });
+      if (t % 10 === 0) au.fatal?.('sizzle', L.pos);
+    }
+    if (t === D.on[1]) au.fatal?.('beamOff', W.pos);
+    // the fire: on each part of him the burn has reached, until it crumbles away
+    const char = lerpK(D.CHAR, t), ash = ss(F.ash[0], F.ash[1], t), cut = (1.12 - ash * 1.3) * d.burn.top;
+    if (t === 200) { au.fatal?.('ignite', L.pos); au.fatal?.('fireOn', L.pos); }
+    let burning = 0;
+    if (t >= 192) {
+      for (const B of d.fireB) {
+        const lit = char * 1.6 - B.d * 1.25 - 0.08;
+        if (lit <= 0 || (ash > 0 && B.y > cut + 0.05)) continue;
+        burning++;
+        const p = L.ch.bones[B.b].getWorldPosition(new THREE.Vector3()), k = Math.min(1, lit * 3) * B.k;
+        if (Math.random() < (B.b === 'head' ? 0.3 : 0.5)) d.fl.emit(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.18, (Math.random() - 0.5) * 0.12, (Math.random() - 0.5) * 0.18)), new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3), (0.2 + Math.random() * 0.18) * k, 0.5 + Math.random() * 0.35, { up: 1.2, drag: 1.2, grow: 0.75, swirl: 1.5, bright: 0.85 });
+        if (Math.random() < 0.1) d.sm.emit(p.clone().add(new THREE.Vector3(0, 0.2, 0)), new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.7, (Math.random() - 0.5) * 0.3), 0.22 * k, 2.4, { grow: 3.5, up: 0.4, drag: 0.5, swirl: 0.6 });
+        if (Math.random() < 0.22) d.em.emit(p, new THREE.Vector3((Math.random() - 0.5) * 0.8, 1 + Math.random() * 1.2, (Math.random() - 0.5) * 0.8), 0.014 + Math.random() * 0.01, 1.2 + Math.random(), { up: 0.4, drag: 0.6, swirl: 3 });
+      }
+      // the hair goes up all at once when the fire reaches the head
+      const hd = d.fireB.find((B) => B.b === 'head');
+      if (!d.hairGone && hd && char * 1.6 - hd.d * 1.25 > 0.1) {
+        d.hairGone = true;
+        const p = L.ch.bones.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.12, 0));
+        for (let i = 0; i < 26; i++) d.fl.emit(p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.2, Math.random() * 0.1, (Math.random() - 0.5) * 0.2)), new THREE.Vector3((Math.random() - 0.5) * 0.8, 1 + Math.random(), (Math.random() - 0.5) * 0.8), 0.2 + Math.random() * 0.2, 0.5 + Math.random() * 0.3, { up: 1.5, drag: 1.2 });
+        au.fatal?.('ignite', p, { small: true });
+      }
+    }
+    d.coverage = Math.min(1, burning / 10);
+    if (t > 200 && t % 6 === 0) au.fatal?.('fireLevel', L.pos, { I: Math.max(d.coverage, ash > 0 ? 0.5 * (1 - ash) + 0.2 : 0) });
+    if (t === 392 + 16) au.fatal?.('halfthud', L.pos, { power: 0.5 });
+    // the crumbling: ash flakes and embers loosed along its edge
+    if (t === F.ash[0]) au.fatal?.('crumble', L.pos);
+    if (t === F.ash[0] + 52) au.fatal?.('crumble', L.pos, { small: true });
+    if (ash > 0 && ash < 1) {
+      const y = cut * 0.98, c = L.pos;
+      for (let i = 0; i < 5; i++) {
+        const a = Math.random() * Math.PI * 2, r = 0.05 + Math.random() * 0.2;
+        const p = new THREE.Vector3(c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r);
+        d.sm.emit(p, new THREE.Vector3(Math.cos(a) * 0.3, -0.2 + Math.random() * 0.4, Math.sin(a) * 0.3), 0.05 + Math.random() * 0.05, 1.6, { grav: 0.6, drag: 1.5, swirl: 1.2, floor: 0.02, grow: 1.4 });
+        if (Math.random() < 0.6) d.em.emit(p, new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.9, (Math.random() - 0.5) * 0.6), 0.016, 1.4, { up: 0.3, swirl: 2.5 });
+      }
+    }
+    // the pile smoking, a few flames dying on it
+    if (t > F.ash[0] + 30) {
+      const c = L.pos, k = 1 - ss(F.ash[1], F.len, t);
+      if (Math.random() < 0.35) d.sm.emit(new THREE.Vector3(c.x + (Math.random() - 0.5) * 0.5, 0.15, c.z + (Math.random() - 0.5) * 0.5), new THREE.Vector3(0, 0.45, 0), 0.25, 3, { grow: 3, up: 0.25, drag: 0.4, swirl: 0.4, bright: 0.8 });
+      if (Math.random() < 0.35 * k) d.fl.emit(new THREE.Vector3(c.x + (Math.random() - 0.5) * 0.5, 0.06, c.z + (Math.random() - 0.5) * 0.5), new THREE.Vector3(0, 0.35, 0), 0.06 + 0.07 * Math.random(), 0.45, { up: 0.8, drag: 1.2, bright: 0.6 });
+      if (Math.random() < 0.3) d.em.emit(new THREE.Vector3(c.x + (Math.random() - 0.5) * 0.6, 0.1, c.z + (Math.random() - 0.5) * 0.6), new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.6 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3), 0.012, 1.6, { up: 0.3, swirl: 2 });
+    }
+    if (t === F.ash[1] + 40) au.fatal?.('fireOff', L.pos);
+    d.fl.step(dt); d.sm.step(dt); d.em.step(dt);
+  },
+  draw(d, t, alpha) {
+    const D = ORION, F = d.F, L = d.L, cam = d.g.camera, time = t / 60;
+    const eyes = D.eyes(d);
+    const target = new THREE.Vector3(), rest = new THREE.Vector3();
+    const on = t >= D.on[0] && t < D.on[1] + 2;
+    if (on) D.aimAt(d, t, target, rest); else target.copy(eyes[0]);
+    const I = on ? ss(D.on[0] - 1, D.on[0] + 3, t) * (1 - ss(D.on[1] - 2, D.on[1] + 2, t)) * (0.9 + 0.1 * Math.sin(t * 2.7)) : 0;
+    const charge = ss(D.charge[0], D.charge[1], t);
+    // (the eyes: swelling as they charge, full while firing, cooling after)
+    const glow = Math.max(charge * (0.6 + 0.15 * Math.sin(t * 1.9)), I > 0 ? 1 : 0, t > D.on[1] ? 1 - ss(D.on[1], D.on[1] + 30, t) : 0);
+    // the scan: a red fan from his eyes to a line across the loser, down him and back up
+    let fan = null;
+    if (t > D.scan[0] && t < D.scan[1]) {
+      const k = (t - D.scan[0]) / (D.scan[1] - D.scan[0]), h = 0.08 + 1.7 * (k < 0.5 ? 1 - k * 2 : (k - 0.5) * 2);
+      const toW = d.W.pos.clone().sub(L.pos).setY(0).normalize();
+      fan = { I: ss(0, 0.08, k) * (1 - ss(0.92, 1, k)), at: L.pos.clone().addScaledVector(toW, 0.25).setY(h), width: 0.9, side: new THREE.Vector3(-toW.z, 0, toW.x) };
+    }
+    d.beams.draw({ eyes, target, I, glow: glow * 0.9, impact: I, fan, cam, time });
+    if (t < 12 && !d.beamsWarm) { d.beamsWarm = true; d.beams.warm(cam); }
+    for (const [m, v] of d.eyeMats) m.emissiveIntensity = v * (1 + 4 * glow);
+    // the burn
+    const ash = ss(F.ash[0], F.ash[1], t);
+    d.burn.set({ char: lerpK(D.CHAR, t), heat: lerpK(D.HEAT, t), ash, hot: I, hotP: on ? rest : null, time, hairGone: d.hairGone });
+    d.pile.set(ss(F.ash[0] + 10, F.ash[1] + 10, t), lerpK(D.HEAT, t) * (1 - 0.6 * ss(F.ash[1], F.len, t)));
+    if (t < 12) d.pile.mesh.visible = true; // (its shader built behind the black)
+    // the fire's light
+    const fire = Math.max(d.coverage, ash > 0 ? (1 - ash) * 0.8 : 0) * (t > 196 ? 1 : 0);
+    const chest = L.ch.bones.spine02?.getWorldPosition(new THREE.Vector3()) || L.pos.clone().setY(1.2);
+    d.fireL.position.copy(chest).setY(Math.min(chest.y, 0.4 + (1 - ash) * 0.9)).add(new THREE.Vector3(0, 0.2, 0));
+    d.fireL.intensity = 14 * fire * (0.8 + 0.2 * Math.sin(t * 1.7) * Math.sin(t * 0.73)) + 4 * I + 3 * ss(F.ash[0], F.ash[1], t) * (1 - ss(F.ash[1], F.len, t));
+    d.fl.draw(time); d.sm.draw(time); d.em.draw(time);
+  },
+  ctx(d) {
+    const e = ORION.eyes(d);
+    const lChest = d.L.ch.bones.spine02?.getWorldPosition(new THREE.Vector3()) || d.L.pos.clone().setY(1.25);
+    return { eyes: e[0].clone().add(e[1]).multiplyScalar(0.5), lChest };
+  },
+  shots: [
+    // him, three quarters from in front: the scan
+    [0, (c, t) => ({ tp: c.at(c.wp, 1.5, 0.95, 1.62 - 0.1 * t), tl: c.wHead.clone().setY(c.wHead.y - 0.12), fov: 33, focus: c.wHead })],
+    // over his shoulder: the red fan on the loser
+    [22, (c, t) => ({ tp: c.at(c.wp, -0.7, -0.55, 1.85), tl: c.lp.clone().setY(1.0), fov: 38, focus: c.lHead })],
+    // "acceso denegado": low, from beside the loser, up at him
+    [48, (c, t) => ({ tp: c.at(c.wp, 1.7, -0.55, 1.15), tl: c.wHead.clone().setY(c.wHead.y - 0.15), fov: 32, focus: c.wHead })],
+    // the charge: in on his face, the eyes swelling
+    [118, (c, t) => ({ tp: c.at(c.wp, 0.85 - 0.25 * t, 0.22, c.eyes.y - 0.04), tl: c.eyes.clone(), fov: 30 - 4 * t, focus: c.eyes })],
+    // fire: wide, from the side, the beams across the frame
+    [170, (c, t) => ({ tp: c.mid.clone().addScaledVector(c.right, -3.4 - 0.3 * t).setY(1.4), tl: c.mid.clone().setY(1.35), fov: 40, focus: c.mid.clone().setY(1.3) })],
+    // the loser, burning where they are on him
+    [206, (c, t) => ({ tp: c.at(c.lp, -1.35, 0.95 - 0.3 * t, 1.5), tl: c.lHead.clone().setY(c.lHead.y - 0.3), fov: 36, focus: c.lChest })],
+    // from behind Orión, low, the beams going into him
+    [248, (c, t) => ({ tp: c.at(c.wp, -1.1, 0.5, 1.15 + 0.1 * t), tl: c.lp.clone().setY(1.2), fov: 38, focus: c.lChest })],
+    // he burns, flailing: round him slowly
+    [300, (c, t) => { const a = c.wf.clone().applyAxisAngle(UP, 2.2 + 0.7 * t); return { tp: c.lp.clone().addScaledVector(a, 2.6).setY(1.3), tl: c.lp.clone().setY(1.05), fov: 40, focus: c.lChest }; }],
+    // on his knees, charred: low and close
+    [392, (c, t) => ({ tp: c.at(c.lp, -1.5, -1.0, 0.85), tl: c.lHead.clone().setY(c.lHead.y - 0.2), fov: 36, focus: c.lHead })],
+    // crumbling to ash: a little wider
+    [436, (c, t) => ({ tp: c.at(c.lp, -2.2, 1.3, 1.15 - 0.2 * t), tl: c.lp.clone().setY(0.7 - 0.35 * t), fov: 38, focus: c.lp.clone().setY(0.6) })],
+    // the ashes in front, Orión beyond them wagging his finger
+    [478, (c, t) => ({ tp: c.at(c.lp, 2.1, 1.05, 0.6), tl: c.wp.clone().addScaledVector(c.right, 0.25).setY(0.95), fov: 36, focus: c.wHead })],
+    // done: his slow scan
+    [560, (c, t) => ({ tp: c.at(c.wp, 1.35, -0.7, 1.6), tl: c.wHead.clone().setY(c.wHead.y - 0.1), fov: 32, focus: c.wHead })],
+  ],
+};
+
+const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI, alejandro: ALEJANDRO, rafa: RAFA, zapponi: ZAPPONI, orion: ORION };
 export function fatalOf(id) { return MOVES[id] || null; }
 
 export class FatalityDirector {
@@ -1034,6 +1501,8 @@ export class FatalityDirector {
     this.m = null;
   }
   hud(on) {
+    // (nothing of the fight's own screen over the move: the pause hint gone too)
+    if (on) $('.movelist-hint')?.classList.add('fade');
     $('#fatalTitle')?.classList.remove('on');
     $('#fatalSub')?.classList.remove('on');
     if (!on) { this.g.camCtl.fatalShot = null; }

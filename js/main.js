@@ -7,6 +7,8 @@ import { TerraceStage } from './stage/terrace.js';
 import { StreetStage } from './stage/street.js';
 import { PorcheStage } from './stage/porche.js';
 import { FestivalStage } from './stage/festival.js';
+import { NeonStage } from './stage/neon.js';
+import { CoreStage } from './stage/core.js';
 import { PostFX } from './engine/post.js';
 import { FX, setFxViewHeight } from './fx/fx.js';
 import { HUD } from './ui/hud.js';
@@ -35,22 +37,37 @@ import { Training } from './ui/training.js';
 import { ControlsUI, controlsHelp } from './ui/controls.js';
 const _fkv = new THREE.Vector3();
 
-const ROSTER = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi'];
+const ROSTER = ['alejandro', 'orion', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'arnau'];
 // (the first one is the main stage: the title and the select screen are set in it, it is the stage picked by
 // default and the arcade's first fight; the arcade goes through them in this order)
 const STAGES = {
   // a real street of the neighbourhood (the user's photo): graffiti shutters and a covered car park, overcast day
-  porche: { cls: PorcheStage, name: 'EL PORCHE', sub: 'GRAFITIS DEL BARRIO', dust: [0.5, 0.5, 0.52], dustLight: 0.55, amb: 'porche', music: 'porche',
+  porche: { cls: PorcheStage, name: 'LA PORTERÍA', sub: 'EL LUGAR DONDE SE VIENE A TRABAJAR', dust: [0.5, 0.5, 0.52], dustLight: 0.55, amb: 'porche', music: 'porche',
+    desc: 'El lugar donde se viene a trabajar: las persianas llenas de grafitis frente al aparcamiento cubierto, un día gris en la calle de siempre.', tags: ['DÍA', 'NUBLADO', 'FUNK URBANO'], acc: '#ffb347',
     grade: { sat: 1.04, slope: [1.0, 1.0, 1.02] } },
   terrace: { cls: TerraceStage, name: 'AZOTEA AL ATARDECER', sub: 'VERANO EN EL BARRIO', dust: [0.78, 0.55, 0.42], dustLight: 0.85, amb: 'terrace', music: 'terrace',
+    desc: 'La terraza con piscina mientras cae el sol sobre el Mediterráneo. El verano del barrio, en lo más alto.', tags: ['ATARDECER', 'VERANO', 'DISCO LATINA'], acc: '#ff7a45',
     grade: { sat: 1.1, slope: [1.02, 1.0, 0.96] } },
   street: { cls: StreetStage, name: 'LA META 10K', sub: 'CARRERA POPULAR DEL BARRIO', dust: [0.55, 0.55, 0.56], dustLight: 0.6, amb: 'street', music: 'street',
+    desc: 'La línea de meta de la carrera popular, con el público animando desde las vallas.', tags: ['MAÑANA', 'SOL', 'ROCK'], acc: '#5cc8ff',
     grade: { sat: 1.12, slope: [1.0, 1.0, 1.02] } },
   // the open-air stage of the neighbourhood's festival at golden hour (the user's photo)
   festival: { cls: FestivalStage, name: 'EL FESTIVAL', sub: 'FIESTAS DEL BARRIO', surface: 'wood', dust: [0.66, 0.6, 0.52], dustLight: 0.8, amb: 'festival', music: 'festival',
+    desc: 'El escenario de las fiestas a la hora dorada: el DJ, las luces y el barrio entero bailando.', tags: ['HORA DORADA', 'FIESTA', 'CLUB'], acc: '#ffd34d',
     grade: { sat: 1.08, slope: [1.02, 1.0, 0.97] } },
+  // the neighbourhood in 2099: a cyberpunk street at night in the rain, neon signs mirrored in the wet asphalt (made by code)
+  neon: { cls: NeonStage, name: 'DISTRITO NEÓN', sub: 'EL BARRIO EN 2099', dust: [0.35, 0.38, 0.45], dustLight: 0.35, amb: 'neon', music: 'neon',
+    desc: 'Lluvia, rótulos de neón y coches voladores sobre el asfalto mojado. Así será el barrio en 2099.', tags: ['NOCHE', 'LLUVIA', 'SYNTHWAVE'], acc: '#ff3cb4',
+    grade: { sat: 1.16, slope: [1.0, 0.98, 1.05] } },
+  // Orión's home: the inside of the computer where the AI lives, the fight on the motherboard (made by code)
+  pc: { cls: CoreStage, name: 'DENTRO DEL PC', sub: 'EL HOGAR DE ORIÓN', dust: [0.3, 0.6, 0.7], dustLight: 0.5, amb: 'pc', music: 'pc',
+    desc: 'Dentro de la torre donde vive Orión: luchas sobre la tarjeta gráfica, entre ventiladores RGB, memorias y su bomba de agua con sus ojos rojos.', tags: ['DIGITAL', 'RGB', 'ELECTRO'], acc: '#3ce8ff',
+    shot: { pos: [-6.5, 6.2, 9.0], look: [5.5, 3.6, -5.5], fov: 60 },
+    grade: { sat: 1.12, slope: [0.98, 1.0, 1.05] } },
 };
 const STAGE_KEYS = Object.keys(STAGES);
+// each stage's picture on the stage select (tools/stageshots.sh: the stage alone, as the fight camera sees it)
+const stageShot = (k) => `assets/stages/${k}.webp`;
 const MAIN_STAGE = STAGE_KEYS[0];
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 // arcade difficulty: the CPU level (1..5, see fight/ai.js) of each fight in the ladder (one per rival). Measured with
@@ -276,6 +293,8 @@ class Game {
       } else {
         this.toTitle();
         if (q.get('screen') === 'select') { this.mode = 'arcade'; this.toSelect(); }
+        // (captures: the stage select, after a versus pick: ?frames=0&screen=stage[&cur=<n>])
+        if (q.get('screen') === 'stage') { this.mode = 'versus'; this.toSelect(); this.sel.i = [1, 4]; this.sel.done = [true, true]; this.toStageSelect(); if (q.get('cur')) this.stageCursor(+q.get('cur'), true); }
         if (q.get('frames') === '0') setTimeout(() => (window.__ready = true), 2500);
       }
     }, 300);
@@ -319,9 +338,18 @@ class Game {
   }
 
   // ------------------------------------------------------------------ stages
-  async setStage(key, bake = true) {
+  // (a stage being built is not built twice: the stage select starts building the one picked while its ¡A LUCHAR!
+  // plays, and the fight that follows waits for that same build)
+  setStage(key, bake = true) {
     if (!STAGES[key]) key = MAIN_STAGE;
-    if (this.stage && this.stageKey === key) return;
+    if (this._stageBuild?.key === key) return this._stageBuild.p;
+    if (this.stage && this.stageKey === key) return Promise.resolve();
+    const build = { key, p: null };
+    build.p = this.buildStage(key, bake).finally(() => { if (this._stageBuild === build) this._stageBuild = null; });
+    this._stageBuild = build;
+    return build.p;
+  }
+  async buildStage(key, bake) {
     this.disposeStage();
     const def = STAGES[key];
     this.stage = new def.cls(this.renderer, this.scene, this.quality);
@@ -373,7 +401,7 @@ class Game {
   }
   stageFor(opts) {
     if (opts.stage) return opts.stage;
-    if (this.mode === 'arcade' && this.arcade) return STAGE_KEYS[this.arcade.stage % STAGE_KEYS.length];
+    if (this.mode === 'arcade' && this.arcade) return this.arcade.stages?.[this.arcade.stage] || STAGE_KEYS[this.arcade.stage % STAGE_KEYS.length];
     return this.stagePick || MAIN_STAGE;
   }
 
@@ -532,7 +560,8 @@ class Game {
     if (this.mode === 'online') { const L = this.online.local; return this.sel.done[L] ? -1 : L; }
     return !this.sel.done[0] ? 0 : (this.mode === 'versus' && !this.sel.done[1] ? 1 : -1);
   }
-  toSelect() {
+  // (keep: back from the stage select, the picks as they were, the last one undone by the caller)
+  toSelect(keep = false) {
     this.state = 'select';
     this.audio.preloadVoices(ROSTER); // the pick shout plays straight away
     this.showScreen('select');
@@ -557,12 +586,14 @@ class Game {
       c.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; const k = this.selTurn(); if (k >= 0) { this.sel.i[k] = ROSTER.indexOf(id); this.refreshSel(); this.selMoved(k); } };
       grid.appendChild(c);
     });
-    this.sel = { i: [0, 1], done: [false, !this.isVs()], c: [0, 0] };
+    if (!keep || !this.sel) this.sel = { i: [0, 1], done: [false, !this.isVs()], c: [0, 0] };
     $('#selBack').onclick = () => {
       this.audio.play('ui');
       if (online) { const L = this.online.local; if (this.sel.done[L]) { this.sel.done[L] = false; this.refreshSel(); this.selMoved(L); } else this.online.backFromSelect(); return; }
       if (this.sel.done[1] && this.mode === 'versus') { this.sel.done[1] = false; this.refreshSel(); } else if (this.sel.done[0] && this.mode === 'versus') { this.sel.done[0] = false; this.refreshSel(); } else this.toTitle();
     };
+    // (the stage select's pictures, fetched quietly while the fighters are picked: they are there when it opens)
+    if (!this._ssPre) { this._ssPre = true; setTimeout(() => STAGE_KEYS.forEach((k) => { const im = new Image(); im.fetchPriority = 'low'; im.decoding = 'async'; im.src = stageShot(k); }), 1500); }
     $('#selHint').textContent = document.body.classList.contains('touchui') ? (online ? 'Toca tu luchador para verlo · tócalo otra vez para elegirlo' : 'Toca un luchador para verlo · tócalo otra vez para elegirlo') : '';
     this.refreshStageBar();
     this.refreshSel();
@@ -572,22 +603,8 @@ class Game {
   refreshStageBar() {
     const mode = this.mode === 'arcade' ? 'MODO ARCADE' : this.mode === 'versus' ? 'VERSUS' : this.mode === 'online' ? 'ONLINE' : 'ENTRENAMIENTO';
     const bar = $('#select .stagebar');
-    if (this.mode === 'arcade') { bar.textContent = `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}`; return; }
-    // online the host picks the stage; the other phone sees it change
-    if (this.mode === 'online' && !this.online.isHost) { bar.innerHTML = `${mode} · ESCENARIO <span class="stg">${STAGES[this.stagePick].name}</span> <small>(lo elige ${this.online.peerName.replace(/[&<>"']/g, '')})</small>`; return; }
-    // (the first player's up and down keys, as he has them; nothing on a phone played by touch)
-    const ud = [KEYMAPS.p1.up, KEYMAPS.p1.down].map((l) => l.find(Boolean));
-    const hint = document.body.classList.contains('touchui') || !ud[0] || !ud[1] ? '' : ` <small>(${ud.map(keyLabel).join(' / ')})</small>`;
-    bar.innerHTML = `${mode} · ESCENARIO <span class="stg"><b data-d="-1">◀</b> ${STAGES[this.stagePick].name} <b data-d="1">▶</b></span>${hint}`;
-    bar.querySelectorAll('b').forEach(b => (b.onclick = () => this.cycleStage(+b.dataset.d)));
-  }
-  cycleStage(d) {
-    if (this.mode === 'online' && !this.online.isHost) return;
-    const i = STAGE_KEYS.indexOf(this.stagePick);
-    this.stagePick = STAGE_KEYS[(i + d + STAGE_KEYS.length) % STAGE_KEYS.length];
-    this.audio.play('ui');
-    this.refreshStageBar();
-    if (this.mode === 'online') this.online.net?.send({ t: 'stage', key: this.stagePick });
+    // (the stage is picked on the next screen: toStageSelect)
+    bar.textContent = this.mode === 'arcade' ? `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}` : mode;
   }
   // online: this phone's cursor to the other phone (by fighter id: the rosters could differ) and its costume
   selMoved(k) {
@@ -616,13 +633,16 @@ class Game {
     this.audio.play('ui'); this.refreshSel(); this.selMoved(k);
   }
   onlineResend() {
-    if (this.mode !== 'online' || this.state !== 'select') return;
+    if (this.mode !== 'online' || (this.state !== 'select' && this.state !== 'stage')) return;
     this.selMoved(this.online.local);
-    if (this.online.isHost) this.online.net?.send({ t: 'stage', key: this.stagePick });
+    if (this.online.isHost && this.ss) this.online.net?.send({ t: 'stage', key: this.stageItems()[this.ss.cur] });
   }
   // the other phone's cursor
   onlineSel(m) {
-    if (this.mode !== 'online' || this.state !== 'select' || !this.sel) return;
+    if (this.mode !== 'online' || !this.sel) return;
+    // (on the stage select: the other player went back to change his fighter, so both go back)
+    if (this.state === 'stage' && !m.done && !this.ss?.done) this.toSelect(true);
+    if (this.state !== 'select') return;
     const R = 1 - this.online.local, idx = ROSTER.indexOf(String(m.id));
     if (idx < 0) return;
     const was = this.sel.done[R];
@@ -632,19 +652,21 @@ class Game {
     this.refreshSel();
     this.onlineBoth();
   }
+  // the host's cursor on the stage select (a stage, or 'random'), as the guest's phone shows it
   onlineStage(key) {
-    if (this.mode !== 'online' || this.online.isHost || !STAGES[key]) return;
-    this.stagePick = key;
-    if (this.state === 'select') { this.audio.play('ui'); this.refreshStageBar(); }
+    if (this.mode !== 'online' || this.online.isHost || (!STAGES[key] && key !== 'random')) return;
+    this.ssRemote = key;
+    if (STAGES[key]) this.stagePick = key;
+    if (this.state === 'stage' && this.ss && !this.ss.done) { const i = this.stageItems().indexOf(key); if (i !== this.ss.cur) { this.ss.cur = i; this.audio.play('ui'); this.refreshStageSel(); } }
   }
   onlineNames() { if (this.mode === 'online' && this.state === 'select') this.refreshSel(); }
-  // host: both have picked: a moment to see both ready, then the fight
+  // both have picked: a moment to see both ready, then both phones on to the stage select (the host picks there)
   onlineBoth() {
-    if (!this.online.isHost || !this.sel.done[0] || !this.sel.done[1]) return;
+    if (!this.sel.done[0] || !this.sel.done[1]) return;
     clearTimeout(this._goT);
     this._goT = setTimeout(() => {
       if (this.state !== 'select' || this.mode !== 'online' || !this.sel.done[0] || !this.sel.done[1]) return;
-      this.online.bothPicked(ROSTER[this.sel.i[0]], ROSTER[this.sel.i[1]], this.stagePick, this.selCostumes());
+      this.toStageSelect();
     }, 700);
   }
   refreshSel() {
@@ -719,10 +741,6 @@ class Game {
       const L = this.online.local;
       const l = A.left || pads[0].left, r = A.right || pads[0].right;
       const ok = A.ok || pads[0].ok, back = A.back || pads[0].back;
-      if (this.online.isHost) {
-        if (A.up || pads[0].up) this.cycleStage(-1);
-        if (A.down || pads[0].down) this.cycleStage(1);
-      }
       if (F.has('KeyQ') || pads[0].lb) this.cycleCostume(L, -1);
       if (F.has('KeyE') || pads[0].rb) this.cycleCostume(L, 1);
       if (s.done[L]) { if (back) { s.done[L] = false; this.audio.play('ui'); this.refreshSel(); this.selMoved(L); } return; }
@@ -735,10 +753,6 @@ class Game {
     const P = [0, 1].map((i) => ({ l: M.p[i].left || pads[i].left, r: M.p[i].right || pads[i].right, ok: M.p[i].ok || pads[i].ok, back: M.p[i].back || pads[i].back }));
     if (this.mode !== 'versus') { // single player: the second player's keys also move P1
       P[0].l ||= M.p[1].left; P[0].r ||= M.p[1].right; P[0].ok ||= M.p[1].ok; P[0].back ||= M.p[1].back;
-    }
-    if (this.mode !== 'arcade') {
-      if (A.up || pads[0].up) this.cycleStage(-1);
-      if (A.down || pads[0].down) this.cycleStage(1);
     }
     if (F.has('KeyQ') || pads[0].lb) this.cycleCostume(0, -1);
     if (F.has('KeyE') || pads[0].rb) this.cycleCostume(0, 1);
@@ -761,7 +775,160 @@ class Game {
     this.refreshSel();
     this.audio.voice({ id: ROSTER[this.sel.i[i]] }, 'attack');
     if (this.mode === 'online') { this.selMoved(i); this.onlineBoth(); return; }
-    if (this.sel.done[0] && this.sel.done[1]) setTimeout(() => this.startMode(), 700);
+    if (this.sel.done[0] && this.sel.done[1]) setTimeout(() => { if (this.state === 'select' && this.sel.done[0] && this.sel.done[1]) this.toStageSelect(); }, 700);
+  }
+
+  // ------------------------------------------------------------------ stage select
+  // after the fighters, where they fight: a card for each stage and one for a random one (in the arcade, a stage of
+  // its own for every fight of the ladder; otherwise the arcade goes round them in order from the one picked). The
+  // stage under the cursor big, with its name, what it is like and its music, its picture blurred behind it all.
+  // Online the host picks and the other phone watches his cursor move.
+  stageItems() { return [...STAGE_KEYS, 'random']; }
+  stageHost() { return this.mode !== 'online' || this.online.isHost; }
+  toStageSelect() {
+    this.state = 'stage';
+    this.showScreen('stagesel');
+    this.menu = null;
+    const items = this.stageItems(), root = $('#stagesel'), touch = document.body.classList.contains('touchui');
+    root.classList.remove('chosen');
+    root.style.setProperty('--n', items.length);
+    const mos = STAGE_KEYS.map((k) => `<i style="background-image:url(${stageShot(k)})"></i>`).join('');
+    const row = $('#stagesel .ss-row');
+    row.innerHTML = '';
+    row.style.setProperty('--n', items.length);
+    items.forEach((key, i) => {
+      const c = document.createElement('div');
+      c.className = 'ss-card' + (key === 'random' ? ' rnd' : ''); c.dataset.key = key;
+      c.style.setProperty('--m', STAGE_KEYS.length);
+      c.innerHTML = key === 'random' ? `<div class="mos">${mos}</div><b>?</b><div class="nm">ALEATORIO</div>` : `<img src="${stageShot(key)}" alt=""><div class="nm">${STAGES[key].name}</div>`;
+      c.onclick = () => {
+        if (!this.stageHost() || !this.ss || this.ss.done) return;
+        // (touch: the first tap shows the stage, a second tap on the same card picks it)
+        if (touch && this.ss.cur !== i) { this.stageCursor(i); return; }
+        this.stageCursor(i, true); this.confirmStage();
+      };
+      c.onpointerenter = (e) => { if (e.pointerType === 'mouse' && this.stageHost() && this.ss && !this.ss.done) this.stageCursor(i); };
+      row.appendChild(c);
+    });
+    $('#stagesel .ss-pic .mos').innerHTML = STAGE_KEYS.map((k) => `<b style="background-image:url(${stageShot(k)})"></b>`).join('');
+    $('#stagesel .ss-pic .mos').style.setProperty('--m', STAGE_KEYS.length);
+    // the picks: who fights whom
+    const P = (id) => `<img src="${this.portraits[id]}" alt="">${this.meta[id].display}`;
+    const id1 = ROSTER[this.sel.i[0]], id2 = this.isVs() ? ROSTER[this.sel.i[1]] : null;
+    $('#stagesel .ss-match').innerHTML = `<span class="p1">${P(id1)}</span><em>VS</em><span class="p2">${id2 ? P(id2) : `<i class="q">?</i>${this.mode === 'training' ? 'SPARRING' : 'RIVALES'}`}</span>`;
+    $('#ssBack').onclick = () => this.stageBack();
+    // (the first player's keys as he has them: his directions, his 1 accepts, his 4 goes back)
+    const kl = (a) => keyLabel(KEYMAPS.p1[a].find(Boolean) || '');
+    const keysHint = touch ? '' : `${kl('left')} / ${kl('right')} para elegir · ${kl('b1')} o INTRO para confirmar · ${kl('b4')} o ESC para volver`;
+    $('#ssHint').textContent = this.stageHost() ? (touch ? 'Toca un escenario para verlo · tócalo otra vez para elegirlo' : keysHint) : '';
+    const start = this.mode === 'online' && !this.online.isHost ? (this.ssRemote || this.stagePick) : (this.stageRandom ? 'random' : this.stagePick);
+    this.ss = { cur: Math.max(0, items.indexOf(start)), done: false, rolling: false, bg: 0 };
+    this.refreshStageSel(true);
+    if (this.mode === 'online' && this.online.isHost) this.online.net?.send({ t: 'stage', key: items[this.ss.cur] });
+  }
+  // build the stage the fight will be on while this screen still covers the view (the select's fighters stay, hidden
+  // behind it; the fight clears them). Only off line: online both phones load together, from the host's 'go'
+  prebuildStage(key) {
+    if (this.mode === 'online' || this.stageKey === key) return;
+    setTimeout(() => { if (this.state === 'stage') this.setStage(key).catch(() => {}); }, 250); // (after the pick's flash is on screen)
+  }
+  stageCursor(i, quiet = false) {
+    const s = this.ss;
+    if (!s || s.done || s.cur === i) return;
+    s.cur = i;
+    if (!quiet) this.audio.play('ui');
+    this.refreshStageSel();
+    if (this.mode === 'online' && this.online.isHost) this.online.net?.send({ t: 'stage', key: this.stageItems()[i] });
+  }
+  refreshStageSel(first = false) {
+    const s = this.ss, items = this.stageItems(), key = items[s.cur], rnd = key === 'random', def = STAGES[key];
+    const root = $('#stagesel');
+    root.style.setProperty('--acc', rnd ? '#c86bff' : def.acc || '#ffcf4a');
+    root.querySelectorAll('.ss-card').forEach((c, i) => c.classList.toggle('on', i === s.cur));
+    // the picture: two layers crossfading (big and sharp in the frame, blurred behind everything)
+    const url = rnd ? null : stageShot(key);
+    const swap = (sel) => {
+      const L = [...root.querySelectorAll(sel)];
+      if (!url) { L.forEach((x) => x.classList.remove('on')); return; }
+      const on = L.find((x) => x.classList.contains('on')), next = on && on.dataset.u === url ? on : L.find((x) => x !== on) || L[0];
+      if (next.dataset.u !== url) { next.style.backgroundImage = `url(${url})`; next.dataset.u = url; }
+      L.forEach((x) => x.classList.toggle('on', x === next));
+    };
+    swap('.ss-pic > i'); swap('.ss-bg > i');
+    if (rnd) { const b = root.querySelector('.ss-bg > i'); b.style.backgroundImage = `url(${stageShot(STAGE_KEYS[0])})`; b.dataset.u = ''; b.classList.add('on'); }
+    root.querySelector('.ss-pic .mos').classList.toggle('on', rnd);
+    root.querySelector('.ss-pic .qm').classList.toggle('on', rnd);
+    root.querySelector('.ss-frame .num').textContent = rnd ? '' : `${String(s.cur + 1).padStart(2, '0')} / ${String(STAGE_KEYS.length).padStart(2, '0')}`;
+    if (!first) { const sh = root.querySelector('.ss-shine'); sh.classList.remove('go'); void sh.offsetWidth; sh.classList.add('go'); }
+    const who = this.mode === 'online' && !this.online.isHost ? `<div class="who">LO ELIGE ${this.online.peerName.replace(/[&<>"']/g, '').toUpperCase()}</div>` : '';
+    const info = rnd
+      ? { sub: 'QUE DECIDA LA SUERTE', nm: 'ALEATORIO', dsc: this.mode === 'arcade' ? 'Un escenario al azar en cada combate del arcade.' : 'Un escenario al azar. La ruleta elige por ti.', tags: ['SORPRESA', `${STAGE_KEYS.length} ESCENARIOS`] }
+      : { sub: def.sub, nm: def.name, dsc: def.desc || '', tags: def.tags || [] };
+    root.querySelector('.ss-info').innerHTML = `<div class="sub">${info.sub}</div><div class="nm">${info.nm}</div><div class="dsc">${info.dsc}</div><div class="tags">${info.tags.map((t) => `<span>${t}</span>`).join('')}</div>${who}`;
+  }
+  // keys: left / right move, a punch (or Enter) picks, back goes back to the fighters
+  stageInput(keys, M, pads) {
+    const s = this.ss;
+    if (!s || s.done) return;
+    const A = M.any, n = this.stageItems().length;
+    if (A.back || pads[0].back || (this.mode !== 'online' && pads[1].back)) { this.stageBack(); return; }
+    if (!this.stageHost()) return;
+    const l = A.left || pads[0].left || pads[1].left || A.up || pads[0].up, r = A.right || pads[0].right || pads[1].right || A.down || pads[0].down;
+    if (l) this.stageCursor((s.cur + n - 1) % n);
+    if (r) this.stageCursor((s.cur + 1) % n);
+    if (A.ok || pads[0].ok || pads[1].ok) this.confirmStage();
+  }
+  stageBack() {
+    const s = this.ss;
+    if (!s || s.done) return;
+    this.audio.play('uiback');
+    // the last pick undone: versus the second player's, otherwise the first's; online this phone's own
+    if (this.mode === 'online') { const L = this.online.local; this.sel.done[L] = false; this.toSelect(true); this.selMoved(L); return; }
+    if (this.mode === 'versus') this.sel.done[1] = false; else this.sel.done[0] = false;
+    this.toSelect(true);
+  }
+  confirmStage() {
+    const s = this.ss;
+    if (!s || s.done || s.rolling || !this.stageHost()) return;
+    const key = this.stageItems()[s.cur];
+    if (key === 'random') { this.rollStage(); return; }
+    this.stageChosen(key, false);
+  }
+  // ALEATORIO: the cursor runs over the stages, two laps and slowing down, and stops on one at random
+  rollStage() {
+    const s = this.ss, n = STAGE_KEYS.length;
+    s.rolling = true;
+    this.audio.play('uiok');
+    const target = Math.floor(Math.random() * n);
+    const steps = n * 2 + target + 1;
+    let k = 0, at = -1;
+    const step = () => {
+      if (this.state !== 'stage' || this.ss !== s) return;
+      at = (at + 1) % n; k++;
+      s.cur = at; this.audio.play('ui'); this.refreshStageSel();
+      if (this.mode === 'online') this.online.net?.send({ t: 'stage', key: STAGE_KEYS[at] });
+      if (k >= steps) { s.rolling = false; this.stageChosen(STAGE_KEYS[at], true); return; }
+      const t = k / steps;
+      setTimeout(step, 55 + 330 * t * t * t);
+    };
+    step();
+  }
+  stageChosen(key, random) {
+    const s = this.ss;
+    s.done = true;
+    this.stagePick = key; this.stageRandom = random;
+    this.audio.play('uiok');
+    // (the stage is built now, behind this screen, while ¡A LUCHAR! plays: the loading that follows is shorter)
+    this.prebuildStage(key);
+    const root = $('#stagesel');
+    root.classList.add('chosen');
+    root.querySelector(`.ss-card[data-key="${key}"]`)?.classList.add('pick');
+    if (this.mode === 'online') {
+      this.online.net?.send({ t: 'stage', key });
+      setTimeout(() => { if (this.state === 'stage' && this.ss === s) this.online.bothPicked(ROSTER[this.sel.i[0]], ROSTER[this.sel.i[1]], key, this.selCostumes()); }, 900);
+      return;
+    }
+    setTimeout(() => { if (this.state === 'stage' && this.ss === s) this.startMode(); }, 900);
   }
 
   startMode() {
@@ -769,7 +936,10 @@ class Game {
     if (this.mode === 'arcade') {
       // one fight against each of the others, in random order; the title is won after the last one
       const others = ROSTER.filter(x => x !== p1).sort(() => Math.random() - 0.5);
-      this.arcade = { p1, ladder: others, stage: 0, diff: this.difficulty, costume: cos[0] };
+      const n = STAGE_KEYS.length, i0 = Math.max(0, STAGE_KEYS.indexOf(this.stagePick));
+      const stages = others.map((_, k) => STAGE_KEYS[(i0 + k) % n]);
+      if (this.stageRandom) for (let k = 1; k < stages.length; k++) { let x; do x = STAGE_KEYS[Math.floor(Math.random() * n)]; while (n > 1 && x === stages[k - 1]); stages[k] = x; }
+      this.arcade = { p1, ladder: others, stage: 0, diff: this.difficulty, costume: cos[0], stages };
       this.startFight(p1, this.arcade.ladder[0], { ai: this.arcadeAI(0), costumes: [cos[0], 0] });
     } else if (this.mode === 'versus') {
       this.startFight(p1, ROSTER[this.sel.i[1]], { human2: true, costumes: cos });
@@ -806,7 +976,9 @@ class Game {
     if (stale()) return;
     this.clearFighters();
     const stageKey = this.stageFor(opts);
-    if (stageKey !== this.stageKey) { await this.setStage(stageKey); this.audio.ambience(STAGES[stageKey].amb); }
+    // (setStage returns the build already under way, when the stage select started it)
+    if (stageKey !== this.stageKey || this._stageBuild) await this.setStage(stageKey);
+    this.audio.ambience(STAGES[stageKey].amb);
     if (stale()) return;
     const chars = [this.makeFighterModel(id1, opts.costumes?.[0]), this.makeFighterModel(id2, opts.costumes?.[1])];
     chars.forEach(c => this.scene.add(c.group));
@@ -852,6 +1024,8 @@ class Game {
       this.resumeT = 3; this._resumeShown = null;
     } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
+    // (?winnow=1: straight to player 1's win pose, for captures: index.html?demo=1&p1=…&winnow=1&readyon=win&readyat=<frame>)
+    if (q.get('winnow')) { const m = this.match; m.startRound(); m.koWinner = 0; m.wins = [m.opts.rounds - 1, 0]; m.afterRound(); }
     // (?fatalnow=1: straight to player 1's PUÑETALITY, for captures: index.html?demo=1&p1=noemi&p2=…&fatalnow=1&readyon=fatal&readyat=<frame>)
     if (q.get('fatalnow') && this.match.fighters[0].style.fatal) {
       const m = this.match;
@@ -881,7 +1055,7 @@ class Game {
       try { fight = packSnap(m, saveMatch(m, this._saveSnap || (this._saveSnap = new Snap()))); } catch (e) { fight = null; }
     }
     const a = this.arcade;
-    const data = { f: SAVE_FORMAT, v: VERSION, t: Date.now(), arcade: { p1: a.p1, ladder: a.ladder, stage: a.stage, diff: a.diff, costume: a.costume | 0 }, fight };
+    const data = { f: SAVE_FORMAT, v: VERSION, t: Date.now(), arcade: { p1: a.p1, ladder: a.ladder, stage: a.stage, diff: a.diff, costume: a.costume | 0, stages: a.stages }, fight };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) { /* storage full or private mode */ }
   }
   // the saved run, if this roster can play it
@@ -906,7 +1080,8 @@ class Game {
     if (!s) { this.refreshContinue(); return; }
     this.mode = 'arcade';
     const cos = Math.max(0, Math.min(costumesOf(s.arcade.p1).length - 1, s.arcade.costume | 0));
-    this.arcade = { p1: s.arcade.p1, ladder: s.arcade.ladder.slice(), stage: s.arcade.stage | 0, diff: s.arcade.diff, costume: cos };
+    const stages = Array.isArray(s.arcade.stages) ? s.arcade.stages.map(String) : undefined; // (older saves: round the stages in order)
+    this.arcade = { p1: s.arcade.p1, ladder: s.arcade.ladder.slice(), stage: s.arcade.stage | 0, diff: s.arcade.diff, costume: cos, stages };
     // the fight to the frame only from this very version of the game (another one starts that fight again)
     const resume = s.fight && s.v === VERSION && s.f === SAVE_FORMAT ? s.fight : null;
     this.startFight(this.arcade.p1, this.arcade.ladder[this.arcade.stage], { ai: this.arcadeAI(this.arcade.stage), resume, costumes: [cos, 0] });
@@ -1426,6 +1601,7 @@ class Game {
     else if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (A.back || pads[0].back)) { this.audio.play('uiback'); this.showTitleMenu('main'); } else this.menuInput(A, pads[0]); }
     else if (this.state === 'ending') { if (keys.size || pads[0].ok || pads[0].back || pads[0].start) this.endingTap(); }
     else if (this.state === 'select') this.selectInput(keys, M, pads);
+    else if (this.state === 'stage') this.stageInput(keys, M, pads);
     else if (this.state === 'pause') { this.menuInput(A, pads[0]); if (A.back || pads[0].start || pads[0].back || pads[1].start) this.pause(false); }
     else if (this.state === 'results') this.menuInput(A, pads[0]);
     else if (this.state === 'highlight') { if (this.hl?.phase === 'play' && (keys.size || pads[0].ok || pads[0].back || pads[0].start)) this.endHighlight(); }
@@ -1460,7 +1636,7 @@ class Game {
     this.syncTouchUI();
     if (m) {
       // (a play shown again stays where it ended, behind the results)
-      const running = !netRun && !counting && m !== this.hlDone && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'online' || this.state === 'netresults' || this.state === 'ending');
+      const running = !netRun && !counting && m !== this.hlDone && (this.state === 'fight' || this.state === 'title' || this.state === 'select' || this.state === 'stage' || this.state === 'online' || this.state === 'netresults' || this.state === 'ending');
       if (netRun) alpha = this.online.session.alpha;
       else if (this.state === 'highlight' && this.hl && this.hl.m === m) alpha = this.highlightTick(dt);
       else if (running) {
@@ -1477,13 +1653,14 @@ class Game {
         const stopAt = () => (ro === 'ko' && (m.phase === 'ko' || m.phase === 'matchEnd') && m.pt >= (ra || 45))
           || (ro === 'fatal' && m.phase === 'fatal' && m.pt >= ra)
           || (ro === 'intro' && m.phase === 'intro' && m.pt >= (ra || 40))
+          || (ro === 'fight' && m.phase === 'fight' && m.pt >= (ra || 1))
           || (ro === 'win' && m.phase === 'matchEnd' && m.pt >= (ra || 90))
           // a few frames after the first heavy/counter hit past frame `readyat` (impact VFX checks)
           || (ro === 'hit' && m.lastHeavyFrame >= ra && m.frame - m.lastHeavyFrame >= +(q.get('hitage') || 2))
           || (ro === 'tech' && m.lastTechFrame >= ra && m.frame - m.lastTechFrame >= +(q.get('hitage') || 8));
         const koHit = stopAt();
         // impact captures freeze the simulation on the stop frame; the camera snaps and the particles age by `hitage` once
-        if ((ro === 'hit' || ro === 'tech' || ro === 'fatal') && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
+        if ((ro === 'hit' || ro === 'tech' || ro === 'fatal' || ro === 'fight' || (ro === 'win' && q.get('winnow'))) && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
         const fastForward = simonly && m.phase !== 'showcase' && m.frame < simonly && !koHit;
         if (koHit && !window.__ready) { this.readyIn = (this.readyIn ?? 8) - 1; if (this.readyIn <= 0) window.__ready = true; }
         if (fastForward) { this.acc = 400 / FPS; maxSteps = 400; }
@@ -1573,6 +1750,14 @@ class Game {
     this.fx.update(this.capFrozen ? (this.capFrozen++ === 1 ? (+(q.get('hitage') || 2)) / FPS : 0) : dt);
     this.stage.update(dt, this.camera);
     if (q.get('fxtest')) { const [r, h, d] = q.get('fxtest').split(',').map(Number); e.radial = r; e.hitFlash = h; e.desat = d || 0; }
+    // (capture: the stage alone, for the stage select screen's pictures: tools/stageshots.sh)
+    if (q.get('nofighters')) {
+      this.scene.traverse((o) => { if (o.userData?.fighter) o.visible = false; }); for (const el of document.querySelectorAll('.screen')) el.style.display = 'none';
+      this.contact?.decals.forEach((d) => (d.visible = false));
+      // (a wider, higher view than the fight's, the stage's showpiece behind: STAGES[k].shot or a general one)
+      const c = STAGES[this.stageKey]?.shot || {};
+      this.camera.position.set(...(c.pos || [0, 2.3, 7.4])); this.camera.lookAt(...(c.look || [0, 2.0, -6])); this.camera.fov = c.fov || 50; this.camera.updateProjectionMatrix();
+    }
     if (this.post && !q.get('norender')) {
       const u = this.post.u;
       const fl = this.prefs?.flash ?? 1;

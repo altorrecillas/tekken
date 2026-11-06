@@ -159,10 +159,10 @@ for (const ids of (run('det') || run('rollback') || run('pack') ? PAIRS : [])) {
 // the win screen of a match Noemí won, her player holding up and pressing 1 on frame 40 (the button on the screen
 // presses the same): the whole move must play the same from the same inputs, rewound over and over (the press itself
 // predicted wrong and corrected, as online when it comes late), and copied over the network mid-move
-for (const ids of (run('fatal') ? [['noemi', 'camilo'], ['camilo', 'zapponi'], ['dani', 'noemi'], ['alejandro', 'rafa'], ['rafa', 'camilo']] : [])) {
+for (const ids of (run('fatal') ? [['noemi', 'camilo'], ['camilo', 'zapponi'], ['dani', 'noemi'], ['alejandro', 'rafa'], ['rafa', 'camilo'], ['zapponi', 'noemi'], ['orion', 'dani']] : [])) {
   console.log(`\n== PUÑETALITY ${ids.join(' vs ')} ==`);
   const start = (m) => { m.startRound(); m.wins = [m.opts.rounds, 0]; m.winner = 0; m.phase = 'matchEnd'; m.pt = 0; m.humans = [true, true]; };
-  const N = 760, rec = [];
+  const N = 820, rec = [];
   for (let i = 0; i < N; i++) rec[i] = [{ dx: 0, dy: 0, held: 0, pressed: 0 }, { dx: 0, dy: 0, held: 0, pressed: 0 }];
   rec[40][0] = { dx: 0, dy: 1, held: 1, pressed: 1 }; rec[41][0] = { dx: 0, dy: 1, held: 1, pressed: 0 };
   const R = makeMatch(ids, null); replay(R, rec); start(R);

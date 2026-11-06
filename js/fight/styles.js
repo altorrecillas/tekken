@@ -5,6 +5,28 @@ const RESET = { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [
   handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, twistL: -0.4, twistR: -0.55, clavL: [-0.05, 0.1], clavR: [-0.05, 0.12],
   footL: [0.05, 0.071, 0.24], footR: [0.2, 0.071, -0.2], kneeL: [0.15, 0, 1], kneeR: [0.5, 0, 1], footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], toeL: 0, toeR: 0 };
 
+// a pedalling loop for a rider on Zapponi's bike (js/fx/bicycle.js BIKE, the same measures): one turn of the cranks in
+// `len` frames, the ankles over the pedals (the right one forwards at frame 0 and going down, the left half a turn on),
+// keys every 2 frames; base: the rest of the pose, sway(k): more of it at each point of the turn (k 0..1)
+const PEDAL = { bb: [0.27, 0], crank: 0.172, ankle: [0.075, -0.085], stance: 0.115 };
+function ankleAt(c) { return [PEDAL.stance, +(PEDAL.bb[0] - PEDAL.crank * Math.sin(c) + PEDAL.ankle[0]).toFixed(4), +(PEDAL.bb[1] + PEDAL.crank * Math.cos(c) + PEDAL.ankle[1]).toFixed(4)]; }
+function pedalPose(c) {
+  // (the toes a little down as the foot pushes round the bottom)
+  const pitch = (a) => +(0.12 + 0.12 * Math.sin(a)).toFixed(3);
+  return { footR: ankleAt(c), footL: ankleAt(c + Math.PI), footRotR: [pitch(c), 0.05, 0], footRotL: [pitch(c + Math.PI), 0.05, 0], toeL: 0, toeR: 0 };
+}
+function pedalLoop(base, len = 24, sway = null) {
+  const keys = [];
+  for (let f = 0; f <= len; f += 2) keys.push([f, { ...base, ...pedalPose(f / len * Math.PI * 2), ...(sway ? sway(f / len) : {}) }, f ? 'lin' : undefined]);
+  return keys;
+}
+// Zapponi on the bike: seated, the back flat, looking up the road (the hands are held on the horns: fatal.grip)
+const RIDE = { rootPos: [0, 0.067, -0.137], rootRot: [0.55, 0, 0], spine: [0.42, 0, 0], neck: [-0.85, 0, 0], clavL: [0, 0.1], clavR: [0, 0.1],
+  handL: [0.3, -0.4, 0.55], handR: [0.3, -0.4, 0.55], aimL: 1, aimR: 1, fistL: 0.85, fistR: 0.85, twistL: 0.2, twistR: 0.2, wristL: [0, 0], wristR: [0, 0],
+  poleL: [0.7, -0.5, -0.4], poleR: [0.7, -0.5, -0.4], kneeL: [0.12, 0.1, 1], kneeR: [0.12, 0.1, 1], hgL: 0, hgR: 0, ptL: 0, ptR: 0, thL: 0, thR: 0, jaw: 0.05 };
+// out of the saddle, sprinting: the hips up and over the cranks, the bike thrown side to side under him
+const SPRINT = { ...RIDE, rootPos: [0, 0.17, 0.02], rootRot: [0.78, 0, 0], spine: [0.25, 0, 0], neck: [-0.95, 0, 0], jaw: 0.35, poleL: [0.8, -0.4, -0.3], poleR: [0.8, -0.4, -0.3] };
+
 export const STYLES = {
   alejandro: {
     intro: [
@@ -617,6 +639,120 @@ export const STYLES = {
       [68, { handL: [-0.18, -0.17, 0.26], handR: [-0.18, -0.17, 0.26] }, 'snap'],
       [98, null, 'inout'],
     ],
+    // PUÑETALITY (js/fight/fatality.js): his bike. A whistle and his bike rolls in on its own, past the loser, and stops
+    // by him; a helmet from behind his back, the strap done up, two knocks on it and a finger at the loser. He hops on,
+    // rides off, turns in a skid, rings the bell and sprints straight at him: through him at forty an hour, and the
+    // loser falls apart in two, a half to each side (js/fx/halves.js). A skid to a stop, a look back: his line.
+    // Frames: cut (the front wheel at him), title; ride (Match.fatalRide: the path from where he stood, his heading),
+    // grip (his hands on the saddle, then on the horns); still: the loser no longer moves from the cut
+    fatal: {
+      len: 740, cut: 320, still: 320, title: 532, dist: 2.2,
+      say: '¡Eso sí que ha sido espectacular, vale!', sayAt: 388, sayLen: 136,
+      slow: [[308, 317, 333, 352, 0.12]],
+      ride: {
+        keys: [[178, 0, 0, 0], [194, 0, 0.5, 0],
+          [200, -0.12, 0.5], [206, -0.42, 0.5], [212, -0.85, 0.49], [218, -1.36, 0.48], [224, -1.9, 0.47], [230, -2.42, 0.46],
+          [236, -2.85, 0.4], [242, -3.12, 0.27], [248, -3.25, 0.1], [252, -3.28, 0, 0],
+          [266, -3.28, 0, 0], [272, -3.225, 0], [278, -3.061, 0], [284, -2.787, 0], [290, -2.403, 0], [296, -1.910, 0], [302, -1.307, 0], [308, -0.594, 0], [314, 0.228, 0], [320, 1.16, 0],
+          [326, 2.14, 0], [332, 3.09, 0.01], [338, 3.948, 0.04], [344, 4.626, 0.08], [350, 5.124, 0.12], [356, 5.442, 0.14], [362, 5.58, 0.15], [366, 5.6, 0.15, 0]],
+        yaw: [[178, 0], [194, -Math.PI], [232, -Math.PI], [250, -2 * Math.PI], [334, -2 * Math.PI], [362, -1.5 * Math.PI]],
+        cadence: [12, 0.25, 0.95], clips: ['fatal_ride', 'fatal_sprint'],
+      },
+      grip: {
+        R: [[86, -0.42, 1.06, 0.26, 0], [94, -0.48, 1.0, 0.2, 1], [104, -0.48, 1.0, 0.2, 1], [110, -0.4, 1.05, 0.15, 0],
+          [192, -0.21, 0.915, 0.565, 0], [197, -0.21, 0.915, 0.565, 1], [398, -0.21, 0.915, 0.565, 1], [404, -0.21, 0.915, 0.565, 0], [452, -0.21, 0.915, 0.565, 0], [460, -0.21, 0.915, 0.565, 1], [740, -0.21, 0.915, 0.565, 1]],
+        L: [[192, 0.21, 0.915, 0.565, 0], [197, 0.21, 0.915, 0.565, 1], [740, 0.21, 0.915, 0.565, 1]],
+      },
+      winner: [[178, 'fatal_hop', 3], [194, 'fatal_ride', 4], [224, 'fatal_brake', 6], [232, 'fatal_skid', 5], [250, 'fatal_set', 8], [264, 'fatal_sprint', 6],
+        [322, 'fatal_coast', 4], [332, 'fatal_skidstop', 6], [362, 'fatal_stop', 8], [380, 'fatal_look', 14]],
+      victim: [[40, 'fatalFear', 10], [48, 'fatalFlinch', 6], [84, 'fatalFear', 14], [198, 'fatalWatch', 16], [250, 'fatalFear', 10], [294, 'fatalBrace', 10]],
+      clip: [
+        [0, { rootPos: [0, -0.02, 0], rootRot: [0, 0, 0], spine: [0, 0, 0], neck: [0.06, 0, 0], handL: [0.24, -0.86, 0.08], handR: [0.24, -0.86, 0.08], aimL: 1, aimR: 1, fistL: 0.45, fistR: 0.45,
+          twistL: 0, twistR: 0, wristL: [0, 0], wristR: [0, 0], poleL: [0.3, -1, -0.3], poleR: [0.3, -1, -0.3], clavL: [0, 0], clavR: [0, 0],
+          footL: [0.15, 0.071, 0.06], footR: [0.15, 0.071, -0.06], footRotL: [0, 0.15, 0], footRotR: [0, 0.25, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1], toeL: 0, toeR: 0,
+          jaw: 0, hgL: 0, hgR: 0, hgPosL: [0.14, 0, 0.1], hgPosR: [0.14, 0, 0.1], ptL: 0, ptR: 0, thL: 0, thR: 0 }],
+        // his neck rolled, the shoulders up
+        [12, { neck: [0.06, 0.1, 0.3], clavL: [0.18, 0], clavR: [0.18, 0] }, 'inout'],
+        [20, { neck: [0.2, 0, 0] }, 'inout'],
+        [28, { neck: [0.06, -0.1, -0.3], clavL: [0, 0], clavR: [0, 0] }, 'inout'],
+        // a whistle through two fingers of his right hand
+        [34, { neck: [0, 0, 0], hgR: 1, hgPosR: [0.03, -0.1, 0.17], ptR: 1, fistR: 0.75, twistR: -0.6, wristR: [-0.3, 0], poleR: [0.4, -1, 0.2] }, 'inout'],
+        [38, { hgPosR: [0.025, -0.085, 0.155], neck: [-0.08, 0, 0] }, 'out'],
+        [50, { neck: [-0.06, 0, 0] }, 'inout'],
+        [58, { hgR: 0, ptR: 0, fistR: 0.45, twistR: 0, wristR: [0, 0], poleR: [0.3, -1, -0.3], neck: [0.08, 0.12, 0] }, 'inout'],
+        // the bike rolls up on his right: he turns to it and stops it by the saddle (fatal.grip 94-104)
+        [84, { rootRot: [0, -0.25, 0], spine: [0.05, -0.15, 0], neck: [0.15, -0.35, 0], handR: [0.4, -0.5, 0.2] }, 'inout'],
+        [96, { spine: [0.08, -0.25, 0.12] }, 'inout'],
+        [104, {}, 'lin'],
+        // the helmet from behind his back...
+        [112, { rootRot: [0, 0, 0], spine: [-0.06, 0, 0], neck: [0.08, 0, 0], handL: [0.18, -0.62, -0.38], handR: [0.18, -0.62, -0.38], aimL: 0, aimR: 0, poleL: [0.5, -0.4, 0.6], poleR: [0.5, -0.4, 0.6],
+          fistL: 0.3, fistR: 0.3, twistL: 0.6, twistR: 0.6 }, 'inout'],
+        [117, {}, 'lin'],
+        // ... up over his head...
+        [126, { hgL: 1, hgR: 1, hgPosL: [0.14, 0.27, 0.04], hgPosR: [0.14, 0.27, 0.04], twistL: 1.3, twistR: 1.3, wristL: [0.3, 0], wristR: [0.3, 0], fistL: 0.25, fistR: 0.25,
+          poleL: [0.8, 0.2, -0.2], poleR: [0.8, 0.2, -0.2], neck: [0, 0, 0] }, 'inout'],
+        // ... and down onto it
+        [134, { hgPosL: [0.135, 0.07, 0.03], hgPosR: [0.135, 0.07, 0.03], neck: [0.12, 0, 0] }, 'inout'],
+        // the straps pulled tight either side of his jaw (the buckle's click at 146; hands kept beside the face, not
+        // in front of it, as the rig keeps them)
+        [142, { hgPosL: [0.105, -0.05, -0.045], hgPosR: [0.105, -0.05, -0.045], twistL: 0.9, twistR: 0.9, wristL: [0, 0], wristR: [0, 0], fistL: 0.55, fistR: 0.55,
+          poleL: [1, -0.5, 0], poleR: [1, -0.5, 0], neck: [-0.1, 0, 0] }, 'inout'],
+        [146, { hgPosL: [0.1, -0.085, -0.045], hgPosR: [0.1, -0.085, -0.045], fistL: 0.7, fistR: 0.7, neck: [-0.06, 0, 0] }, 'snap'],
+        // two knocks on it
+        [152, { hgL: 0, handL: [0.24, -0.86, 0.08], aimL: 1, fistL: 0.45, twistL: 0, wristL: [0, 0], poleL: [0.3, -1, -0.3], hgPosR: [0.06, 0.15, 0.12], fistR: 1, twistR: -0.4, neck: [0.05, 0, 0] }, 'inout'],
+        [155, { hgPosR: [0.05, 0.125, 0.105] }, 'snap'],
+        [158, { hgPosR: [0.06, 0.15, 0.12] }, 'out'],
+        [161, { hgPosR: [0.05, 0.125, 0.105] }, 'snap'],
+        // and a finger at the loser: you
+        [168, { hgR: 0, handR: [0.12, 0.06, 0.95], aimR: 1, ptR: 1, fistR: 0.9, twistR: -0.2, wristR: [0, 0], poleR: [0.3, -1, -0.2], neck: [0.12, 0, 0], spine: [0.05, 0, 0] }, 'inout'],
+        [178, {}, 'lin'],
+      ],
+      clips: {
+        // a hop onto the bike, turning round in the air (Match.fatalRide carries him onto it, fatal.ride yaw turns him)
+        hop: [[
+          [0, { rootPos: [0, -0.15, 0.02], rootRot: [0.15, 0, 0], spine: [0.2, 0, 0], neck: [-0.1, 0, 0], handL: [0.3, -0.35, 0.5], handR: [0.3, -0.35, 0.5], aimL: 1, aimR: 1, ptR: 0, fistR: 0.6,
+            footL: [0.15, 0.071, 0.06], footR: [0.15, 0.071, -0.06], kneeL: [0.15, 0, 1], kneeR: [0.15, 0, 1] }],
+          [6, { rootPos: [0, 0.22, -0.06], rootRot: [0.3, 0, 0], footL: [0.15, 0.42, 0.05], footR: [0.3, 0.6, -0.12], kneeR: [0.6, 0.3, 1] }, 'out'],
+          [11, { rootPos: [0, 0.16, -0.12], rootRot: [0.45, 0, 0], spine: [0.35, 0, 0], footL: [0.14, 0.4, 0.12], footR: [0.13, 0.45, 0.06], kneeR: [0.15, 0.1, 1] }, 'inout'],
+          [16, { ...RIDE, ...pedalPose(0) }, 'in'],
+        ]],
+        ride: [pedalLoop(RIDE, 24), { loop: true }],
+        // easing off before the turn: the pedals level, his weight back
+        brake: [[[0, { ...RIDE, ...pedalPose(0), rootPos: [0, 0.1, -0.18], rootRot: [0.55, 0, 0], spine: [0.4, 0, 0], neck: [-0.8, 0, 0] }]]],
+        // round in a skid, his right foot out on the ground on the inside of the turn
+        skid: [[
+          [0, { ...RIDE, ...pedalPose(0), rootPos: [-0.04, 0.08, -0.16], rootRot: [0.55, -0.15, 0.1], spine: [0.42, -0.12, 0], neck: [-0.8, -0.3, 0] }],
+          [5, { footR: [0.42, 0.2, 0.3], footRotR: [-0.2, 0.3, 0], kneeR: [0.8, 0.3, 1] }, 'out'],
+          [15, { footR: [0.4, 0.2, 0.25] }, 'inout'],
+        ]],
+        // stopped, facing him, the left foot down; standing up on the pedals as the bell rings; off
+        set: [[
+          [0, { ...SPRINT, ...pedalPose(-0.6), rootPos: [0, 0.08, -0.04], rootRot: [0.62, 0, 0], spine: [0.36, 0, 0], neck: [-0.85, 0, 0], jaw: 0, footL: [0.32, 0.11, 0.0], footRotL: [0, 0.2, 0] }],
+          [10, {}, 'lin'],
+          [14, { ...SPRINT, ...pedalPose(-0.6), jaw: 0.4 }, 'inout'],
+        ]],
+        sprint: [pedalLoop(SPRINT, 20, (k) => ({ rootPos: [+(0.035 * Math.sin(k * Math.PI * 2)).toFixed(3), 0.17, 0.02], rootRot: [0.78, 0, +(0.08 * Math.sin(k * Math.PI * 2)).toFixed(3)], spine: [0.25, 0, +(-0.06 * Math.sin(k * Math.PI * 2)).toFixed(3)] })), { loop: true }],
+        // through: freewheeling out of the saddle
+        coast: [[[0, { ...SPRINT, ...pedalPose(0), rootPos: [0, 0.15, -0.03], rootRot: [0.74, 0, 0], spine: [0.28, 0, 0], jaw: 0.5 }]]],
+        // the skid to a stop: his weight back, the rear wheel locked and coming round, the left foot out as it ends
+        skidstop: [[
+          [0, { ...RIDE, ...pedalPose(0), rootPos: [0.03, 0.07, -0.18], rootRot: [0.52, 0.18, -0.08], spine: [0.42, 0.12, 0], neck: [-0.75, 0.3, 0], jaw: 0.2 }],
+          [18, { footL: [0.4, 0.175, 0.3], footRotL: [-0.2, 0.3, 0], kneeL: [0.8, 0.3, 1] }, 'inout'],
+          [30, { footL: [0.38, 0.12, 0.12], footRotL: [0, 0.3, 0] }, 'inout'],
+        ]],
+        // stopped: the left foot down, sitting up
+        stop: [[[0, { ...RIDE, ...pedalPose(0.4), rootPos: [0, -0.02, -0.02], rootRot: [0.42, 0, 0], spine: [0.38, 0, 0], neck: [-0.5, 0, 0], footL: [0.36, 0.11, 0.1], footRotL: [0, 0.25, 0], kneeL: [0.3, 0, 1], jaw: 0 }]]],
+        // a look back over his shoulder at what he has left behind; his line; a thumb up at it; back on the bars
+        look: [[
+          [0, { ...RIDE, ...pedalPose(0.4), rootPos: [0, -0.02, -0.02], rootRot: [0.38, 0.22, 0], spine: [0.3, 0.3, 0], neck: [-0.2, 0.8, 0], footL: [0.36, 0.11, 0.1], footRotL: [0, 0.25, 0], kneeL: [0.3, 0, 1], jaw: 0 }],
+          [24, { handR: [-0.02, 0.06, 0.6], aimR: 1, fistR: 1, thR: 1, twistR: -0.5, poleR: [0.5, -1, -0.2] }, 'inout'],
+          [30, { handR: [-0.03, 0.1, 0.62] }, 'out'],
+          [64, { handR: [-0.02, 0.06, 0.6] }, 'sine'],
+          [80, { thR: 0, fistR: 0.85, neck: [-0.45, 0.2, 0], spine: [0.36, 0.1, 0], rootRot: [0.42, 0.05, 0] }, 'inout'],
+          [310, { neck: [-0.4, 0.25, 0] }, 'sine'],
+        ]],
+      },
+    },
     title: 'El Toro', desc: 'Luchador de fuerza bruta. Lariats y suplex.',
     say: '¡Espectacular, vale!', sayAt: 78, sayLen: 107, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: '¡Esto va a ser espectacular, vale!', introLen: 132, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
@@ -679,6 +815,158 @@ export const STYLES = {
       [114, { handL: [0.3, -0.04, 0.64], handR: [0.3, -0.04, 0.64], neck: [0.2, 0, 0] }, 'sine'],
       [130, { handL: [0.3, -0.12, 0.62], handR: [0.3, -0.12, 0.62], neck: [-0.06, 0, 0] }, 'sine'],
       [196, { neck: [-0.08, 0.06, 0] }, 'sine'],
+    ],
+  },
+  // Orión: not one of the friends but an android (an original design), silver plates over a dark synthetic body, red
+  // eyes, "RyC" on his chest (tools/pipeline/robotgen.py). A powerhouse like Zapponi, the same moves, but a machine's
+  // way about him: stiff, still, exact; his voice robotic (js/audio/audio.js FIGHTER_VOICE, tools/quotes_tts.py)
+  orion: {
+    intro: [
+      [0, { rootPos: [0, 0, 0], rootRot: [0, 0, 0], spine: [0, 0, 0], neck: [0.05, 0, 0], handL: [0.22, -0.88, 0.06], handR: [0.22, -0.88, 0.06], aimL: 1, aimR: 1, fistL: 0.6, fistR: 0.6,
+        footL: [0.15, 0.071, 0.02], footR: [0.15, 0.071, -0.02], footRotL: [0, 0.1, 0], footRotR: [0, 0.1, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }],
+      // a scan: the head turned to one side, held, to the other, held, back (stepped, like a machine's)
+      [10, { neck: [0.05, 0.55, 0] }, 'inout'],
+      [22, { neck: [0.05, 0.55, 0] }, 'lin'],
+      [32, { neck: [0.05, -0.55, 0] }, 'inout'],
+      [44, { neck: [0.05, -0.55, 0] }, 'lin'],
+      [52, { neck: [0.12, 0, 0] }, 'inout'],
+      // the fists up, both at once, exact
+      [66, { handL: [-0.1, 0.05, 0.52], handR: [-0.1, 0.05, 0.52], fistL: 1, fistR: 1, neck: [0.1, 0, 0] }, 'inout'],
+      [70, { handL: [-0.09, 0.06, 0.5], handR: [-0.09, 0.06, 0.5] }, 'snap'],
+      [98, null, 'inout'],
+    ],
+    title: 'El Androide', desc: 'Androide de combate. Golpes hidráulicos y llaves mecánicas.',
+    say: 'Clave incorrecta.', sayAt: 30, sayLen: 64, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'Necesito la clave.', introLen: 70, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
+    stats: { health: 204, walk: 1.06, weight: 1.45, power: 1.16, speed: 0.98 },
+    hairSway: 0, // (no hair: a chrome head)
+    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', 'f+2'],
+    stance: { rootPos: [0, -0.1, -0.02], rootRot: [0.12, -0.3, 0], spine: [0.18, 0.1, 0], hgPosL: [0.15, -0.26, 0.4], hgPosR: [0.13, -0.26, 0.3], fistL: 0.92, fistR: 0.92,
+      footL: [0.12, 0.071, 0.22], footR: [0.26, 0.071, -0.2] },
+    bob: 0.004, // (a machine: barely moves at rest)
+    throw2: 'suplex',
+    commands: [['1+2', 'lariat'], ['f+1+2', 'axe'], ['f+2', 'axe']],
+    moves: (C) => ({
+      lariat: {
+        name: 'Lariat', total: 52, clip: C([
+          [0, {}],
+          [10, { rootPos: [0, -0.1, -0.02], rootRot: [0.1, -1.0, 0], spine: [0.1, -0.4, 0], handR: [0.9, 0.2, -0.2], aimR: 1, twistR: 0.3, fistR: 0.8 }, 'out'],
+          [20, { rootPos: [0, -0.1, 0.2], rootRot: [0.15, 0.6, 0], spine: [0.1, 0.5, 0], handR: [0.25, 0.25, 0.95], aimR: 1, clavR: [0.1, 0.4], footL: [0.1, 0.071, 0.45] }, 'snap'],
+          [24, {}, 'lin'],
+          [52, null, 'inout'],
+        ]),
+        hit: { f: [19, 23], limb: 'forearmR', r: 0.16, dmg: 26, lvl: 'high', react: 'hitHigh', swing: 1, blk: -15, kd: true, push: 0.8 },
+        armor: [7, 16], // power crush
+        advance: [[0, 0], [10, 0.1], [20, 0.5], [52, 0.5]], sfx: 'heavy',
+      },
+      axe: {
+        name: 'Double axe handle', total: 52, clip: C([
+          [0, {}],
+          [12, { rootPos: [0, 0.02, -0.05], rootRot: [-0.3, -0.2, 0], spine: [-0.3, 0.1, 0], handL: [0.05, 0.95, 0.15], handR: [0.05, 0.95, 0.15], aimL: 1, aimR: 1, fistL: 1, fistR: 1 }, 'out'],
+          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], twistL: -0.19, twistR: -0.19, footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'snap'],
+          [25, {}, 'lin'],
+          [34, { rootPos: [0, -0.17, 0.05], rootRot: [0.16, -0.3, 0], spine: [0.2, 0.1, 0], handL: [0.0, 0.1, 0.55], handR: [-0.05, 0.12, 0.5], aimL: 0.5, aimR: 0.5, neck: [0.05, 0.05, 0] }, 'ret'],
+          [52, null, 'inout'],
+        ]),
+        hit: { f: [21, 24], limb: 'handR', r: 0.15, dmg: 21, lvl: 'mid', react: 'hitMid', blk: -15, kd: true, push: 0.4 },
+        armor: [8, 18], // power crush
+        advance: [[0, 0], [21, 0.3], [52, 0.3]], sfx: 'heavy',
+      },
+      suplex: {
+        name: 'Suplex', total: 36, throw: true, clip: C([
+          [0, {}],
+          [12, { handL: [0.3, 0.05, 0.9], handR: [0.3, 0.05, 0.9], aimL: 1, aimR: 1, fistL: 0.2, fistR: 0.2, rootPos: [0, -0.12, 0.1], rootRot: [0.15, 0, 0] }, 'snap'],
+          [36, {}, 'inout'],
+        ]),
+        hit: { f: [11, 13], limb: 'handL', r: 0.18, dmg: 0, lvl: 'throw', blk: -8 },
+        advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 42, throwType: 'suplex',
+      },
+    }),
+    // PUÑETALITY (js/fight/fatality.js): he scans the loser with a red fan of light from his eyes, says "acceso
+    // denegado, borrando usuario", plants his feet and charges his eyes; the beams strike the loser's chest and he
+    // sweeps them up to the face and down the body: the loser jolts, the skin and clothes glow red-hot where they are,
+    // the burn spreads from there, black, cracked with embers, and he catches fire. The beams go off; the loser burns,
+    // flailing, falls to his knees, charred, and crumbles to a pile of glowing ash from the head down. Orión wags his
+    // finger at the ashes: no, no. Frames: cut (the beams strike), beamOff, kneel, ash [from, to]; victim the loser's
+    // clips; the rest as the others'
+    fatal: {
+      len: 640, cut: 172, beamOff: 300, ash: [436, 536], title: 476, dist: 2.4, slow: [170, 174, 188, 210, 0.3],
+      say: 'Acceso denegado. Borrando usuario.', sayAt: 46, sayLen: 132,
+      victim: [[44, 'fatalFear', 10], [172, 'fatalBeamHit', 2], [300, 'fatalBurning', 10], [392, 'fatalBurnKneel', 6]],
+      clip: [
+        // standing tall, square to him, the fists loose at his sides
+        [0, { rootPos: [0, -0.02, 0], rootRot: [0, 0, 0], spine: [0, 0, 0], neck: [0.06, 0, 0],
+          handL: [0.22, -0.88, 0.06], aimL: 1, fistL: 0.6, twistL: 0, handR: [0.22, -0.88, 0.06], aimR: 1, fistR: 0.6, twistR: 0,
+          footL: [0.15, 0.071, 0.02], footR: [0.15, 0.071, -0.02], footRotL: [0, 0.1, 0], footRotR: [0, 0.1, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }],
+        // the scan: the head stepped down him and back up, like a machine's (the red fan of light sweeps him)
+        [11, { neck: [0.2, 0, 0] }, 'inout'],
+        [20, { neck: [0.2, 0, 0] }, 'lin'],
+        [28, { neck: [0.34, 0, 0] }, 'inout'],
+        [36, { neck: [0.34, 0, 0] }, 'lin'],
+        [44, { neck: [0.07, 0, 0] }, 'inout'],
+        // "acceso denegado": the right forefinger out at him, the head a little on one side
+        [58, { handR: [0.14, -0.05, 0.6], fistR: 1, ptR: 1, twistR: -1.2, wristR: [0.15, 0], poleR: [0.4, -1, -0.3], neck: [0.08, 0, 0.12] }, 'inout'],
+        [100, { handR: [0.14, -0.03, 0.62], neck: [0.08, 0, 0.1] }, 'sine'],
+        [118, { handR: [0.22, -0.88, 0.06], fistR: 0.6, ptR: 0, twistR: 0, wristR: [0, 0], poleR: [0.3, -1, -0.3], neck: [0.06, 0, 0] }, 'inout'],
+        // the charge: feet planted wide, knees bent, the fists clenched and held out from his sides, the chin down
+        [138, { rootPos: [0, -0.1, -0.02], rootRot: [0.04, 0, 0], spine: [0.04, 0, 0], neck: [0.22, 0, 0],
+          handL: [0.36, -0.66, 0.1], handR: [0.36, -0.66, 0.1], fistL: 1, fistR: 1, poleL: [0.6, -0.8, -0.3], poleR: [0.6, -0.8, -0.3],
+          footL: [0.24, 0.071, 0.12], footR: [0.24, 0.071, -0.16], footRotL: [0, 0.3, 0], footRotR: [0, 0.3, 0], kneeL: [0.25, 0, 1], kneeR: [0.25, 0, 1] }, 'inout'],
+        // (the head drawn back as it builds...)
+        [162, { rootPos: [0, -0.11, -0.05], spine: [-0.06, 0, 0], neck: [-0.05, 0, 0], handL: [0.4, -0.62, 0.06], handR: [0.4, -0.62, 0.06] }, 'in'],
+        // ... and thrust forward as they fire, on his chest; held, the body braced against it
+        [172, { rootPos: [0, -0.12, 0.03], spine: [0.1, 0, 0], neck: [0.17, 0, 0] }, 'snap'],
+        [176, { rootPos: [0, -0.115, -0.01] }, 'out'],
+        [200, { neck: [0.16, 0.03, 0] }, 'sine'],
+        // up to the face...
+        [226, { neck: [0.05, -0.04, 0] }, 'inout'],
+        // ... down the body to the belly...
+        [256, { neck: [0.27, 0.05, 0] }, 'inout'],
+        // ... and back up to the chest, side to side
+        [278, { neck: [0.15, -0.06, 0] }, 'inout'],
+        [292, { neck: [0.16, 0.04, 0] }, 'sine'],
+        // off: he straightens, the fists open a little; he watches him burn, the head tilted, curious
+        [312, { rootPos: [0, -0.04, 0], rootRot: [0, 0, 0], spine: [0, 0, 0], neck: [0.1, 0, 0], handL: [0.24, -0.86, 0.06], handR: [0.24, -0.86, 0.06], fistL: 0.6, fistR: 0.6,
+          footL: [0.2, 0.071, 0.08], footR: [0.2, 0.071, -0.1], footRotL: [0, 0.2, 0], footRotR: [0, 0.2, 0], kneeL: [0.12, 0, 1], kneeR: [0.12, 0, 1] }, 'inout'],
+        [346, { neck: [0.14, 0.05, 0.28] }, 'inout'],
+        [380, { neck: [0.14, 0.05, 0.28] }, 'lin'],
+        // he looks down at him on his knees
+        [404, { neck: [0.3, 0, 0] }, 'inout'],
+        [452, { neck: [0.38, 0, 0] }, 'sine'],
+        // the ashes: the right forefinger out at them and wagged, no, no
+        [486, { handR: [0.12, -0.1, 0.58], fistR: 1, ptR: 1, twistR: -1.2, wristR: [0.2, 0], poleR: [0.4, -1, -0.3], neck: [0.3, 0, 0.1] }, 'inout'],
+        [494, { wristR: [0.2, 0.45] }, 'inout'],
+        [502, { wristR: [0.2, -0.45] }, 'inout'],
+        [510, { wristR: [0.2, 0.45] }, 'inout'],
+        [518, { wristR: [0.2, -0.45] }, 'inout'],
+        [526, { wristR: [0.2, 0], neck: [0.2, 0, 0] }, 'inout'],
+        [552, { handR: [0.24, -0.86, 0.06], fistR: 0.6, ptR: 0, twistR: 0, wristR: [0, 0], poleR: [0.3, -1, -0.3], neck: [0.08, 0, 0] }, 'inout'],
+        // a slow scan, done
+        [572, { neck: [0.06, 0.5, 0] }, 'inout'],
+        [592, { neck: [0.06, 0.5, 0] }, 'lin'],
+        [612, { neck: [0.06, -0.3, 0] }, 'inout'],
+        [640, { neck: [0.06, -0.3, 0] }, 'lin'],
+      ],
+    },
+    // "clave incorrecta": square to the loser, the right forefinger out at him and wagged side to side, no, no, the
+    // head a little on one side; the arm down, and a slow scan of the head, a machine done with the job
+    win: [
+      [0, {}],
+      [18, { rootPos: [0, -0.02, 0], rootRot: [0, 0, 0], spine: [0, 0, 0], neck: [0.05, 0, 0],
+        handL: [0.22, -0.88, 0.06], aimL: 1, fistL: 0.7, handR: [0.12, 0.02, 0.6], aimR: 1, fistR: 1, ptR: 1, twistR: -1.2, wristR: [0.2, 0], poleR: [0.4, -1, -0.3],
+        footL: [0.16, 0.071, 0.02], footR: [0.16, 0.071, -0.02], footRotL: [0, 0.1, 0], footRotR: [0, 0.1, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }, 'inout'],
+      [26, { wristR: [0.2, 0.45], neck: [0.05, 0, 0.12] }, 'inout'],
+      [34, { wristR: [0.2, -0.45] }, 'inout'],
+      [42, { wristR: [0.2, 0.45] }, 'inout'],
+      [50, { wristR: [0.2, -0.45] }, 'inout'],
+      [58, { wristR: [0.2, 0.45] }, 'inout'],
+      [66, { wristR: [0.2, 0], neck: [0.05, 0, 0] }, 'inout'],
+      [100, { handR: [0.22, -0.88, 0.06], fistR: 0.7, ptR: 0, twistR: 0, wristR: [0, 0], poleR: [0.3, -1, -0.3] }, 'inout'],
+      [120, { neck: [0.05, 0.5, 0] }, 'inout'],
+      [140, { neck: [0.05, 0.5, 0] }, 'lin'],
+      [160, { neck: [0.05, -0.5, 0] }, 'inout'],
+      [180, { neck: [0.05, -0.5, 0] }, 'lin'],
+      [196, { neck: [0.1, 0, 0] }, 'inout'],
     ],
   },
   dani: {
