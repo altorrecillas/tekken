@@ -1,7 +1,7 @@
 // Puños de Barrio — main game shell.
 import * as THREE from 'three';
 import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
-import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, LOD } from './charloader.js';
+import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, texturesPending, LOD } from './charloader.js';
 import { makeFighterMaterial, makeFighterKey, applyCostume, FIGHTER_KEY } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
 import { StreetStage } from './stage/street.js';
@@ -66,6 +66,26 @@ const STAGES = {
     grade: { sat: 1.12, slope: [0.98, 1.0, 1.05] } },
 };
 const STAGE_KEYS = Object.keys(STAGES);
+// tips on the loading card
+const TIPS = [
+  'Mantén ATRÁS para bloquear los golpes altos y medios; ABAJO-ATRÁS bloquea los bajos.',
+  'Toca ARRIBA o ABAJO para esquivar de lado, y ADELANTE dos veces para un dash.',
+  'Agarre: 1+3 o 2+4. Para zafarte, pulsa 1 o 2 justo cuando te agarran.',
+  'Cuando la barra de vida brilla en rojo tienes furia: 1+2+3+4 lanza tu RAGE ART.',
+  'Al ganar, pulsa el botón PUÑETALITY (o ARRIBA + un golpe) para rematar al rival.',
+  'En la selección de luchador, Q / E (o L1 / R1 en el mando) cambian el traje.',
+  'Gana el arcade con un luchador y desbloquearás su traje de CAMPEÓN.',
+  'CONTINUAR, en el título, retoma tu arcade justo donde lo dejaste.',
+  'En ENTRENAMIENTO tienes las pruebas de combos de cada luchador.',
+  'VERSUS ONLINE: dos móviles en la misma WiFi se encuentran solos, o con un código.',
+  'ESC / START: pausa y lista de movimientos de tu luchador.',
+  'Los controles se cambian en OPCIONES o desde la pausa, en CONTROLES.',
+  'ALEATORIO, en la pantalla de escenarios, gira la ruleta; en el arcade, cada combate cae en uno distinto.',
+  'Orión no acepta contraseñas débiles.',
+  'Rafa dice que irá despacito. No te fíes.',
+  'Noemí siempre lleva áloe vera encima. Por si acaso.',
+  'Zapponi lo hace todo espectacular, vale.',
+];
 // each stage's picture on the stage select (tools/stageshots.sh: the stage alone, as the fight camera sees it)
 const stageShot = (k) => `assets/stages/${k}.webp`;
 const MAIN_STAGE = STAGE_KEYS[0];
@@ -973,31 +993,47 @@ class Game {
     const stale = () => seq !== this.fightSeq;
     this.state = 'loading';
     this.menu = null;
-    $('#fade .txt').textContent = 'CARGANDO…';
-    // loading card: who fights next (and where in the arcade ladder), shown until the fight is ready
+    // loading card: who fights whom (and where in the arcade ladder), on the stage they go to, a bar that fills as it
+    // loads; it comes up only if the load takes a moment, and then stays long enough to be read (loadCard)
+    const stageKey = this.stageFor(opts);
     const vs = $('#fadeVs'), stp = $('#fadeStep');
     if (vs) vs.textContent = `${this.meta[id1]?.display || id1}  vs  ${this.meta[id2]?.display || id2}`;
     if (stp) stp.textContent = this.mode === 'arcade' && this.arcade ? `COMBATE ${this.arcade.stage + 1} DE ${this.arcade.ladder.length}` : opts.online ? `VERSUS ONLINE · ${this.online.names().join('  vs  ')}` : opts.replay ? 'REPETICIÓN' : '';
+    const card = this.loadCard(id1, id2, stageKey);
     this.fade(true);
     await new Promise(r => setTimeout(r, 380));
-    if (stale()) return;
-    const busy = setTimeout(() => { if (!stale()) $('#fade').classList.add('busy'); }, 120);
-    const done = () => { clearTimeout(busy); $('#fade').classList.remove('busy'); };
+    if (stale()) { card.hide(true); return; }
+    const busy = setTimeout(() => { if (!stale()) card.show(); }, 120);
+    const done = (now) => { clearTimeout(busy); return card.hide(now); };
     this.audio.preloadVoices([id1, id2]);
-    try { await Promise.all([this.ensureChar(id1), this.ensureChar(id2)]); }
-    catch (e) { if (stale()) return; done(); if (opts.online) { opts.online.fail(); return; } this.fade(false); this.showOverlay('<h3>SIN CONEXIÓN</h3><p>No se pudo descargar un luchador. Revisa la conexión e inténtalo de nuevo.</p>', () => this.startFight(id1, id2, opts), () => this.backToTitle(), { ok: 'REINTENTAR', back: 'MENÚ' }); return; }
-    if (stale()) return;
+    // the fighters' meshes (the bar climbs as each one arrives)
+    let got = 0;
+    const one = (id) => this.ensureChar(id).then((d) => { got++; card.set(0.05 + 0.25 * got / 2); return d; });
+    try { await Promise.all([one(id1), one(id2)]); }
+    catch (e) { if (stale()) return; done(true); if (opts.online) { opts.online.fail(); return; } this.fade(false); this.showOverlay('<h3>SIN CONEXIÓN</h3><p>No se pudo descargar un luchador. Revisa la conexión e inténtalo de nuevo.</p>', () => this.startFight(id1, id2, opts), () => this.backToTitle(), { ok: 'REINTENTAR', back: 'MENÚ' }); return; }
+    if (stale()) { done(true); return; }
     this.clearFighters();
-    const stageKey = this.stageFor(opts);
-    // (setStage returns the build already under way, when the stage select started it)
+    // the stage (setStage returns the build already under way, when the stage select started it)
+    card.set(0.32, 'PREPARANDO EL ESCENARIO…');
+    await new Promise((r) => setTimeout(r, 0)); // (the card is painted before a stage's build holds the page)
     if (stageKey !== this.stageKey || this._stageBuild) await this.setStage(stageKey);
     this.audio.ambience(STAGES[stageKey].amb);
-    if (stale()) return;
+    if (stale()) { done(true); return; }
+    // their textures: the bar counts them down as they arrive
+    card.set(0.55, 'CARGANDO TEXTURAS…');
     const chars = [this.makeFighterModel(id1, opts.costumes?.[0]), this.makeFighterModel(id2, opts.costumes?.[1])];
     chars.forEach(c => this.scene.add(c.group));
+    const n0 = Math.max(1, texturesPending());
+    const tick = setInterval(() => card.set(0.55 + 0.33 * (1 - texturesPending() / n0)), 120);
     await texturesReady();
-    if (stale()) { chars.forEach(c => { this.scene.remove(c.group); c.group.traverse(o => o.geometry?.dispose?.()); }); return; }
-    done();
+    clearInterval(tick);
+    if (stale()) { done(true); chars.forEach(c => { this.scene.remove(c.group); c.group.traverse(o => o.geometry?.dispose?.()); }); return; }
+    // the shaders built now, behind the card (in parallel where the browser can), not in the fight's first frames
+    card.set(0.9, 'PREPARANDO LA IMAGEN…');
+    try { await this.renderer.compileAsync?.(this.scene, this.camera); } catch (e) { /* built on first use */ }
+    card.set(1, '¡LISTO!');
+    await done();
+    if (stale()) return;
     if (opts.online) { this.onlineFight(chars, id1, id2, opts); return; }
     if (opts.replay) { this.replayFight(chars, id1, id2, opts); return; }
     // arcade and versus fights are deterministic (det: nothing but the inputs counts, as online) and recorded, so
@@ -1052,6 +1088,36 @@ class Game {
     if (this.mode === 'arcade') { this.arcadeLive = true; this.saveArcade(); }
   }
   fade(on) { $('#fade').classList.toggle('on', on); }
+  // the loading card of a fight: both fighters (portrait, name, title), VS, the stage's picture behind and its name,
+  // the bar and what is being done, a tip that changes every few seconds. show() brings it up; hide() takes it away,
+  // once it has been up a little under a second (hide(true): at once)
+  loadCard(id1, id2, stageKey) {
+    const root = $('#fade'), ld = root.querySelector('.ld');
+    ld.querySelectorAll('.ld-f').forEach((el, k) => {
+      const id = k ? id2 : id1;
+      el.querySelector('img').src = this.portraits[id] || '';
+      el.querySelector('.nm').textContent = this.meta[id]?.display || id;
+      el.querySelector('.tt').textContent = (STYLES[id]?.title || '').toUpperCase();
+    });
+    const st = STAGES[stageKey] || STAGES[MAIN_STAGE];
+    ld.querySelector('.ld-bg').style.backgroundImage = `url(${stageShot(STAGES[stageKey] ? stageKey : MAIN_STAGE)})`;
+    ld.querySelector('.ld-stage').innerHTML = `${st.name}<small>${st.sub}</small>`;
+    const bar = ld.querySelector('.ld-bar i'), txt = ld.querySelector('.txt'), tip = ld.querySelector('.ld-tip');
+    let label = 'CARGANDO LUCHADORES…', p = 0, shownAt = 0, tipT = null, k = Math.floor(Math.random() * TIPS.length);
+    const paint = () => { bar.style.width = `${Math.round(p * 100)}%`; txt.innerHTML = `${label}<b>${Math.round(p * 100)}%</b>`; };
+    const nextTip = () => { tip.style.opacity = 0; setTimeout(() => { k = (k + 1) % TIPS.length; tip.innerHTML = `<em>CONSEJO</em>${TIPS[k]}`; tip.style.opacity = 1; }, 400); };
+    tip.innerHTML = `<em>CONSEJO</em>${TIPS[k]}`; tip.style.opacity = 1;
+    bar.style.transition = 'none'; p = 0.04; paint(); void bar.offsetWidth; bar.style.transition = '';
+    return {
+      set(v, l) { p = Math.max(p, Math.min(1, v)); if (l) label = l; paint(); },
+      show() { if (shownAt) return; shownAt = performance.now(); root.classList.add('busy'); tipT = setInterval(nextTip, 4500); },
+      async hide(now) {
+        clearInterval(tipT);
+        if (shownAt && !now) { const w = 900 - (performance.now() - shownAt); if (w > 0) await new Promise((r) => setTimeout(r, w)); }
+        root.classList.remove('busy');
+      },
+    };
+  }
 
   // ------------------------------------------------------------------ continue (arcade)
   // The arcade run is kept on the device until it is won or a new one starts: the ladder, its difficulty and,

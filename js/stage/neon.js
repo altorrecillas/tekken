@@ -159,12 +159,16 @@ export class NeonStage {
     this.sunDir = new THREE.Vector3(-0.35, 0.82, 0.45).normalize();
     this.signs = [];
     this.rainOn = quality !== 'low';
-    this.buildSky(); this.buildLights(); this.buildGround(); this.buildTowers(); this.buildSkyline(); this.buildShops(); this.buildSigns(); this.buildHologram();
-    this.buildLamps(); this.buildStreetProps(); this.buildCables(); this.buildSteam(); this.buildTraffic();
-    if (this.rainOn) this.buildRain();
+    // (the sky and the lights now, everything else in ready(), a part at a time with a breath between them: the page
+    // and its loading card keep moving while the street is made)
+    this.buildSky(); this.buildLights();
     scene.fog = new THREE.FogExp2(new THREE.Color(0.1, 0.06, 0.16), 0.022);
   }
-  ready() { return Promise.resolve(); }
+  async ready() {
+    const steps = [() => this.buildGround(), () => this.buildTowers(), () => this.buildSkyline(), () => this.buildShops(), () => this.buildSigns(), () => this.buildHologram(),
+      () => this.buildLamps(), () => this.buildStreetProps(), () => this.buildCables(), () => this.buildSteam(), () => this.buildTraffic(), () => this.rainOn && this.buildRain()];
+    for (const f of steps) { f(); await new Promise((r) => setTimeout(r, 0)); }
+  }
 
   // walkable: the roadway and the pavements, between the kerb-side lamps
   clampWalk(p, r = 0) {
@@ -554,7 +558,7 @@ export class NeonStage {
     const o = new THREE.Object3D();
     this.animated.push((dt) => {
       splashes.forEach((s, i) => {
-        s.age += dt; if (s.age > 0.4) { s.age = 0; s.x = rnd(-7, 7); s.z = rnd(-6, 6); }
+        s.age += dt; if (s.age > 0.4) { s.age = 0; s.x = Math.random() * 14 - 7; s.z = Math.random() * 12 - 6; } // (not the seeded rnd: the street is still being built between frames)
         const k = s.age / 0.4, sc = 0.04 + k * 0.18;
         o.position.set(s.x, 0.02, s.z); o.scale.set(sc, 1, sc); o.updateMatrix(); inst.setMatrixAt(i, o.matrix);
       });

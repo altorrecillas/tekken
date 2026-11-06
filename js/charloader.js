@@ -9,6 +9,8 @@ const texCache = new Map();
 const pending = new Set();
 
 export function texturesReady() { return Promise.all([...pending]); }
+// (how many textures are still on their way: the loading card's bar counts them down)
+export function texturesPending() { return pending.size; }
 
 function loadTex(url, srgb = true) {
   const key = url + (srgb ? '|s' : '|l');

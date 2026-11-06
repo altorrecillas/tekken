@@ -254,11 +254,15 @@ export class CoreStage {
     this.sunDir = new THREE.Vector3(-0.15, 0.85, 0.5).normalize();
     // (one clock for every RGB light of the case, so they all run through the colours together, and beat together)
     this.rgbU = { uTime: { value: 0 }, uPulse: { value: 0 } };
-    this.buildLights(); this.buildCase(); this.buildCard(); this.buildBoard(); this.buildPump(); this.buildMemory(); this.buildPowerStage();
-    this.buildConnectors(); this.buildFans(); this.buildRoom(); this.buildDust();
+    // (the lights now, the case and its parts in ready(), a part at a time with a breath between them)
+    this.buildLights();
     scene.fog = new THREE.FogExp2(new THREE.Color(0.015, 0.025, 0.04), 0.012);
   }
-  ready() { return Promise.resolve(); }
+  async ready() {
+    const steps = [() => this.buildCase(), () => this.buildCard(), () => this.buildBoard(), () => this.buildPump(), () => this.buildMemory(), () => this.buildPowerStage(),
+      () => this.buildConnectors(), () => this.buildFans(), () => this.buildRoom(), () => this.buildDust()];
+    for (const f of steps) { f(); await new Promise((r) => setTimeout(r, 0)); }
+  }
   clampWalk(p, r = 0) {
     p.x = THREE.MathUtils.clamp(p.x, WX0 + r, WX1 - r);
     p.z = THREE.MathUtils.clamp(p.z, WZ0 + r, WZ1 - r);

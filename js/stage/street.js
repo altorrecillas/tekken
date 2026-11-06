@@ -10,7 +10,8 @@ const pending = [];
 function tex(name, { repeat = [1, 1], srgb = true } = {}) {
   let done;
   pending.push(new Promise(r => { done = r; setTimeout(r, 20000); }));
-  const t = loader.load(TEX + name, () => done(), undefined, () => done());
+  // (the JPEGs are the sources; the game downloads their WebP, about 40 % smaller: tools/webpassets.py)
+  const t = loader.load(TEX + name.replace(/\.jpg$/, '.webp'), () => done(), undefined, () => done());
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(...repeat);
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
