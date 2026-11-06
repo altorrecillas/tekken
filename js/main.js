@@ -10,6 +10,7 @@ import { FestivalStage } from './stage/festival.js';
 import { NeonStage } from './stage/neon.js';
 import { CoreStage } from './stage/core.js';
 import { PostFX } from './engine/post.js';
+import { setupOffline } from './engine/offline.js';
 import { FX, setFxViewHeight } from './fx/fx.js';
 import { HUD } from './ui/hud.js';
 import { Audio } from './audio/audio.js';
@@ -256,6 +257,13 @@ class Game {
     // the first screen only waits for the code, the stage and the menus' small files: the title comes up over the
     // stage, the two fighters of its backdrop walk in as soon as they have arrived and the rest of the roster follows
     // quietly, one at a time (a fighter is 5 to 8 MB: all of them first made a phone wait half a minute)
+    // the game kept on the phone (published site only): a newer version stored and waiting shows a button to switch
+    setupOffline((apply) => {
+      if (document.querySelector('#swUpdate')) return;
+      const b = document.createElement('button'); b.id = 'swUpdate'; b.textContent = 'NUEVA VERSIÓN DISPONIBLE · TOCA PARA ACTUALIZAR';
+      b.onclick = () => { b.disabled = true; b.textContent = 'ACTUALIZANDO…'; apply(); };
+      document.body.appendChild(b);
+    });
     this.stagePick = STAGES[q.get('stage')] ? q.get('stage') : MAIN_STAGE;
     say(`Preparando ${STAGES[this.stagePick].name.toLowerCase().replace(/^./, (c) => c.toUpperCase())}…`);
     const LM = THREE.DefaultLoadingManager;

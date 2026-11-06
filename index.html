@@ -190,6 +190,8 @@ button { touch-action: manipulation; }
 .ss-card.pick { animation: ssPick .5s ease-out; }
 #ssHint { position: absolute; bottom: 1.2%; width: 100%; text-align: center; font-size: 14px; letter-spacing: .08em; color: rgba(255,255,255,.62); text-shadow: 0 1px 2px #000; pointer-events: none; font-family: 'Rajdhani'; font-weight: 600; }
 
+/* a newer version stored on the phone: tap to switch (js/engine/offline.js) */
+#swUpdate { position: fixed; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); z-index: 70; font-family: 'Teko'; font-size: 18px; letter-spacing: .14em; color: #111; background: linear-gradient(180deg, #fff6c2, var(--gold)); border: 0; padding: 6px 18px 3px; cursor: pointer; box-shadow: 0 0 18px rgba(255,170,40,.6), 0 3px 0 #000; }
 /* ---------- HUD ---------- */
 #hud { z-index: 10; pointer-events: none; }
 .hpwrap { position: absolute; top: max(2.2vh, env(safe-area-inset-top)); width: calc(42% - 70px); }
@@ -885,6 +887,7 @@ body.touchui #fatalBtn .h { display: none; }
 <link rel="modulepreload" href="js/net/signal.js">
 <link rel="modulepreload" href="js/anim/poses.js">
 <link rel="modulepreload" href="vendor/three/jsm/lights/SunLight.js">
+<link rel="modulepreload" href="js/engine/offline.js">
 <link rel="modulepreload" href="js/net/config.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/LuminosityHighPassShader.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/CopyShader.js">

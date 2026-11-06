@@ -278,6 +278,8 @@ subir() {
   local rprin; rprin=$(awk '/^ref:/ { sub("refs/heads/", "", $2); print $2 }' <<<"$remoto")
   if [ -n "$rprin" ] && ! git rev-parse -q --verify HEAD >/dev/null; then git symbolic-ref HEAD "refs/heads/$rprin"; fi
 
+  # el juego guardado en el móvil (sw.js): la lista de ficheros con su huella, al día con lo que se sube
+  [ -f tools/swbuild.py ] && command -v python3 >/dev/null 2>&1 && python3 tools/swbuild.py >&2 || true
   git add -A
   # ficheros del asistente de IA: fuera, si quieres (la subida es tuya)
   local claude; claude=$(git diff --cached --name-only | grep -E '(^|/)(\.claude/|CLAUDE\.md$|\.mcp\.json$)' || true)
