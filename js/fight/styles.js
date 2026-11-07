@@ -1,4 +1,5 @@
 // Per-fighter fighting styles: stance variations, stats, unique moves, intros and victory poses.
+import { PADP, PAD_MOVE, padGrips } from './padpath.js';
 const GUARD_L = [0.02, 0.2, 0.62], GUARD_R = [-0.08, 0.3, 0.44];
 
 const RESET = { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], neck: [0.16, 0.2, 0],
@@ -44,6 +45,14 @@ export const STYLES = {
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
     hairSway: 0.8, // how far the hair swings with the head: the topknot and its tail (js/anim/hairsway.js)
     aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3'], juggle: ['1', '2', '4'],
+    // a natural kickboxer's guard: standing up straight (the default one, js/anim/poses.js STANCE, leant him forward
+    // from the hips, the head pushed out and the chin tucked), the knees just soft, the fists at the chin and close
+    // to him (the default held the rear one 10 cm under the head: from the side where that hand is nearer the camera
+    // it hid his face)
+    // (upright, but not set back: straight up he stood 9 cm further back than everyone else's reach was tuned for, and
+    // the combos of the trials stopped reaching him)
+    stance: { rootPos: [0, -0.07, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.12, 0.11, 0], neck: [0.1, 0.18, 0],
+      hgPosL: [0.07, -0.13, 0.3], hgPosR: [0.1, -0.18, 0.12] }, // (the rear fist 23 cm out: closer, it was in his chest)
     bob: 0.022,
     onetwoFinish: 'roundhouse',
     commands: [['b+4', 'spinKick'], ['f+3', 'knee'], ['1+2', 'tattooCombo']],
@@ -62,17 +71,18 @@ export const STYLES = {
           [9, { footR: [-0.1, 0.3, -0.18], kneeR: [0.45, 0.2, -0.8] }, 'inout'],
           [12, { rootPos: [0, -0.05, 0], rootRot: [0.3, -2.7, 0], spine: [0.2, 0.5, 0], neck: [0, 1.0, 0], footL: [0.02, 0.071, 0.18], footRotL: [0.3, -2.3, 0],
             footR: [-0.03, 0.62, -0.18], kneeR: [-0.1, 0.3, -0.95], footRotR: [0.4, 0, 0], handL: [0.4, -0.05, 0.25], handR: [0.4, 0.0, 0.1] }, 'inout'],
-          // the leg drives straight back from its own hip (aimed at the centre line it crossed over the support
-          // thigh), the trunk tipping further forward as counterweight (a hip opens only so far behind) while the
-          // head stays up on the target; the support knee bends away over its toes instead of towards the kick
-          [20, { rootPos: [0, -0.04, 0.02], rootRot: [0.9, -3.1, 0.05], spine: [0.2, 0.45, 0.1], neck: [-0.3, 1.1, 0], kneeL: [-0.3, 0.2, -0.9], footRotL: [0.35, -2.6, 0],
-            footR: [-0.03, 0.8, 0.9], kneeR: [-0.1, -1, 0.2], footRotR: [1.2, 0, 0], handL: [0.42, -0.12, 0.3], handR: [0.46, 0.0, 0.1] }, 'drive'],
+          // the leg drives straight back from its own hip, the heel first. The hips stop a little short of square
+          // to the back (a side-on back kick: the leg comes out sideways from the hip as well as behind it, so the
+          // trunk only has to tip 40 degrees away instead of 60, when he looked like falling over backwards) and
+          // they roll over the support leg; the head stays up and on the target over the shoulder
+          [20, { rootPos: [0, -0.05, 0.02], rootRot: [0.8, -3.08, 0.06], spine: [0.16, 0.45, 0.1], neck: [-0.12, 1.0, -0.15], kneeL: [-0.25, 0.2, -0.9], footRotL: [0.3, -2.3, 0],
+            footR: [-0.03, 0.8, 0.9], kneeR: [-0.1, -1, 0.2], footRotR: [1.2, 0, 0], handL: [0.42, -0.12, 0.3], handR: [0.46, 0.05, 0.1] }, 'drive'],
           [24, {}, 'lin'],
           // re-chamber two frames sooner, so that the unwinding to the guard is spread over more frames (squeezed
           // into seven, the knee whipped round)
-          [32, { rootPos: [0, -0.06, 0], rootRot: [0.35, -2.6, 0], spine: [0.15, 0.4, 0], neck: [0, 0.8, 0], kneeL: [0.15, 0, 1], footRotL: [0.25, -2.3, 0],
+          [34, { rootPos: [0, -0.06, 0], rootRot: [0.35, -2.6, 0], spine: [0.15, 0.4, 0], neck: [0, 0.8, 0], kneeL: [0.15, 0, 1], footRotL: [0.25, -2.3, 0],
             footR: [-0.03, 0.55, -0.12], kneeR: [0.43, 0.3, -0.9], footRotR: [0.4, 0, 0] }, 'inout'],
-          [41, { rootPos: [0, -0.09, -0.02], rootRot: [0.12, -1.2, 0], spine: [0.1, 0.2, 0], neck: [0.1, 0.5, 0], footRotL: [0.1, -1.0, 0],
+          [42, { rootPos: [0, -0.09, -0.02], rootRot: [0.12, -1.2, 0], spine: [0.1, 0.2, 0], neck: [0.1, 0.5, 0], footRotL: [0.1, -1.0, 0],
             footR: [0.25, 0.071, -0.15], kneeR: [0.5, 0, 1], footRotR: [0.3, 0.65, 0], handL: [0.02, 0.2, 0.62], handR: [-0.08, 0.3, 0.44], aimL: 0, aimR: 0 }, 'inout'],
           [48, null, 'inout'],
         ]),
@@ -275,6 +285,63 @@ export const STYLES = {
     }),
     // "¡en mi consola esto era más difícil!": thumbs mashing an invisible gamepad, eyes down on it; he looks up to say
     // it, then raises his fist like a final boss beaten
+    // PUÑETALITY (js/fight/fatality.js ALEIX, the controller js/fx/gamepad.js, its path js/fight/padpath.js): he cracks
+    // his knuckles, takes a controller out from behind his back and plays a little, then lifts it over his head as it
+    // grows to giant size, says his line and slams it down on the loser, flattening him; he makes it rumble with an
+    // invisible one (the blood squeezed out at its edges with each pulse), and it breaks up into pixels: what is left
+    // is a stain. His hands are on it (fatal.grip, from its path) from when he holds it in both until he throws it
+    fatal: {
+      len: 600, cut: PADP.land, title: 420, dist: PADP.dist, slow: [[192, 199, 212, 236, 0.25]],
+      say: 'Fin de la partida.', sayAt: 154, sayLen: 62,
+      victim: [[92, 'fatalWatch', 12], [124, 'fatalLookUp', 10]], still: PADP.land + 2,
+      move: PAD_MOVE,
+      grip: padGrips(),
+      clip: [
+        [0, { rootPos: [0, -0.02, 0], rootRot: [0, -0.12, 0], spine: [-0.02, 0.04, 0], neck: [0.08, 0.1, 0], handL: [0.22, -0.86, 0.06], handR: [0.22, -0.86, 0.06], aimL: 1, aimR: 1, fistL: 0.4, fistR: 0.4, twistL: 0, twistR: 0, thL: 0, thR: 0, poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5],
+          footL: [0.14, 0.071, 0.1], footR: [0.15, 0.071, -0.1], footRotL: [0, 0.1, 0], footRotR: [0, 0.25, 0], kneeL: [0.1, 0, 1], kneeR: [0.12, 0, 1] }],
+        // the fingers laced in front of his chest, pushed out: the knuckles crack (twice)
+        [14, { handL: [-0.24, -0.25, 0.62], handR: [-0.24, -0.25, 0.62], twistL: 0.3, twistR: 0.3, fistL: 0.5, fistR: 0.5, poleL: [0.3, -1, -0.2], poleR: [0.3, -1, -0.2], neck: [0.14, 0, 0] }, 'inout'],
+        [22, { handL: [-0.22, -0.12, 0.9], handR: [-0.22, -0.12, 0.9], twistL: -1.2, twistR: -1.2, fistL: 0.3, fistR: 0.3, spine: [0.02, 0, 0] }, 'out'],
+        [27, { handL: [-0.22, -0.15, 0.8], handR: [-0.22, -0.15, 0.8] }, 'sine'],
+        [32, { handL: [-0.22, -0.11, 0.92], handR: [-0.22, -0.11, 0.92] }, 'out'],
+        // the right hand behind his back, to the controller in his back pocket
+        [42, { handR: [0.16, -0.62, -0.26], poleR: [0.5, -0.6, -0.6], fistR: 0.55, twistR: 0, handL: [0.24, -0.82, 0.08], twistL: 0, fistL: 0.4, rootRot: [0, -0.28, 0], neck: [0.1, 0.18, 0] }, 'inout'],
+        [50, { fistR: 0.75 }, 'inout'],
+        // out it comes, both hands on it: he plays (his hands on its grips: fatal.grip)
+        [60, { handL: [0.11, -0.42, 0.44], handR: [0.11, -0.42, 0.44], aimL: 1, aimR: 1, fistL: 0.6, fistR: 0.6, twistL: -0.5, twistR: -0.5, thL: 0.6, thR: 0.6, poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5], rootRot: [0.03, 0, 0], spine: [0.08, 0, 0], neck: [0.32, 0, 0] }, 'inout'],
+        [64, { thL: 1, thR: 0.3 }, 'sine'], [70, { thL: 0.3, thR: 1 }, 'sine'], [76, { thL: 1, thR: 0.3 }, 'sine'], [82, { thL: 0.3, thR: 1 }, 'sine'], [88, { thL: 1, thR: 0.3 }, 'sine'],
+        // a look up at the loser, still playing
+        [96, { neck: [0.06, 0.04, 0], thL: 0.6, thR: 0.6 }, 'inout'],
+        [100, { thL: 1, thR: 0.3 }, 'sine'], [104, { thL: 0.3, thR: 1 }, 'sine'],
+        // up it goes as it grows: overhead, palms up under it, the knees giving a little under the weight
+        [122, { neck: [-0.15, 0, 0], spine: [-0.04, 0, 0], handL: [0.0, 0.3, 0.45], handR: [0.0, 0.3, 0.45], fistL: 0.25, fistR: 0.25, thL: 0, thR: 0, twistL: 0.4, twistR: 0.4, poleL: [1, -0.2, -0.3], poleR: [1, -0.2, -0.3] }, 'inout'],
+        [136, { handL: [-0.06, 0.98, 0.12], handR: [-0.06, 0.98, 0.12], twistL: 1.3, twistR: 1.3, fistL: 0.15, fistR: 0.15, poleL: [1, 0.2, -0.3], poleR: [1, 0.2, -0.3],
+          neck: [-0.38, 0, 0], spine: [-0.12, 0, 0], rootPos: [0, -0.05, 0], kneeL: [0.12, 0, 1], kneeR: [0.13, 0, 1], footL: [0.18, 0.071, 0.08], footR: [0.18, 0.071, -0.08] }, 'inout'],
+        // holding it up, heavy; he looks down at the loser and says his line
+        [152, { neck: [0.12, 0, 0], spine: [-0.1, 0, 0], rootPos: [0, -0.08, 0] }, 'inout'],
+        [166, { rootPos: [0, -0.1, 0], neck: [0.14, 0.03, 0] }, 'sine'],
+        [180, { rootPos: [0, -0.07, 0], neck: [0.12, -0.02, 0] }, 'sine'],
+        // back to throw, then over and down with all his weight, a step in
+        [190, { spine: [-0.22, 0, 0], rootRot: [-0.08, 0, 0], rootPos: [0, -0.06, -0.04], neck: [0.02, 0, 0] }, 'inout'],
+        [196, { spine: [0.35, 0, 0], rootRot: [0.25, 0, 0], rootPos: [0, -0.16, 0.05], neck: [0.25, 0, 0], handL: [-0.1, 0.1, 0.95], handR: [-0.1, 0.1, 0.95],
+          footL: [0.16, 0.071, 0.3], footR: [0.17, 0.071, -0.2], kneeL: [0.16, 0, 1], kneeR: [0.12, 0, 1] }, 'in'],
+        [206, { spine: [0.5, 0, 0], rootRot: [0.34, 0, 0], rootPos: [0, -0.24, 0.08], neck: [0.3, 0, 0], handL: [-0.08, -0.32, 0.86], handR: [-0.08, -0.32, 0.86], fistL: 0.2, fistR: 0.2, twistL: 0.2, twistR: 0.2, poleL: [0.6, -1, -0.2], poleR: [0.6, -1, -0.2] }, 'out'],
+        // up again, looking down at it
+        [226, { spine: [0.1, 0, 0], rootRot: [0.05, 0, 0], rootPos: [0, -0.04, 0], neck: [0.36, 0, 0], handL: [0.22, -0.86, 0.06], handR: [0.22, -0.86, 0.06], aimL: 1, aimR: 1, fistL: 0.4, fistR: 0.4, twistL: 0, twistR: 0, thL: 0, thR: 0, poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5],
+          footL: [0.15, 0.071, 0.14], footR: [0.16, 0.071, -0.12] }, 'inout'],
+        // he plays an invisible one: it rumbles (three pulses, on 262, 282 and 302)
+        [246, { handL: [0.11, -0.42, 0.44], handR: [0.11, -0.42, 0.44], aimL: 1, aimR: 1, fistL: 0.6, fistR: 0.6, twistL: -0.5, twistR: -0.5, thL: 0.6, thR: 0.6, poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5], neck: [0.24, 0, 0], spine: [0.06, 0, 0] }, 'inout'],
+        [252, { thL: 1, thR: 0.3 }, 'sine'], [257, { thL: 0.3, thR: 1 }, 'sine'], [262, { thL: 1, thR: 0.3 }, 'sine'], [267, { thL: 0.3, thR: 1 }, 'sine'], [272, { thL: 1, thR: 0.3 }, 'sine'], [277, { thL: 0.3, thR: 1 }, 'sine'], [282, { thL: 1, thR: 0.3 }, 'sine'], [287, { thL: 0.3, thR: 1 }, 'sine'], [292, { thL: 1, thR: 0.3 }, 'sine'], [297, { thL: 0.3, thR: 1 }, 'sine'], [302, { thL: 1, thR: 0.3 }, 'sine'], [307, { thL: 0.3, thR: 1 }, 'sine'], [312, { thL: 1, thR: 0.3 }, 'sine'], [317, { thL: 0.3, thR: 1 }, 'sine'],
+        // he lets it go and watches it break up
+        [330, { handL: [0.22, -0.86, 0.06], handR: [0.22, -0.86, 0.06], aimL: 1, aimR: 1, fistL: 0.4, fistR: 0.4, twistL: 0, twistR: 0, thL: 0, thR: 0, poleL: [0.2, -1, -0.5], poleR: [0.2, -1, -0.5], neck: [0.18, 0.05, 0], spine: [0, 0, 0] }, 'inout'],
+        // GG: a fist up, as when he wins
+        [398, { handR: [0.3, 0.8, 0.3], fistR: 1, thR: 0, twistR: 1.5, handL: [0.25, -0.65, 0.15], fistL: 0.4, neck: [-0.15, 0, 0] }, 'back'],
+        [418, { handR: [0.4, 0.75, 0.25] }, 'sine'],
+        [438, { handR: [0.25, 0.85, 0.3] }, 'sine'],
+        [458, { handR: [0.4, 0.75, 0.25] }, 'sine'],
+        [600, { handR: [0.3, 0.8, 0.28] }, 'sine'],
+      ],
+    },
     win: [
       [0, {}],
       [22, { rootPos: [0, 0, 0], rootRot: [0.03, 0, 0], spine: [0.08, 0, 0], neck: [0.3, 0, 0],
@@ -320,8 +387,15 @@ export const STYLES = {
           // (the left arm swings back wide of the body: from the guard straight to behind the hip it went through
           // the belly)
           [6, { rootPos: [0, -0.1, 0.05], rootRot: [0.25, -0.3, 0], footR: [0.18, 0.2, -0.05], handL: [0.3, -0.38, -0.18], handR: [0.1, 0.1, 0.5], aimL: 1, aimR: 1 }, 'inout'],
+          // out of the run the knee drives up high in front, the foot tucked under it and the trunk coming upright
+          // (the leg used to rise straight out of the stride over twelve frames: a knee lift, not a kick)...
+          [12, { rootPos: [0, -0.06, 0.09], rootRot: [0.02, -0.36, 0], spine: [0.16, 0.1, 0], footR: [0.12, 0.56, 0.36], kneeR: [0.1, 0.9, 0.7], footRotR: [-0.45, 0, 0], toeR: -0.2,
+            handL: [0.2, -0.05, 0.3], handR: [0.16, -0.45, -0.1], neck: [0.3, 0.12, 0] }, 'inout'],
+          // ... and the leg drives out from it, the sole first, the hips thrown in behind it
           [18, { rootPos: [0, -0.02, 0.12], rootRot: [-0.35, -0.4, 0], spine: [0.2, 0.1, 0], footR: [0.02, 0.88, 0.98], kneeR: [0.1, 1, 0.5], footRotR: [-1.3, 0, 0], toeR: -0.5, handL: GUARD_L, handR: [0.18, -0.8, -0.38], aimL: 0, aimR: 0, poleR: [0.2, 0, -1], neck: [0.45, 0.15, 0] }, 'drive'],
           [22, {}, 'lin'],
+          // the knee folds back before the foot comes down in front (it hung out straight for a quarter of a second)
+          [30, { rootPos: [0, -0.06, 0.09], rootRot: [-0.05, -0.38, 0], footR: [0.12, 0.5, 0.42], kneeR: [0.1, 0.8, 0.8], footRotR: [-0.4, 0, 0], toeR: 0 }, 'inout'],
           [36, { rootPos: [0, -0.1, 0.05], footR: [0.2, 0.071, 0.2], rootRot: [0.1, -0.4, 0], handR: [0.12, -0.3, 0.3], poleR: [0.25, -1, -0.25], neck: [0.2, 0.2, 0] }, 'inout'],
           [50, null, 'inout'],
         ]),
@@ -1187,6 +1261,8 @@ export const STYLES = {
         name: 'Empujón', total: 38, clip: C([
           [0, {}],
           [6, { footL: [0.06, 0.34, 0.24], kneeL: [0.1, 0.5, 1], rootPos: [0, -0.06, -0.06], rootRot: [-0.08, -0.4, 0], spine: [0.06, 0.1, 0], handL: [0.08, 0.08, 0.55], handR: [0.0, 0.14, 0.38] }, 'inout'],
+          // the knee up to the chest, the sole turned to him (a beat of a push kick's chamber), then out with the hips
+          [9, { footL: [0.05, 0.55, 0.36], kneeL: [0.1, 0.75, 0.7], footRotL: [-0.7, -0.25, 0], rootPos: [0, -0.055, -0.05], rootRot: [-0.16, -0.4, 0], spine: [0.1, 0.1, 0], neck: [0.24, 0.15, 0] }, 'inout'],
           [14, { footL: [0.04, 0.78, 0.97], kneeL: [0.1, 0.8, 0.6], footRotL: [-1.35, -0.2, 0], toeL: -0.2, rootRot: [-0.3, -0.38, 0], spine: [0.18, 0.1, 0], rootPos: [0, -0.04, 0.05], neck: [0.34, 0.18, 0],
             handL: [0.12, -0.06, 0.45], handR: [0.18, -0.06, 0.25] }, 'drive'],
           [17, {}, 'lin'],

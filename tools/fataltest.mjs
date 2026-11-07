@@ -68,6 +68,13 @@ try {
     await waitFor((f) => window.__game.match.pt >= f || window.__game.state === 'results', f, 240000, 'frame ' + f);
     await p.screenshot({ path: path.join(OUT, `fatal_${WHO}_${name}.png`) });
   };
+  // (read what it is like as soon as the frame comes, before the slow screenshot lets the move run on)
+  const atRead = async (f, name, fn) => {
+    await waitFor((f) => window.__game.match.pt >= f || window.__game.state === 'results', f, 240000, 'frame ' + f);
+    const v = await p.evaluate(fn);
+    await p.screenshot({ path: path.join(OUT, `fatal_${WHO}_${name}.png`) });
+    return v;
+  };
   if (WHO === 'orion') {
     await at(240, 'beams');
     const be = await p.evaluate(() => { const f = window.__game.fatal; return { on: f.beams.beams[0].m.visible && f.beams.beams[1].m.visible, char: +f.burn.U.uBnChar.value.toFixed(2), flames: f.fl.ps.length, clip: window.__game.match.fighters[1].clipName }; });
@@ -118,6 +125,16 @@ try {
     await at(360, 'after');
     const af = await p.evaluate(() => { const f = window.__game.fatal; return { down: f.gib.pieces.filter((P) => P.p.y < 0.3).length, fallen: f.gib.pieces.filter((P) => P.R.stand && P.fall?.done).length }; });
     check(af.down >= 6 && af.fallen === 2, `all of him on the floor (${af.down} of 7 pieces), the shins standing and then fallen (${af.fallen})`);
+  } else if (WHO === 'aleix') {
+    const pd = await atRead(80, 'pad', () => { const f = window.__game.fatal; return { on: !!f.pad && f.pad.root.visible, s: +f.pad.pad.scale.x.toFixed(2), pt: window.__game.match.pt }; });
+    check(pd.on && pd.s < 1.5, `the controller is out, in his hands, its real size (x${pd.s} at frame ${pd.pt})`);
+    const gi = await atRead(160, 'giant', () => { const f = window.__game.fatal; return { s: +f.pad.pad.scale.x.toFixed(1), y: +f.pad.root.position.y.toFixed(2), pt: window.__game.match.pt }; });
+    check(gi.s > 16 && gi.y > 2, `it has grown giant over his head (x${gi.s}, at ${gi.y} m, frame ${gi.pt})`);
+    const cr = await atRead(F.cut + 16, 'crush', () => { const f = window.__game.fatal, L = window.__game.match.fighters[1]; return { sy: +L.ch.group.scale.y.toFixed(3), y: +f.pad.root.position.y.toFixed(2), drops: f.blood.drops.length }; });
+    check(cr.sy < 0.08 && cr.y < 0.6, `the loser is flattened under it (to ${cr.sy} of his height), ${cr.drops} drops of blood in the air`);
+    await at(400, 'pixels');
+    const px = await p.evaluate(() => { const f = window.__game.fatal; return { gone: !f.pad.root.visible, dis: f.pad.U.dis.value }; });
+    check(px.gone && px.dis >= 0.99, 'it has broken up into pixels: only the stain is left');
   } else if (WHO === 'camilo') {
     await at(70, 'dumbbells');
     check(await p.evaluate(() => { const f = window.__game.fatal; return !!f.db && f.db.L.visible && f.db.R.visible; }), 'the dumbbells are out, one in each hand');

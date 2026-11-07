@@ -352,6 +352,12 @@ export class Audio {
         this.take('block', t, { out, gain: 1.7 * Math.min(1.2, p), rev: 0.1 });
         this.take('thudM', t, { out, gain: 0.25, rate: 1.3 });
         break;
+      case 'parry':
+        // a parry: the block's knock, a bright metallic ring over it and a swish of the blow thrown aside
+        this.take('block', t, { out, gain: 1.6, rate: 1.25, rev: 0.25 });
+        this.take('swishH', t + 0.01, { out, gain: 0.5, rate: 1.3, rev: 0.2 });
+        for (const [f, g, d] of [[1760, 0.09, 0.9], [2637, 0.07, 0.7], [3951, 0.05, 0.5]]) this.tone(t, d, { type: 'sine', f0: f, f1: f * 0.995, gain: g, attack: 0.002, out, rev: 0.45 });
+        break;
       case 'slam':
         this.take('thudH', t, { out, gain: 1.0, rate: 0.9, rev: 0.4 });
         this.take('punchH', t + 0.01, { out, gain: 0.6, rate: 0.75, rev: 0.4 });
@@ -400,6 +406,11 @@ export class Audio {
         this.tone(t, 0.05, { type: 'square', f0: 1400, f1: 900, gain: 0.12, out });
         this.tone(t, 0.08, { f0: 240, f1: 110, gain: 0.45, out });
         this.noise(t, 0.05, { f0: 3200, q: 1.5, gain: 0.35, out });
+        break;
+      case 'parry':
+        this.tone(t, 0.06, { type: 'square', f0: 1600, f1: 1100, gain: 0.12, out });
+        this.tone(t, 0.08, { f0: 260, f1: 120, gain: 0.4, out });
+        for (const [f, g, d] of [[1760, 0.09, 0.9], [2637, 0.07, 0.7], [3951, 0.05, 0.5]]) this.tone(t, d, { type: 'sine', f0: f, f1: f * 0.995, gain: g, attack: 0.002, out, rev: 0.45 });
         break;
       case 'slam':
         this.tone(t, 0.6, { f0: 90, f1: 25, gain: 1.1, out, dist: true, rev: 0.4 });
@@ -560,6 +571,53 @@ export class Audio {
       this.noise(t, 0.05, { type: 'bandpass', f0: 3200, q: 1.5, gain: 0.35, out, rev: 0.2 });
       this.tone(t, 0.6, { type: 'sine', f0: 410, f1: 395, gain: 0.07, attack: 0.002, out, rev: 0.4 });
       this.tone(t, 0.25, { f0: 70, f1: 35, gain: 0.5, out, dist: true, rev: 0.3 });
+    } else if (kind === 'knuckles') {
+      // Aleix's knuckles: a ripple of little dry cracks
+      for (let k = 0; k < 5; k++) this.noise(t + k * 0.028 + Math.random() * 0.012, 0.018, { type: 'bandpass', f0: 2400 + Math.random() * 2400, q: 3, gain: 0.32 - k * 0.03, out, rev: 0.12 });
+    } else if (kind === 'padbtn') {
+      // a controller's button: a short plastic click (o.big: a giant one, deep and hollow)
+      if (o.big) { this.noise(t, 0.08, { type: 'bandpass', f0: 500, q: 3, gain: 0.35, out, rev: 0.4 }); this.tone(t, 0.18, { type: 'triangle', f0: 160, f1: 90, gain: 0.25, out, rev: 0.4 }); }
+      else this.noise(t, 0.012, { type: 'bandpass', f0: 3200 + Math.random() * 900, q: 4, gain: 0.12 * (o.gain ?? 1), out, rev: 0.05 });
+    } else if (kind === 'padgrow') {
+      // the controller growing: a video game's power-up, square-wave steps rising faster and faster, over a swelling
+      // low hum and a rushing air
+      const notes = [262, 330, 392, 523, 392, 523, 659, 784, 659, 784, 1047, 1319, 1568, 2093];
+      let at = t;
+      for (let i = 0; i < notes.length; i++) {
+        const d = Math.max(0.05, 0.16 - i * 0.008);
+        this.tone(at, d * 0.9, { type: 'square', f0: notes[i], f1: notes[i], gain: 0.05, attack: 0.004, out, rev: 0.25 });
+        at += d;
+      }
+      this.tone(t, at - t + 0.3, { type: 'sawtooth', f0: 40, f1: 110, gain: 0.22, attack: 1.0, out, dist: true, rev: 0.3 });
+      this.noise(t + 0.2, at - t + 0.2, { type: 'bandpass', f0: 300, f1: 2400, q: 0.8, gain: 0.16, attack: 1.0, out, rev: 0.4 });
+    } else if (kind === 'levelup') {
+      // a chime: a bright arpeggio and a shimmer
+      [784, 988, 1175, 1568].forEach((f, i) => this.tone(t + i * 0.06, 0.5 - i * 0.05, { type: 'square', f0: f, f1: f, gain: 0.045, attack: 0.003, out, rev: 0.5 }));
+      this.tone(t + 0.24, 0.9, { type: 'sine', f0: 3136, f1: 3100, gain: 0.04, attack: 0.01, out, rev: 0.6 });
+    } else if (kind === 'padslam') {
+      // two tons of plastic coming down on a man: a huge flat boom, the shell's crack and rattle, the crunch under it,
+      // and the ground shaking
+      this.tone(t, 2.2, { f0: 52, f1: 22, gain: 1.15, out, dist: true, rev: 0.75 });
+      this.tone(t, 0.9, { type: 'triangle', f0: 140, f1: 60, gain: 0.5, out, rev: 0.5 });
+      this.noise(t, 0.5, { type: 'lowpass', f0: 2600, f1: 140, q: 2, gain: 0.85, attack: 0.002, out, rev: 0.6 });
+      for (let k = 0; k < 9; k++) this.noise(t + 0.01 + k * 0.022 + Math.random() * 0.015, 0.04, { type: 'bandpass', f0: 900 + Math.random() * 2600, q: 2.5, gain: 0.35 - k * 0.025, out, rev: 0.3 });
+      if (rec) { this.take('thudH', t, { out, gain: 1.4, rate: 0.45, rev: 0.6 }); this.take('slap', t + 0.03, { out, gain: 1.1, rate: 0.42, rev: 0.5 }); this.take('punchH', t, { out, gain: 1.0, rate: 0.5, rev: 0.5 }); }
+      this.noise(t + 0.15, 1.6, { type: 'lowpass', f0: 220, f1: 60, gain: 0.3, attack: 0.05, out, rev: 0.5 });
+    } else if (kind === 'rumble') {
+      // its vibration motors: a heavy buzz pulsing on and off, and the wet squelch of what is under it
+      const dur = o.dur ?? 0.24;
+      for (let k = 0; k < 3; k++) {
+        const a = t + k * dur * 0.36;
+        this.tone(a, dur * 0.3, { type: 'sawtooth', f0: 46, f1: 44, gain: 0.5, attack: 0.01, out, dist: true, rev: 0.25 });
+        this.tone(a, dur * 0.3, { type: 'square', f0: 92, f1: 90, gain: 0.14, attack: 0.01, out, rev: 0.2 });
+      }
+      this.noise(t + 0.02, dur * 1.2, { type: 'lowpass', f0: 900, f1: 250, q: 3, gain: 0.35, attack: 0.02, out, rev: 0.3 });
+    } else if (kind === 'pixels') {
+      // breaking up into pixels: a falling arpeggio of square blips and a crackle, a glittering hiss
+      const notes = [2093, 1568, 1319, 1047, 784, 659, 523, 392, 330, 262];
+      notes.forEach((f, i) => this.tone(t + i * 0.085, 0.08, { type: 'square', f0: f, f1: f * 0.98, gain: 0.04, attack: 0.003, out, rev: 0.35 }));
+      for (let k = 0; k < 18; k++) this.noise(t + Math.random() * 1.0, 0.015, { type: 'bandpass', f0: 3000 + Math.random() * 5000, q: 5, gain: 0.08, out, rev: 0.3 });
+      this.noise(t, 1.2, { type: 'highpass', f0: 5000, gain: 0.05, attack: 0.3, out, rev: 0.5 });
     } else if (kind === 'crunch') {
       // a skull giving way under forty kilos: cracks, a wet crush, a deep blow and the iron
       for (let k = 0; k < 7; k++) this.noise(t + k * 0.012 + Math.random() * 0.01, 0.03, { type: 'bandpass', f0: 1800 + Math.random() * 2600, q: 2.5, gain: 0.5 - k * 0.05, out, rev: 0.25 });

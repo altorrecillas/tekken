@@ -95,7 +95,7 @@ Los dos versus están en el submenú **VERSUS** del menú principal.
 
 - **AJUSTES DE ENTRENAMIENTO** (en la pausa):
   - **Rival:** de pie (no bloquea), agachado, salta, CPU (nivel 1 a 5) o repite tu grabación.
-  - **Bloqueo:** no, todo (los bajos agachado) o aleatorio.
+  - **Bloqueo:** no, todo (los bajos agachado), aleatorio o **para** (te para todos los golpes con el botón BLOQUEO, para practicar el castigo después de una parada).
   - **Castiga tras bloquear:** responde con su golpe más rápido.
   - **Se recupera rodando:** al caer.
   - **Historial de entradas:** en pantalla, con dirección, botones y frames que se mantuvo cada entrada.
@@ -174,8 +174,9 @@ Los controles de fábrica (todos se pueden cambiar, ver más abajo):
 | 2 · puño derecho | I | Num 5 / 8 | Y / △ |
 | 3 · patada izquierda | J / H | Num 1 / 9 | A / ✕ |
 | 4 · patada derecha | K | Num 2 / 0 | B / ○ |
+| **Bloqueo · parada** | L | Num 6 / − | R2 / RT |
 | Pausa y lista de movimientos | Enter (y siempre Esc) | Num Enter / Retroceso | Start / Options |
-| Atajos | se pueden asignar | se pueden asignar | L1 = 1+2 · R1 = 3+4 · L2 = agarre 1+3 · R2 = agarre 2+4 |
+| Atajos | se pueden asignar | se pueden asignar | L1 = 1+2 · R1 = 3+4 · L2 = agarre 1+3 (el atajo de 2+4 queda libre para asignarlo: R2 es ahora el bloqueo) |
 
 En los menús, cada jugador usa sus propias teclas: sus direcciones para moverse, su **1** para aceptar y su **4** para volver. Intro y Espacio también aceptan, y Esc y Retroceso vuelven, mientras no se hayan asignado a una acción de combate. Con mando, ✕ / A (o □ / X) acepta y ○ / B vuelve, se hayan cambiado o no los botones del combate.
 
@@ -199,6 +200,7 @@ En móvil y tablet aparecen controles en pantalla durante el combate, con la dis
 - **Joystick a la izquierda:** aparece donde apoyas el pulgar, en cualquier punto de la mitad izquierda. Tiene 8 direcciones con zona muerta, y las diagonales se mantienen estables (agacharse bloqueando, abajo-adelante + 2). Los dashes y las esquivas se hacen con toques rápidos, igual que con la cruceta.
 - **Botones 1 2 / 3 4 a la derecha:** en la disposición de la recreativa (puños arriba, patadas abajo), girados para seguir el arco del pulgar. El hueco entre dos botones pulsa los dos a la vez (1+2, 3+4, 1+3 y 2+4). Se puede deslizar el pulgar de un botón a otro.
 - **RAGE ART:** botón que solo aparece cuando tienes furia (equivale a 1+2+3+4).
+- **Escudo BLOQUEO:** a la izquierda de los botones, abajo, donde llega el pulgar estirándolo hacia dentro. Mantenido sube la guardia; tocado justo antes del golpe hace una parada.
 - **II:** pausa y lista de movimientos, bajo el reloj.
 - Cada pulsación se ilumina y, en Android, vibra un poco.
 - En **Opciones → Controles táctiles** se puede elegir cuándo mostrarlos (automático, siempre o nunca), el tamaño, la opacidad, el tipo de joystick (flotante o fijo) y la vibración.
@@ -213,7 +215,17 @@ En **Opciones**: volumen de música, efectos y voces por separado, y en **ACCESI
 
 ### Reglas básicas
 
-- **Bloqueo:** mantén *atrás* para bloquear golpes altos y medios; *abajo-atrás* bloquea los bajos.
+- **Bloqueo:** hay dos formas, como en los juegos de lucha de ahora, y valen las dos a la vez:
+  - **Mantener atrás** (como en Tekken o Street Fighter): bloquea los golpes altos y medios; *abajo-atrás* bloquea los bajos. Quedarse quieto también cubre los altos y los medios.
+  - **El botón BLOQUEO** (como en Mortal Kombat o Soulcalibur): mientras lo mantienes, el luchador sube la guardia con los antebrazos delante de la cara y no se mueve. De pie cubre los altos y los medios; agachado (BLOQUEO + abajo), los bajos. Se puede atacar desde la guardia sin soltarlo. En el móvil es el **escudo** junto a los botones; con mando, el gatillo derecho.
+- **Parada perfecta (¡PARADA!):** si pulsas BLOQUEO justo antes de que te llegue el golpe, en sus últimas 7 imágenes (unas décimas de segundo, como el parry perfecto de Street Fighter 6 o el *Just Guard* de Soulcalibur), lo paras en seco:
+  - no recibes ni el retroceso del bloqueo;
+  - el atacante sale despedido hacia atrás desequilibrado y queda vendido unas 20 imágenes, tiempo de sobra para castigarle con cualquier golpe rápido;
+  - suena un «ting» metálico, sale un anillo de luz azul con un instante de pausa en la acción y aparece **¡PARADA!**.
+  - Pulsar el botón como loco no sirve: después de cada pulsación hay casi medio segundo en el que otra no abre la ventana (sí sigue bloqueando normal mientras lo mantienes).
+  - En una ráfaga se pueden parar los golpes seguidos.
+  - La CPU también para golpes en las dificultades altas, y castiga cuando la paran a ella.
+  - Las paradas salen en las estadísticas del combate (PARADAS) y hay dos logros: **¡PARADA!** y **MURO** (20 paradas).
 - **Esquiva lateral:** toca *arriba* o *abajo*. **Dash:** pulsa *adelante* dos veces.
 - **Agarre:** 1+3 (o 2+4, que es distinto según el luchador). Para zafarte, pulsa 1 o 2 en el momento del agarre.
 - **Lanzador:** abajo-adelante + 2. Si conecta, su recuperación se puede cancelar con el siguiente golpe: espera a que el rival caiga un poco y remata en el aire (por ejemplo 1, 2 y un barrido). El daño de los golpes en el aire se escala.
@@ -285,6 +297,7 @@ El remate final después de ganar un combate, al estilo de los «fatality»: al 
 | Alejandro | Corredor. Se estira el cuádriceps, pone en marcha el reloj y sale a correr **alrededor del rival en círculos**, cada vez más cerca y más rápido, hasta que es un borrón con estelas de sí mismo y levanta un **tornado** de polvo, papeles y hojas. El viento le abre cortes por todo el cuerpo al rival, el tornado se vuelve rojo y se lo lleva a trozos hasta **evaporarlo**: solo quedan sus zapatillas humeando en un charco con la marca de la pista alrededor. Alejandro derrapa, mira el reloj: «Récord personal», y se peina hacia el moño. |
 | Dani | Tenis, su deporte. Saca una **raqueta** de detrás de la espalda (marco de grafito con franjas azules, cordaje con una «Z» de El Zorro, empuñadura blanca) y una **pelota** del bolsillo, se pone de lado en la línea, bota la pelota dos veces, la lanza al aire, se arquea y le pega un **saque plano** al rival a cámara lenta: la pelota se le hunde en el pecho, se **hincha y revienta** en una nube de sangre; la cabeza, los brazos y los muslos salen volando y las espinillas se quedan de pie con las zapatillas antes de caer. Hace girar la raqueta, se la apoya en el hombro: «Juego, set y partido». |
 | Orión | Escanea al rival con un abanico de luz roja que sale de sus ojos y le baja por el cuerpo, le señala: «Acceso denegado. Borrando usuario», abre las piernas y **carga los ojos** (chispas de luz que se le meten dentro, el brillo creciendo con un zumbido). Dispara: dos **rayos** al rojo blanco le dan en el pecho a cámara lenta y los pasea hasta la cara, baja a la barriga y vuelve al pecho. El rival se arquea temblando; la piel y la ropa se ponen al rojo donde están los rayos, la **quemadura** se extiende desde ahí (negra, agrietada con brasas, con una línea de fuego en el borde) entre chispas y humo, el pelo se prende de golpe y **arde entero**. Los rayos se apagan: el rival se retuerce en llamas, cae de rodillas carbonizado y se **deshace en ceniza** de la cabeza a los pies, con el borde incandescente, hasta quedar un montón de ceniza con brasas humeando. Orión le mueve el dedo: no, no. |
+| Aleix | El gamer. Se cruje los nudillos, saca un **mando** de detrás de la espalda y juega un poco mirando al rival. Lo levanta por encima de la cabeza y el mando **crece hasta ser gigante** (2,75 m) entre chispas de los colores de los botones, con una musiquilla de «power-up». Dice «Fin de la partida» y **lo estampa encima del rival**, que queda **aplastado como una tortita**: la sangre sale a chorro por todos los bordes del mando y se encharca alrededor. Con un mando invisible lo hace **vibrar** tres veces; sus botones gigantes se encienden con sus pulgares y a cada vibración sale más sangre. Al final el mando se **deshace en píxeles** y solo queda la mancha. El mando tiene la forma y los colores del que usa, pero no lleva logo |
 | Noemí | Saca de detrás de la espalda una espada de **áloe vera** (una hoja carnosa con motas claras y dientes en los bordes, mango vendado con gasa y una cruz verde de farmacia que brilla en el pomo), la saluda delante de la cara, le dice «Esto va a escocer un poquito» y de un tajo horizontal lo **parte por la cintura**. La parte de arriba resbala por el corte y cae; las piernas aguantan un momento soltando chorros de sangre al ritmo del corazón y se doblan. Ella sacude la sangre de la hoja y la baja. |
 
 **Si el rematado es Orión**, como es un robot no sangra: todo lo que sería sangre (gotas, niebla, charcos, el interior del corte, las manchas en el ganador y en sus armas, las gotas en la cámara) sale como **aceite negro** con brillo ámbar, y el corte suelta descargas eléctricas y chispas durante un rato (`js/fx/oil.js`). La bici de Zapponi conserva su rojo.
@@ -302,6 +315,13 @@ Cómo está hecho:
 - **Los rayos y el fuego de Orión** (`js/fx/eyebeam.js`, `js/fx/burn.js`): los rayos son cintas encaradas a la cámara con un núcleo blanco y un halo rojo que ondula a lo largo, destellos con estrellas en los ojos y en el impacto, una luz que se mueve con ellos y el abanico del escaneo. El cuerpo del rival se quema con copias de sus materiales: el punto al rojo que sigue a los rayos, la quemadura que avanza desde el primer impacto con borde de fuego, el carbón con grietas de brasas que titilan, y al final se desmorona de arriba abajo (también su sombra). Las llamas, el humo, las brasas y las chispas son partículas en la tarjeta gráfica; las llamas salen de cada parte del cuerpo a la que ha llegado la quemadura. Todo lo que tiene que compilar sus sombreadores se crea en el negro del principio, para que no haya tirones.
 - **La raqueta y la pelota** (`js/fx/tennis.js`) están hechas por código; la pelota se lanza calculando su vuelo para que llegue justo al cordaje en el fotograma del golpe (medido con `tools/serveprobe.mjs`).
 - **Las mancuernas** (`js/fx/dumbbells.js`) están hechas por código: cabezas hexagonales de goma con bisel, collarines de acero, empuñadura moleteada, placas con «20 KG»; al soltarlas caen, rebotan y se quedan planas sobre un lado del hexágono. Se manchan de sangre al golpear.
+- **El mando de Aleix** (`js/fx/gamepad.js`) está hecho por código a su tamaño real (15 cm) y se escala:
+  - el cuerpo es el contorno de un mando extruido y subdividido, con la cara abombada y las empuñaduras;
+  - lleva sticks con la goma marcada, una cruceta metálica y los cuatro botones A, B, X e Y con su letra y luz propia;
+  - el botón central es un aro iluminado, sin logo; también tiene los botones pequeños, los gatillos y el puerto.
+  - Su recorrido (`js/fight/padpath.js`) lo comparten la simulación (las manos de Aleix agarran el mando: `fatal.grip`) y el dibujo, así que la mano y el mando nunca se separan y online los dos móviles ven lo mismo.
+  - El rival aplastado es su propio cuerpo escalado contra el suelo y teñido de sangre (`Pancake`).
+  - La desintegración final es una rejilla de vóxeles en el mundo: las celdas desaparecen de arriba abajo con el borde encendido y saltan cubitos de colores.
 - **La espada** (`js/fx/aloesword.js`) está hecha por código. Dónde va en el puño lo calcula `tools/swordgrip.mjs` para que los dedos rodeen el mango sin atravesarlo; el recorrido del tajo se midió con `tools/fatalprobe.mjs` (altura y distancia de la hoja a la columna del rival en cada fotograma).
 - Las voces se generan con `tools/quotes_tts.py --fatal` (la frase de cada uno) y `--announcer` (el «¡Puñetality!»).
 
@@ -314,6 +334,37 @@ Aleix ocupa desde la versión 0.80 el sitio de Arnau (sus ficheros están en `_s
 - **Pelo:** castaño muy oscuro, con raya a su izquierda. Por arriba va peinado hacia su derecha con volumen, con un flequillo que cae sobre ese lado de la frente; los lados y la nuca son cortos y van hacia atrás, por encima de las orejas (peinado `sidepart` de `hairgen.py`).
 - **Cejas y barba:** las cejas se pintan como pelos sueltos a lo largo de la ceja (`brow_strokes`), no como una mancha. La barba es la de la foto con su propio color (`beard_photo_chroma`; antes la corrección de la piel la volvía rosa), con el bigote y la perilla más oscuros (`goatee_dark`) y pelo corto en 3D por encima.
 - **Ropa y voz:** polo de piqué azul marino con el cuello a rayas, escudo blanco y tres botones; vaqueros oscuros y zapatillas negras. Trajes: polo azul, polo negro y oro de campeón. Su voz es la de los demás chicos. El locutor dice su nombre a la catalana, «¡Gana Aléish!».
+
+### Patadas (0.81)
+
+Las patadas se revisaron midiendo, fotograma a fotograma, el ángulo de la rodilla, la inclinación del tronco y la velocidad del pie (`tools/kickprobe.mjs <luchador> <golpe>`):
+- **Carga y latigazo:** la frontal, la baja, el empujón de Noemí y la patada en carrera de Camilo tienen una carga clara: la rodilla sube con el pie recogido y la pierna sale de golpe desde ahí. Antes la pierna se iba estirando poco a poco desde el suelo y parecía que levantaba la rodilla en vez de patear. El pie va ahora entre 9 y 14 m/s al golpear, frente a los 6-8 de antes.
+- **El golpe, más rápido que la recogida:** en varias patadas la pierna volvía más deprisa de lo que salía (la alta iba a 13,8 m/s y volvía a 14,8). Ahora la recogida es más lenta y la rodilla se recoge antes de apoyar el pie.
+- **Patada giratoria de Alejandro:** se inclina menos hacia atrás (53° en vez de 60°) y mantiene la cabeza más alta: antes parecía que se caía.
+- **Estela de barrido:** cada patada deja durante sus últimos fotogramas un abanico de aire cortado desde la espinilla hasta la punta del pie (`SweepTrail` en `js/fx/fx.js`); es más intensa cuanto más fuerte es la patada. Las patadas fuertes levantan además un poco de polvo bajo el pie de apoyo al girar.
+- **Equilibrio intacto:** las posiciones en el momento del impacto no cambian. El alcance de todos los golpes se midió antes y después (`rangeall.mjs`, cada 2 cm): solo varía en 2 cm en tres casos. Los combos de las pruebas de entrenamiento siguen saliendo (`trainingtest.mjs`).
+- `fightlab.html?…&fx=1` dibuja las tiras de fotogramas con los efectos del juego (chispas, estelas).
+
+### Revisión de las caras (0.81)
+
+Todas las caras se compararon con sus fotos de referencia. Cada render de frente se alineó por los ojos con la foto y se midieron sus proporciones con MediaPipe. Solo cambian las texturas de la cara, las gafas y el iris. El pelo, la ropa y la forma de la cabeza que ya estaban aprobados se quedan como estaban; la única excepción es la cara de Zapponi, algo más llena.
+
+- **Ojos de todos:** el iris marrón compartido (`assets/shared/eye_brown`, `shared_eye` en `buildchar.py`) salía ámbar claro en el juego. Ahora es marrón oscuro, que es como los tienen todos (Aleix lleva su propio iris azul).
+- **Cejas:** se pintan pelo a pelo (`brow_strokes`) y más oscuras en todos. Antes eran una sombra clara que las gafas casi tapaban.
+- **Alejandro:**
+  - Gafas al aire por abajo, con una barra negra fina, como en su foto. Antes llevaba una montura cerrada.
+  - La perilla y el bigote canosos bien marcados (`beard_salt` concentrado en el centro con `beard_salt_core`, y `goatee_dark`), con barba más corta en las mejillas.
+- **Dani:** su foto es un selfie oscuro y blando. Ahora se enfoca antes de proyectarla (`photo_sharpen`) y se le quita menos sombreado (`delight`), así que los párpados, las arrugas y la mirada se leen mejor.
+- **Zapponi:**
+  - Gafas de pasta negra anchas, como las suyas.
+  - Bigote y perilla negros y nítidos.
+  - La cara algo más llena: el ajuste a una foto sonriendo la dejaba un 8 % estrecha.
+- **Rafa:**
+  - Gafas negras menos gruesas y algo más bajas, para que dejen ver las cejas.
+  - La barba corta canosa de sus fotos recientes, más blanca en la barbilla.
+- **Camilo:** el flash de su foto dejaba manchas pálidas en las mejillas y la frente, y bandas oscuras en los pliegues de la sonrisa, que parecían maquillaje. `flatten` las aplana y deja intacto el detalle fino.
+- **Noemí:** cejas algo más definidas, en su castaño.
+- Cada luchador puede llevar su propia montura: `lw`, `lh`, `half` y `rim` en `glasses` (`people.py` y `js/fx/accessories.js`).
 
 ### Orión, el androide
 

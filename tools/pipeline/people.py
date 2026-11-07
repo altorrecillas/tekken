@@ -2,7 +2,7 @@
 
 PEOPLE = {
     'alejandro': dict(
-        display='ALEJANDRO', photo='alejandro_foto4.jpg', brow_boost=0.35,
+        display='ALEJANDRO', photo='alejandro_foto4.jpg', brow_boost=1.5, brow_width=1.25, brow_strokes=1.0, brow_color=(0.03, 0.027, 0.025),
         # height swapped with Rafa at the user's request (1.673 m; was 1.737 m)
         body=dict(gender=1, age=0.655, muscle=0.72, weight=0.42, height=0.4126, proportions=0.75, caucasian=1, african=0, asian=0),
         # arms: the base mesh's upper arm is shorter than the forearm; lengthened so the elbow sits at the waist and
@@ -12,10 +12,12 @@ PEOPLE = {
         hair_cards=dict(comb='topknot', atlas='hair_cards_s.png', width=0.12, n=4600, knot_el=38, bun_r=0.2, bun_cards=210, tail_cards=9, tail_len=0.32, tail_spread=0.1, band_az=60, crown_el=48,
                         layers=[(4600, 0.012, 0.25), (2400, 0.03, 0.45)],
                         hairline=dict(front=20, temple=30, side=18, back=-38)),
-        glasses=dict(style='half', color=(0.08, 0.08, 0.09), rim=0.0022),
+        glasses=dict(style='nylor', color=(0.05, 0.05, 0.055), rim=0.0017, lw=0.92, lh=0.42, half=0.54),
         outfit='alejandro', depth_scale=0.45, shoes=('shoes05', 'grey_white'), shoes_nb='court_white',
         beard=0.75, beard_color=(58, 55, 52), scalp_density=0.9, scalp_color=(38, 34, 31),
-        beard_strand_color=(30, 26, 24), beard_grey=0.25, beard_len=0.0026, beard_layers=6, beard_goatee=0.85, beard_over_photo=0.5, beard_shadow=0.8,
+        beard_strand_color=(30, 26, 24), beard_grey=0.32, beard_grey_color=(178, 174, 168), beard_len=0.0026, beard_layers=6, beard_goatee=0.85, beard_over_photo=0.5, beard_shadow=0.8,
+        # (the goatee and the moustache darker than the stubble, in the photo's own salt-and-pepper colour)
+        goatee_dark=0.3, beard_photo_chroma=0.8, beard_salt=0.38, beard_stroke=(4, 8), beard_salt_core=0.12,
         hairline=dict(front=20, temple=30, side=18, back=-38),
         body_hair=dict(chest=0.8, arms=0.16, legs=0.45), body_hair_color=(45, 38, 34),
         tattoos=[dict(kind='laurel', side='R', at=0.72, size=0.62, facing=(0.3, 0, 1)),
@@ -82,12 +84,13 @@ PEOPLE = {
         glasses=None,
         outfit='camilo', depth_scale=0.45, neutral_mouth=True, mouth_from_base=True, shoes=('shoes05', 'redstripes'),
         post_mods={'mouth/mouth-laugh-lines': -0.4},
-        mouth_scale=(1.35, 1.3), mouth_feather=0.04, desmile=0.75, delight=1.0, lum=-50, despecular=0.9, flash=0.45, chroma_keep=0.36, brow_boost=0.85, brow_width=1.25,
+        mouth_scale=(1.35, 1.3), mouth_feather=0.04, desmile=0.75, delight=0.7, lum=-50, despecular=1.0, flash=0.45, chroma_keep=0.36, brow_boost=0.85, brow_width=1.2, brow_strokes=0.7, brow_color=(0.03, 0.022, 0.016),
+        flatten=dict(hl=1.0, sh=0.8, sigma=30),
         body_hair=dict(legs=0.4, arms=0.3), body_hair_color=(30, 24, 20),
         beard=0.08, beard_color=(40, 32, 28), scalp_density=1.0, scalp_color=(20, 16, 14), scalp_shadow=0.8,
     ),
     'rafa': dict(
-        display='RAFA', photo='rafa_foto4.jpg', wb=0.62, beard_over_photo=0.45, beard_extent=1.1, brow_boost=0.4,
+        display='RAFA', photo='rafa_foto4.jpg', wb=0.62, beard_over_photo=0.45, beard_extent=1.1, brow_boost=1.3, brow_width=1.25, brow_strokes=1.0, brow_color=(0.022, 0.02, 0.019),
         # height swapped with Alejandro at the user's request (1.737 m; was 1.673 m)
         body=dict(gender=1, age=0.72, muscle=0.45, weight=0.98, height=0.5039, proportions=0.4, caucasian=1, african=0, asian=0),
         mods={'stomach/stomach-pregnant': 0.45, 'neck/neck-scale-horiz': 0.45, 'neck/neck-double': 0.7, 'head/head-fat': 0.7, 'measure/measure-upperarm-length': 0.72,
@@ -95,14 +98,18 @@ PEOPLE = {
         skin='middleage_lightskinned_male_diffuse', eyes='brownlight', hair='short01', hair_color=(0.035, 0.032, 0.03), hair_grey=0.035, hair_grey_color=[0.14, 0.138, 0.135], hair_color_auto=False, scalp=None,
         hair_cards=dict(comb='curly', length=(0.42, 0.22, 0.26), width=0.11, n=3800, lift=0.12, gravity=0.0, atlas='hair_cards_curly_s.png', no_face=True,
                         hairline=dict(front=11, temple=7, side=14, back=-42)),
-        glasses=dict(style='thick', color=(0.1, 0.07, 0.1), rim=0.0045),
+        glasses=dict(style='thick', color=(0.1, 0.07, 0.1), rim=0.0036, lw=0.88, lh=0.46, half=0.51),
         outfit='rafa', depth_scale=0.45, neutral_mouth=True, mouth_from_base=False, shoes=('shoes06', 'neon'), shoes_nb='freshfoam_lime',
         body_hair=dict(legs=0.7, arms=0.6), body_hair_color=(50, 46, 44),
-        beard=0.7, beard_color=(58, 53, 50), scalp_density=1.0, scalp_color=(45, 42, 40), scalp_shadow=0.8, beard_shadow=0.45,
-        beard_strand_color=(34, 29, 26), beard_grey=0.3, beard_len=0.0032, beard_layers=7,
+        beard=0.7, beard_color=(58, 53, 50), scalp_density=1.0, scalp_color=(45, 42, 40), scalp_shadow=0.8, beard_shadow=0.7,
+        beard_strand_color=(34, 29, 26), beard_grey=0.42, beard_len=0.0032, beard_layers=7,
+        # (his short beard is salt-and-pepper in his recent photos, whitest on the chin)
+        beard_salt=0.26, beard_stroke=(4, 8), beard_grey_color=(182, 178, 172), beard_grey_chin=0.6,
     ),
     'dani': dict(
-        display='DANI', photo='dani2.jpg', brow_boost=0.5,
+        display='DANI', photo='dani2.jpg', brow_boost=1.4, brow_width=1.25, brow_strokes=1.0, brow_color=(0.026, 0.021, 0.018),
+        # (dani2 is a dim, soft selfie: sharpened before the projection, and less of its shading taken out)
+        photo_sharpen=(0.9, 0.07), delight=0.45,
         # tanned (the indoor selfie reads grey)
         skin_tint=(3, 8), lum=-4,
         # 60 years old, slim runner, 1.76 m (height tuned by measuring the build)
@@ -130,21 +137,26 @@ PEOPLE = {
         lip_lum=-14, lip_chroma=1.7,
     ),
     'zapponi': dict(
-        display='ZAPPONI', photo='zapponi_foto1.jpg', brow_boost=0.45,
+        display='ZAPPONI', photo='zapponi_foto1.jpg', brow_boost=1.3, brow_width=1.25, brow_strokes=1.0, brow_color=(0.022, 0.019, 0.017),
+        # (a small face in the photo, ~130 px between the eyes: sharpened before the projection)
+        photo_sharpen=(0.6, 0.07),
         body=dict(gender=1, age=0.63, muscle=0.75, weight=0.96, height=0.55, proportions=0.5, caucasian=1, african=0, asian=0),
         mods={'stomach/stomach-pregnant': 0.3, 'neck/neck-scale-horiz': 0.4, 'head/head-scale-vert': 0.2, 'head/head-scale-horiz': 0.08, 'measure/measure-upperarm-length': 0.68},
         skin='middleage_lightskinned_male_diffuse', eyes='brownlight', hair=None, scalp='bald',
-        glasses=dict(style='half', color=(0.12, 0.12, 0.13), rim=0.003),
+        glasses=dict(style='thick', color=(0.035, 0.035, 0.04), rim=0.0032, lw=1.0, lh=0.52, half=0.6),
         outfit='zapponi', depth_scale=0.45, neutral_mouth=True, mouth_from_base=True, shoes=('shoes06', 'grey'), shoes_nb='574_grey',
-        post_mods={'mouth/mouth-laugh-lines': -0.3},
+        # (after the fit: a rounder, fuller face, as wide as in his photos; the fit to a smiling photo left it 8 % narrow)
+        post_mods={'mouth/mouth-laugh-lines': -0.3, 'head/head-fat': 0.45, 'cheek/l-cheek-volume': 0.3, 'cheek/r-cheek-volume': 0.3},
         mouth_scale=(1.35, 1.3), mouth_feather=0.04, desmile=0.7, delight=0.8, flash=0.5, wb=0.2, lum=-14,
         beard_over_photo=0.35, beard_goatee=0.85, beard_extent=0.7, beard_shadow=0.5, beard_lip_clear=0.22, lip_lum=-8, lip_chroma=1.5,
         body_hair=dict(legs=0.8, arms=0.8), body_hair_color=(35, 30, 28),
         beard=1.0, beard_color=(30, 24, 22), scalp_density=0.25, scalp_color=(60, 52, 48), scalp_shadow=0.15, scalp_rough=0.3,
         beard_strand_color=(34, 28, 26), beard_grey=0.08, beard_len=0.003, beard_layers=7,
+        # (his goatee and moustache are black and clear-cut)
+        goatee_dark=0.55, beard_photo_chroma=0.7,
     ),
     'noemi': dict(
-        display='NOEMÍ', photo='noemi.jpg', brow_boost=0.3, brow_color=(0.07, 0.04, 0.022),
+        display='NOEMÍ', photo='noemi.jpg', brow_boost=0.75, brow_width=0.95, brow_strokes=0.6, brow_color=(0.055, 0.033, 0.02),
         # 49 years old, 1.68 m (height tuned by measuring the build), soft and curvy
         body=dict(gender=0, age=0.685, muscle=0.4, weight=0.85, height=0.5601, proportions=0.5, caucasian=1, african=0, asian=0),
         mods={'measure/measure-upperarm-length': 0.6, 'stomach/stomach-pregnant': 0.25, 'hip/hip-scale-horiz': 0.15,

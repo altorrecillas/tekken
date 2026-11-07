@@ -79,6 +79,17 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
     base_head = cv2.resize(skin[y0:y1, x0:x1], (HTW, HTH), interpolation=cv2.INTER_CUBIC)
 
     photo = cv2.imread(os.path.join(TOOLS, 'photos', P['photo']))
+    shp = P.get('photo_sharpen')
+    if shp:
+        # a soft photo (a dim selfie, a face only ~130 px across): an unsharp mask of the luminance (amount, radius in
+        # eye widths) brings back the lids, the brows and the lines the projection would blur further
+        amt, rad = shp
+        lm_s = np.array(json.load(open(os.path.join(TOOLS, 'landmarks.json')))[P['photo']]['faces'][0]['lm'])[:, :2]
+        ew = np.linalg.norm((lm_s[33] - lm_s[133]) * [photo.shape[1], photo.shape[0]])
+        lab_p = cv2.cvtColor(photo, cv2.COLOR_BGR2LAB).astype(np.float32)
+        L_ = lab_p[..., 0]
+        lab_p[..., 0] = np.clip(L_ + amt * (L_ - cv2.GaussianBlur(L_, (0, 0), max(0.8, ew * rad))), 0, 255)
+        photo = cv2.cvtColor(lab_p.astype(np.uint8), cv2.COLOR_LAB2BGR)
     if P.get('despecular', 0) > 0:
         # flash / sun hotspots: compress luminance that sticks out above the local average (chroma kept)
         lab_s = cv2.cvtColor(photo, cv2.COLOR_BGR2LAB).astype(np.float32)
@@ -287,7 +298,8 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
         cov = np.clip(cov * (0.45 if shells else 0.9) + cv2.GaussianBlur(dens, (0, 0), 2) * 0.35 * P.get('beard_shadow', 1.0), 0, 1)
         head = head * (1 - cov[..., None]) + beard_col * cov[..., None]
         gd = P.get('goatee_dark', 0.0)
-        if gd > 0:
+        core = None
+        if gd > 0 or P.get('beard_salt_core') is not None:
             # a moustache and a goatee darker than the rest of the beard (Aleix): the centre of the face from under the
             # nose to under the chin, as wide as the mouth, the lips left clear
             lm = frame.lm
@@ -299,6 +311,7 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
             dl = np.sqrt(((x_ - lips_c[0]) / (lr * 1.05)) ** 2 + ((y_ - lips_c[1]) / (lr * P.get('beard_lip_clear', 0.34))) ** 2)
             core = core * smoothstep(0.85, 1.15, dl) * valid
             core = cv2.GaussianBlur(core.astype(np.float32), (0, 0), 2.5)
+        if gd > 0:
             mk = np.clip(core * gd, 0, 1)[..., None]
             dcol = np.array(P.get('beard_strand_color', (40, 32, 26)), np.float32)[::-1]
             head = head * (1 - mk) + (head * 0.3 + dcol * 0.7) * mk
@@ -321,8 +334,13 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
             dcol = np.array(P.get('beard_strand_color', (52, 46, 42)), np.float32)[::-1]
             wcol = np.array(P.get('beard_grey_color', (210, 206, 200)), np.float32)[::-1]
             sl = P.get('beard_stroke', (4, 8))
-            dk = stubble((HTH, HTW), dens * salt * (1 - g), seed=5, length=sl) * 0.75
-            wh = stubble((HTH, HTW), dens * salt * g, seed=9, length=sl) * 0.8
+            sd = dens * salt
+            if core is not None and P.get('beard_salt_core') is not None:
+                # (a goatee and a moustache with stubble round them: the long hairs mostly on the centre of the face,
+                # beard_salt_core of them on the cheeks and the jaw)
+                sd = sd * (P['beard_salt_core'] + (1 - P['beard_salt_core']) * np.clip(core * 1.2, 0, 1))
+            dk = stubble((HTH, HTW), sd * (1 - g), seed=5, length=sl) * 0.75
+            wh = stubble((HTH, HTW), sd * g, seed=9, length=sl) * 0.8
             head = head * (1 - dk[..., None]) + dcol * dk[..., None]
             head = head * (1 - wh[..., None]) + wcol * wh[..., None]
         rough = np.maximum(rough, np.clip(bmask * bd * P.get('beard_rough_gain', 1.0), 0, 1) * 0.75)
@@ -350,6 +368,25 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
         cov *= (1 - bm * P.get('scalp_photo_keep', 0.7))
         head = head * (1 - cov[..., None]) + hair_col * cov[..., None]
     rough = np.where(cap > 0.5, P.get('scalp_rough', 0.42), rough)
+    fl_ = P.get('flatten')
+    if fl_:
+        # flash on a smiling face (Camilo): broad pale patches on the cheeks and the forehead and dark bands in the smile
+        # folds read as make-up on the model. Highlights above the broad local average are pressed down (and given back
+        # the skin's warmth), the broad dark bands lifted a little; fine detail (lids, lines, pores) stays
+        labf = cv2.cvtColor(np.clip(head, 0, 255).astype(np.uint8), cv2.COLOR_BGR2LAB).astype(np.float32)
+        Lf = labf[..., 0]
+        lowf = cv2.GaussianBlur(Lf, (0, 0), fl_.get('sigma', 40))
+        hi_ = cv2.GaussianBlur(np.maximum(0, Lf - lowf - 4), (0, 0), 6)
+        lo_ = cv2.GaussianBlur(np.maximum(0, lowf - Lf - 6), (0, 0), 8)
+        keep_ = np.clip(1 - cv2.GaussianBlur(mouth_tex, (0, 0), 4) * 1.5, 0, 1) * np.clip(bm * 1.2, 0, 1)
+        labf[..., 0] = Lf - (hi_ * fl_.get('hl', 0.8) - lo_ * fl_.get('sh', 0.35)) * keep_
+        wf = np.clip(hi_ / 12, 0, 1) * keep_ * 0.5
+        skin_ab = labf[..., 1:][(Lf > 60) & (keep_ > 0.5)]
+        if len(skin_ab):
+            med_ab = np.median(skin_ab, 0)
+            labf[..., 1:] = labf[..., 1:] * (1 - wf[..., None]) + med_ab * wf[..., None]
+        head = cv2.cvtColor(np.clip(labf, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR).astype(np.float32)
+        print('  flatten: highlights %.1f%%, folds %.1f%% of texels' % (100 * (hi_ * keep_ > 2).mean(), 100 * (lo_ * keep_ > 2).mean()))
     bb = P.get('brow_boost', 0.0)
     if bb > 0:
         # eyebrows: after de-lighting the projected brows read thin and pale. Deepen them inside a band built from
@@ -1000,6 +1037,27 @@ def fighter_eye(name, path, hue=None, sat=1.0, val=1.0, sclera=1.0):
     cv2.imwrite(path, eye)
 
 
+def shared_eye(d):
+    """The shared brown iris (eye_brown.png) of every fighter without an eye.png of his own: MakeHuman's light brown
+    one made a dark brown (2026-11-07: it read as bright amber in the game, and all the friends have dark brown eyes)
+    with a little of its orange taken out, the sclera off-white."""
+    eye = cv2.imread(os.path.join(M.MHA, 'eyes/materials/brownlight_eye.png'), cv2.IMREAD_UNCHANGED)
+    hsv = cv2.cvtColor(eye[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)
+    iris = cv2.GaussianBlur(((hsv[..., 1] > 70) & (hsv[..., 2] < 235)).astype(np.float32), (0, 0), 2)
+    darker = eye[..., :3].astype(np.float32) * np.array([0.31, 0.35, 0.42])  # BGR
+    grey = darker.mean(2, keepdims=True)
+    darker = darker * 0.75 + grey * 0.25
+    eye[..., :3] = np.clip(eye[..., :3] * (1 - iris[..., None]) + darker * iris[..., None], 0, 255).astype(np.uint8)
+    sclera = (1 - iris)[..., None]
+    base = eye[..., :3].astype(np.float32)
+    # off-white, slightly warm sclera
+    base = base * (1 - sclera * 0.24) * np.array([0.93, 0.95, 1.0])
+    eye[..., :3] = np.clip(base, 0, 255).astype(np.uint8)
+    cv2.imwrite(os.path.join(d, 'eye_brown.png'), eye)
+    from PIL import Image as _Image
+    _Image.open(os.path.join(d, 'eye_brown.png')).save(os.path.join(d, 'eye_brown.webp'), 'WEBP', quality=90, alpha_quality=100, method=6)
+
+
 def shared_assets():
     d = os.path.join(GAME, 'assets/shared')
     os.makedirs(d, exist_ok=True)
@@ -1017,18 +1075,7 @@ def shared_assets():
     for n in ('hair_cards', 'hair_cards_curly', 'hair_cards_r', 'hair_cards_curly_r', 'hair_cards_s', 'hair_cards_curly_s'):
         _Image.open(os.path.join(d, n + '.png')).save(os.path.join(d, n + '.webp'), 'WEBP', quality=90, alpha_quality=100, method=6)
     import shutil
-    eye = cv2.imread(os.path.join(M.MHA, 'eyes/materials/brownlight_eye.png'), cv2.IMREAD_UNCHANGED)
-    hsv = cv2.cvtColor(eye[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)
-    iris = cv2.GaussianBlur(((hsv[..., 1] > 70) & (hsv[..., 2] < 235)).astype(np.float32), (0, 0), 2)
-    darker = eye[..., :3].astype(np.float32) * np.array([0.44, 0.52, 0.64])  # BGR: dark brown iris (no specular veil greys it now)
-    eye[..., :3] = np.clip(eye[..., :3] * (1 - iris[..., None]) + darker * iris[..., None], 0, 255).astype(np.uint8)
-    sclera = (1 - iris)[..., None]
-    base = eye[..., :3].astype(np.float32)
-    # off-white, slightly warm sclera with a subtle vascular pink towards the edges
-    yy, xx = np.mgrid[0:eye.shape[0], 0:eye.shape[1]].astype(np.float32) / eye.shape[0]
-    base = base * (1 - sclera * 0.24) * np.array([0.93, 0.95, 1.0])
-    eye[..., :3] = np.clip(base, 0, 255).astype(np.uint8)
-    cv2.imwrite(os.path.join(d, 'eye_brown.png'), eye)
+    shared_eye(d)
     shutil.copy(os.path.join(M.MHA, 'eyelashes/eyelashes01/eyelashes01.png'), os.path.join(d, 'eyelashes.png'))
     t = cv2.imread(os.path.join(M.MHA, 'teeth/materials/teeth.png'), cv2.IMREAD_UNCHANGED)
     cv2.imwrite(os.path.join(d, 'teeth.png'), cv2.resize(t, (1024, 1024), interpolation=cv2.INTER_AREA))

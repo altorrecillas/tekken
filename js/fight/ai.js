@@ -1,5 +1,5 @@
 // CPU opponent: produces controller input frames (screen space) from a plan queue.
-import { B1, B2, B3, B4 } from './input.js';
+import { B1, B2, B3, B4, BLOCK } from './input.js';
 
 // Per level: react (frames; a move seen with less than half of this left before it lands is not guarded, bar a snap
 // guess), block (chance to guard a move seen in time), lowRead (to guard a low one low), aggr, punish (a blocked
@@ -8,16 +8,18 @@ import { B1, B2, B3, B4 } from './input.js';
 //            by itself (js/fight/fighter.js), so a CPU that mostly waited blocked nearly everything, the easy one most
 //   recover: chance to have the guard up when a hit stun or a block stun ends (otherwise it steps in or hits back)
 //   snap:    chance to guard a move seen too late anyway
+//   parry:   chance, when it guards a move it saw in time, to parry it instead (the block button pressed just before
+//            it lands, js/fight/match.js applyParry); a parried opponent is punished as a whiff would be
 //   rage:    chance per decision within reach to fire the rage art once it is ready
 //   string:  chance to carry a jab on into a string
 // Every roll is made once per thing seen (a stun, a move of the opponent, a launch): rolled again at every decision
 // while it lasted, a 15 % punish was nearer 50 %.
 const LEVELS = {
-  1: { react: 28, block: 0.15, lowRead: 0.1, aggr: 0.3, punish: 0.08, juggle: 0.08, think: 16, side: 0.02, throwBreak: 0.03, open: 0.6, recover: 0.3, snap: 0.03, rage: 0.015, string: 0.3 },
-  2: { react: 22, block: 0.3, lowRead: 0.22, aggr: 0.38, punish: 0.2, juggle: 0.25, think: 13, side: 0.04, throwBreak: 0.12, open: 0.45, recover: 0.5, snap: 0.08, rage: 0.03, string: 0.45 },
-  3: { react: 20, block: 0.38, lowRead: 0.3, aggr: 0.42, punish: 0.28, juggle: 0.38, think: 12, side: 0.06, throwBreak: 0.22, open: 0.4, recover: 0.56, snap: 0.08, rage: 0.035, string: 0.48 },
-  4: { react: 16, block: 0.5, lowRead: 0.42, aggr: 0.47, punish: 0.42, juggle: 0.52, think: 10, side: 0.09, throwBreak: 0.35, open: 0.3, recover: 0.68, snap: 0.12, rage: 0.05, string: 0.52 },
-  5: { react: 12, block: 0.62, lowRead: 0.55, aggr: 0.54, punish: 0.6, juggle: 0.72, think: 8, side: 0.12, throwBreak: 0.5, open: 0.2, recover: 0.8, snap: 0.18, rage: 0.08, string: 0.58 },
+  1: { react: 28, block: 0.15, lowRead: 0.1, aggr: 0.3, punish: 0.08, juggle: 0.08, think: 16, side: 0.02, throwBreak: 0.03, open: 0.6, recover: 0.3, snap: 0.03, rage: 0.015, string: 0.3, parry: 0 },
+  2: { react: 22, block: 0.3, lowRead: 0.22, aggr: 0.38, punish: 0.2, juggle: 0.25, think: 13, side: 0.04, throwBreak: 0.12, open: 0.45, recover: 0.5, snap: 0.08, rage: 0.03, string: 0.45, parry: 0.03 },
+  3: { react: 20, block: 0.38, lowRead: 0.3, aggr: 0.42, punish: 0.28, juggle: 0.38, think: 12, side: 0.06, throwBreak: 0.22, open: 0.4, recover: 0.56, snap: 0.08, rage: 0.035, string: 0.48, parry: 0.06 },
+  4: { react: 16, block: 0.5, lowRead: 0.42, aggr: 0.47, punish: 0.42, juggle: 0.52, think: 10, side: 0.09, throwBreak: 0.35, open: 0.3, recover: 0.68, snap: 0.12, rage: 0.05, string: 0.52, parry: 0.11 },
+  5: { react: 12, block: 0.62, lowRead: 0.55, aggr: 0.54, punish: 0.6, juggle: 0.72, think: 8, side: 0.12, throwBreak: 0.5, open: 0.2, recover: 0.8, snap: 0.18, rage: 0.08, string: 0.58, parry: 0.18 },
 };
 
 const BTN = { 1: B1, 2: B2, 3: B3, 4: B4 };
@@ -156,11 +158,22 @@ export class AIController {
           if (Math.random() < P.block) {
             const low = lvl === 'low' ? Math.random() < P.lowRead + 0.2 : Math.random() < 0.08;
             if (lvl === 'throw') { this.push('d'); this.hold(0, -1, 14); return; }
+            // a parry: the guard held as usual, then the block button pressed a few frames before it lands
+            if (Math.random() < (P.parry || 0) && timeLeft >= 4 && (lvl === 'low') === low) {
+              this.hold(-1, low ? -1 : 0, Math.max(1, timeLeft - 3));
+              this.plan.push({ fwd: 0, up: low ? -1 : 0, press: BLOCK, n: 12 });
+              return;
+            }
             this.hold(-1, low ? -1 : 0, timeLeft + 12);
             return;
           }
         }
       }
+    }
+    // --- the opponent parried (thrown off balance): punish
+    if (o.state === 'hit' && o.clipName === 'parried' && o.stun > 10 && d < 1.7 && this.once('parried', o.clip, o.sf) && Math.random() < Math.max(P.punish, 0.25)) {
+      this.push(this.has('uppercut') && Math.random() < 0.5 ? 'df+2' : '1'); this.wait(10); this.push('2');
+      return;
     }
     // --- whiff punish: opponent in recovery
     if (o.state === 'move' && o.move && o.move.hit && o.mf > o.move.hit.f[1] + 2 && d < 1.6 && this.once('whiff', o.move, o.mf) && Math.random() < P.punish * 0.7) {

@@ -7,7 +7,7 @@ import { HairSway } from '../anim/hairsway.js';
 import { ClothSway } from '../anim/clothsway.js';
 import { buildClips, buildMoves, commandList } from './moves.js';
 import { STYLES } from './styles.js';
-import { B1, B2, B3, B4 } from './input.js';
+import { B1, B2, B3, B4, BLOCK } from './input.js';
 
 export const FPS = 60;
 const DT = 1 / FPS;
@@ -38,7 +38,13 @@ function parseCommand(str) {
   return { motion, dir, mask, str };
 }
 
-const GUARD_STATES = new Set(['idle', 'walkF', 'walkB', 'block', 'crouch', 'rise', 'dashB', 'side']);
+const GUARD_STATES = new Set(['idle', 'walkF', 'walkB', 'block', 'crouch', 'rise', 'dashB', 'side', 'guard']);
+// BLOQUEO (the block button): held, the guard (standing: highs and mids; crouched: lows); pressed in the last frames
+// before a blow lands, a parry (js/fight/match.js applyParry). A press opens the window for PARRY_WIN frames, and
+// another can't open one until PARRY_CD frames after it (mashing the button parries nothing)
+export const PARRY_WIN = 7, PARRY_CD = 26;
+// the states the block button guards from (what a fighter can be doing and still put the guard up)
+const BLOCK_STATES = new Set(['idle', 'walkF', 'walkB', 'guard', 'block', 'crouch', 'rise', 'dashF', 'dashB', 'side']);
 const UBS_SKIP = new Set(['throwing', 'thrown', 'rageArt', 'rageHit', 'ko', 'win', 'lose', 'intro', 'down', 'land', 'getup', 'tech', 'air']);
 const _u1 = new THREE.Vector3(), _u2 = new THREE.Vector3(), _u3 = new THREE.Vector3(), _u4 = new THREE.Vector3(), _u5 = new THREE.Vector3();
 // channels of the anti-pop filter and their natural frequency (rad/s); spine and neck have their own springs
@@ -139,7 +145,7 @@ export class Fighter {
     this.feet?.reset(); this.ubc = 0; this.snapSmooth = true; this.yawRate = 0;
     this.stun = 0; this.juggles = 0; this.comboHits = 0; this.comboDmg = 0; this.spin = 0;
     this.slide = 0; this.vel.set(0, 0, 0); this.pos.y = 0;
-    this.pending = 0; this.pendingT = 0; this.downT = 0; this.invuln = 0;
+    this.pending = 0; this.pendingT = 0; this.downT = 0; this.invuln = 0; this.parryW = 0; this.parryCD = 0;
     this.crouching = false; this.airborne = false; this.guard = 'none';
     this.downHold = 0; this.upHold = 0; this.lastDy = 0;
     this.sideDir = 0; this.throwPartner = null; this.throwMove = null;
@@ -192,6 +198,10 @@ export class Fighter {
     this.hist.unshift(f);
     if (this.hist.length > 40) this.hist.pop();
     this.inp = f;
+    // the parry window: opened by a fresh press of the block button (not while the last one's cool-down lasts)
+    if (this.parryW > 0) this.parryW--;
+    if (this.parryCD > 0) this.parryCD--;
+    if ((raw.pressed & BLOCK) && this.parryCD <= 0) { this.parryW = PARRY_WIN; this.parryCD = PARRY_CD; }
     if (raw.pressed & (B1 | B2 | B3 | B4)) {
       this.pending |= raw.pressed & (B1 | B2 | B3 | B4);
       if (!this.pendingT) this.pendingT = 2; // small window to merge simultaneous presses
@@ -238,7 +248,7 @@ export class Fighter {
   }
 
   canAct() {
-    return ['idle', 'walkF', 'walkB', 'crouch', 'rise', 'dashF', 'dashB', 'side'].includes(this.state) ||
+    return ['idle', 'walkF', 'walkB', 'crouch', 'rise', 'dashF', 'dashB', 'side', 'guard'].includes(this.state) ||
       (this.state === 'move' && this.mf >= this.move.total - 4) ||
       (this.state === 'dashF' && this.sf > 4) || this.juggleCancel();
   }
@@ -305,6 +315,8 @@ export class Fighter {
       case 'idle': case 'walkF': case 'walkB': {
         if (inp.up < 0) { this.setState('crouch'); this.crouching = true; this.play('crouch', 5); break; }
         if (inp.up > 0) { this.setState('prejump'); this.play('jump', 3); break; }
+        // the block button held: the guard up, standing his ground
+        if (inp.held & BLOCK) { this.setState('guard'); this.play('guardHold', 4); break; }
         if (inp.fwd > 0) {
           if (this.tapped(6, 18) && s !== 'walkF') { this.setState('dashF'); this.play('dashF', 3); this.match.sfx('step', this); break; }
           if (s !== 'walkF') { this.setState('walkF'); this.play('walkF', 6); }
@@ -312,6 +324,12 @@ export class Fighter {
           if (this.tapped(4, 18) && s !== 'walkB') { this.setState('dashB'); this.play('dashB', 3); this.match.sfx('step', this); break; }
           if (s !== 'walkB') { this.setState('walkB'); this.play('walkB', 6); }
         } else if (s !== 'idle') { this.setState('idle'); this.play('idle', 7); }
+        break;
+      }
+      case 'guard': {
+        if (inp.up < 0) { this.setState('crouch'); this.crouching = true; this.play('crouch', 5); break; }
+        if (inp.up > 0) { this.setState('prejump'); this.play('jump', 3); break; }
+        if (!(inp.held & BLOCK)) { this.setState('idle'); this.play('idle', 6); }
         break;
       }
       case 'crouch': {
@@ -425,6 +443,8 @@ export class Fighter {
     if (['idle', 'walkB', 'rise', 'dashB', 'block'].includes(s) && inp.fwd <= 0 && inp.up >= 0) this.guard = 'high';
     if ((s === 'crouch' || (s === 'block' && this.crouching)) && (inp.d === 1 || inp.d === 2)) this.guard = 'low';
     if (s === 'side' && this.sf > 12) this.guard = 'high';
+    // the block button: standing, highs and mids; crouched, lows (whatever the stick says)
+    if ((inp.held & BLOCK) && BLOCK_STATES.has(s)) this.guard = this.crouching || s === 'crouch' ? 'low' : 'high';
     // the training partner set not to block takes every blow (standing still would block highs and mids)
     if (this.noGuard) this.guard = 'none';
   }

@@ -103,6 +103,23 @@ export function buildClips(style) {
     [3, { handL: [-0.1, 0.3, 0.45], handR: [-0.28, 0.32, 0.36], spine: [0.2, 0.05, 0], neck: [0.2, 0.1, 0], rootPos: [0, -0.09, -0.06], clavL: [0.15, 0.2], clavR: [0.15, 0.2] }, 'snap'],
     [10, null, 'inout'],
   ]);
+  // the block button held: both forearms up in front of the face, the chin down behind them, the weight back a little,
+  // breathing behind the guard
+  const GUARDUP = { handL: [-0.12, 0.3, 0.46], handR: [-0.22, 0.33, 0.4], fistL: 0.92, fistR: 0.92, spine: [0.16, 0.04, 0], neck: [0.24, 0.08, 0],
+    rootPos: [0, -0.07, -0.05], clavL: [0.12, 0.16], clavR: [0.12, 0.16], poleL: [0.3, -1, -0.1], poleR: [0.3, -1, -0.1] };
+  clips.guardHold = C([
+    [0, GUARDUP],
+    [16, { ...GUARDUP, rootPos: [0, -0.08, -0.05], handL: [-0.12, 0.29, 0.46], handR: [-0.22, 0.32, 0.4], neck: [0.26, 0.08, 0] }, 'sine'],
+    [32, GUARDUP, 'sine'],
+  ], { loop: true });
+  // parried: the blow knocked aside, thrown off balance back onto his heels, the arms flung out, open to a punish
+  clips.parried = C([
+    [0, {}],
+    [3, { rootPos: [0, -0.04, -0.12], rootRot: [-0.16, 0.22, 0], spine: [-0.3, 0.25, 0], neck: [-0.25, 0.3, 0],
+      handL: [0.55, 0.0, 0.1], handR: [0.5, 0.2, 0.05], fistL: 0.2, fistR: 0.3, twistL: 0.4, twistR: 0.4, poleL: [0.6, -0.5, -0.5], poleR: [0.6, -0.5, -0.5] }, 'snap'],
+    [12, { rootPos: [0, -0.06, -0.1], rootRot: [-0.1, 0.15, 0], spine: [-0.2, 0.15, 0], neck: [-0.1, 0.2, 0], handL: [0.45, -0.25, 0.15], handR: [0.4, -0.15, 0.1] }, 'out'],
+    [22, null, 'inout'],
+  ]);
   clips.blockLow = C([
     [0, { rootPos: [0, -0.28, -0.1], rootRot: [0.3, -0.6, 0], spine: [0.24, 0.1, 0], footL: [0.1, 0.071, 0.2], footR: [0.24, 0.071, -0.32], toeR: 0.9, footRotR: [0.55, 0.6, 0], kneeL: [0.12, 0, 1], kneeR: [0.2, -0.4, 1] }],
     [3, { rootPos: [0, -0.3, -0.16], handL: [0.0, -0.1, 0.5], handR: [-0.2, 0.0, 0.45], spine: [0.36, 0.1, 0] }, 'snap'],
@@ -522,6 +539,16 @@ export function buildClips(style) {
     [3, { ...BRACE, rootPos: [0, -0.135, -0.072], handL: [0.365, 0.065, 0.305], handR: [0.365, 0.065, 0.305], jaw: 0.6 }, 'sine'],
     [6, BRACE, 'sine'],
   ], { loop: true });
+  // ... something huge held up over him (Aleix's giant controller): he looks up at it, the knees going, both hands up
+  // over his head, palms up as if he could hold it off, the mouth open; trembling
+  const LOOKUP = { rootPos: [0, -0.15, -0.06], rootRot: [-0.05, 0, 0], spine: [-0.16, 0, 0], neck: [-0.62, 0, 0],
+    handL: [0.12, 0.78, 0.32], handR: [0.12, 0.78, 0.32], aimL: 1, aimR: 1, fistL: 0.05, fistR: 0.05, twistL: 1.25, twistR: 1.25, wristL: [-0.5, 0], wristR: [-0.5, 0],
+    poleL: [0.8, -0.4, -0.3], poleR: [0.8, -0.4, -0.3], footL: [0.16, 0.071, 0.04], footR: [0.16, 0.071, -0.06], footRotL: [0, 0.15, 0], footRotR: [0, 0.2, 0], kneeL: [0.14, 0, 1], kneeR: [0.14, 0, 1], jaw: 0.7 };
+  clips.fatalLookUp = C([
+    [0, LOOKUP],
+    [4, { ...LOOKUP, rootPos: [0.004, -0.153, -0.062], handL: [0.125, 0.79, 0.325], handR: [0.115, 0.775, 0.315], neck: [-0.6, 0.02, 0.01], jaw: 0.76 }, 'sine'],
+    [8, LOOKUP, 'sine'],
+  ], { loop: true });
   // ... struck in the chest by Orión's eye beams: thrown back onto his heels, arched, the arms flung out and back, the
   // head back, the mouth wide; held there, shaking, while they burn into him
   const BEAMHIT = { rootPos: [0, -0.1, -0.13], rootRot: [-0.22, 0, 0], spine: [-0.32, 0, 0], neck: [-0.42, 0, 0],
@@ -667,11 +694,14 @@ export function buildMoves(style) {
   M.frontKick = {
     name: 'Front kick', total: 34, clip: C([
       [0, {}],
+      // the knee comes up high and the foot tucks under it, toes pulled back; the weight settles onto the back foot
       [5, { footL: [0.05, 0.34, 0.26], kneeL: [0.1, 0.5, 1], footRotL: [-0.25, -0.3, 0], rootPos: [0, -0.06, -0.05], rootRot: [-0.08, -0.4, 0], spine: [0.12, 0.1, 0] }, 'inout'],
+      [9, { footL: [0.05, 0.56, 0.34], kneeL: [0.1, 0.75, 0.7], footRotL: [-0.55, -0.25, 0], toeL: -0.3, rootPos: [0, -0.055, -0.05], rootRot: [-0.16, -0.38, 0], spine: [0.11, 0.1, 0], neck: [0.22, 0.17, 0] }, 'inout'],
+      // and the leg snaps out from it, the ball of the foot first, the hips pushing in behind it
       [13, { footL: [0.04, 0.8, 0.9], kneeL: [0.1, 0.8, 0.6], footRotL: [-1.25, -0.2, 0], toeL: -0.6, rootRot: [-0.3, -0.35, 0], spine: [0.1, 0.1, 0], rootPos: [0, -0.05, -0.02],
         handR: [-0.06, 0.24, 0.52], neck: [0.3, 0.15, 0] }, 'drive'],
       [16, {}, 'lin'],
-      [24, { footL: [0.05, 0.42, 0.36], kneeL: [0.1, 0.5, 1], footRotL: [-0.15, -0.35, 0], toeL: 0, rootRot: [-0.04, -0.45, 0], rootPos: [0, -0.06, -0.03], neck: [0.24, 0.2, 0], handR: GUARD_HAND.R }, 'inout'],
+      [25, { footL: [0.05, 0.42, 0.36], kneeL: [0.1, 0.5, 1], footRotL: [-0.15, -0.35, 0], toeL: 0, rootRot: [-0.04, -0.45, 0], rootPos: [0, -0.06, -0.03], neck: [0.24, 0.2, 0], handR: GUARD_HAND.R }, 'inout'],
       [34, null, 'inout'],
     ]),
     hit: { f: [13, 15], limb: 'footL', r: 0.11, dmg: 13, lvl: 'mid', react: 'hitMid', blk: -6, hitAdv: 4, push: 0.3 },
@@ -704,11 +734,11 @@ export function buildMoves(style) {
         handR: [0.16, -0.8, -0.4] }, 'drive'],
       [18, {}, 'lin'],
       // recovery: the knee re-chambers on the way back, hips unwind
-      [24, { rootPos: [0, -0.06, 0.0], rootRot: [-0.12, 0.6, -0.15], spine: [0.08, -0.3, -0.05], neck: [0.3, -0.4, 0.06],
+      [26, { rootPos: [0, -0.06, 0.0], rootRot: [-0.12, 0.6, -0.15], spine: [0.08, -0.3, -0.05], neck: [0.3, -0.4, 0.06],
         footR: [0.3, 0.44, 0.14], kneeR: [0.25, 0.15, 1], footRotR: [-0.1, 0.4, 0.4], toeR: -0.1,
         footRotL: [0.1, 0.8, 0], handR: [0.22, -0.5, 0.06], poleR: [0.25, -1, -0.25] }, 'inout'],
       // the foot lands behind on its ball, the guard comes back
-      [31, { rootPos: [0, -0.085, -0.02], rootRot: [0.04, -0.25, -0.02], spine: [0.1, 0.05, 0], neck: [0.16, 0.15, 0],
+      [33, { rootPos: [0, -0.085, -0.02], rootRot: [0.04, -0.25, -0.02], spine: [0.1, 0.05, 0], neck: [0.16, 0.15, 0],
         footR: [0.2, 0.071, -0.19], kneeR: [0.5, 0, 1], footRotR: [0.3, 0.65, 0], toeR: 0,
         footRotL: [0, -0.2, 0], handR: [-0.08, 0.3, 0.44], aimR: 0, twistR: TG.R }, 'inout'],
       [40, null, 'inout'],
@@ -721,9 +751,10 @@ export function buildMoves(style) {
   M.lowKick.clip = C([
     [0, {}],
     [5, { rootPos: [0, -0.14, -0.05], rootRot: [0.1, -0.6, 0], footL: [0.1, 0.15, 0.2] }, 'inout'],
-    [13, { rootPos: [0, -0.18, -0.06], rootRot: [-0.1, -0.7, -0.1], spine: [0.2, 0.2, 0.1], footL: [0.02, 0.16, 0.72], kneeL: [0.3, 0.4, 1], footRotL: [-0.3, -0.6, 0.4], neck: [0.2, 0.3, 0] }, 'drive'],
+    [9, { rootPos: [0, -0.16, -0.06], rootRot: [0.05, -0.5, 0.04], spine: [0.15, 0.15, 0.04], footL: [0.1, 0.24, 0.3], kneeL: [0.25, 0.5, 1], footRotL: [-0.2, -0.5, 0.2], neck: [0.18, 0.25, 0] }, 'inout'],
+    [13, { rootPos: [0, -0.18, -0.06], rootRot: [-0.1, -0.75, -0.1], spine: [0.2, 0.22, 0.1], footL: [0.02, 0.16, 0.72], kneeL: [0.3, 0.4, 1], footRotL: [-0.3, -0.6, 0.4], neck: [0.2, 0.3, 0] }, 'drive'],
     [16, {}, 'lin'],
-    [21, { rootPos: [0, -0.14, -0.04], rootRot: [0.02, -0.6, -0.04], spine: [0.15, 0.15, 0.05], footL: [0.06, 0.16, 0.36], kneeL: [0.25, 0.3, 1], footRotL: [-0.1, -0.5, 0.2] }, 'inout'],
+    [23, { rootPos: [0, -0.14, -0.04], rootRot: [0.02, -0.6, -0.04], spine: [0.15, 0.15, 0.05], footL: [0.06, 0.16, 0.36], kneeL: [0.25, 0.3, 1], footRotL: [-0.1, -0.5, 0.2] }, 'inout'],
     [32, { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], footL: [0.05, 0.071, 0.24], kneeL: [0.15, 0, 1], footRotL: [0, -0.35, 0], neck: [0.16, 0.2, 0] }, 'inout'],
   ]);
   Object.assign(M.lowKick, { hit: { f: [13, 14], limb: 'footL', r: 0.11, dmg: 9, lvl: 'low', react: 'hitLow', blk: -12, hitAdv: -2, push: 0.15 },

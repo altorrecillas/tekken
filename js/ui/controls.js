@@ -6,13 +6,13 @@ import { KEYMAPS, PADMAP, ACTIONS, RESERVED_KEYS, RESERVED_BUTTONS, bindKey, bin
 
 const $ = (s) => document.querySelector(s);
 export const ACTION_NAMES = { left: 'Izquierda', right: 'Derecha', up: 'Arriba · saltar', down: 'Abajo · agacharse', b1: '1 · Puño izquierdo', b2: '2 · Puño derecho',
-  b3: '3 · Patada izquierda', b4: '4 · Patada derecha', b12: '1+2', b34: '3+4', b13: '1+3 · Agarre', b24: '2+4 · Agarre', start: 'Pausa' };
+  b3: '3 · Patada izquierda', b4: '4 · Patada derecha', block: 'Bloqueo · parada', b12: '1+2', b34: '3+4', b13: '1+3 · Agarre', b24: '2+4 · Agarre', start: 'Pausa' };
 // (a row left without any key is marked: the fighter can't do that)
-const ESSENTIAL = new Set(['left', 'right', 'up', 'down', 'b1', 'b2', 'b3', 'b4']);
+const ESSENTIAL = new Set(['left', 'right', 'up', 'down', 'b1', 'b2', 'b3', 'b4']); // (BLOQUEO is optional: holding back blocks too)
 // the screen's two columns of actions
 const LAYOUT = {
-  keys: [['left', 'right', 'up', 'down', 'start'], ['b1', 'b2', 'b3', 'b4', 'b12', 'b34', 'b13', 'b24']],
-  pad: [['b1', 'b2', 'b3', 'b4', 'start'], ['b12', 'b34', 'b13', 'b24']],
+  keys: [['left', 'right', 'up', 'down', 'block', 'start'], ['b1', 'b2', 'b3', 'b4', 'b12', 'b34', 'b13', 'b24']],
+  pad: [['b1', 'b2', 'b3', 'b4', 'block', 'start'], ['b12', 'b34', 'b13', 'b24']],
 };
 const TABS = [['p1', 'TECLADO · J1'], ['p2', 'TECLADO · J2'], ['pad', 'MANDO']];
 const STYLE_NAMES = { ps: 'PlayStation', xbox: 'Xbox', nintendo: 'Nintendo' };
@@ -264,12 +264,12 @@ export function controlsHelp() {
   const keys = (p) => {
     const m = KEYMAPS[p];
     const combos = ['b12', 'b34', 'b13', 'b24'].filter((a) => m[a].some((x) => x !== null)).map((a) => ` · ${a.slice(1, 2)}+${a.slice(2)} = ${list(m[a], keyLabel)}`).join('');
-    return `Mover ${['up', 'left', 'down', 'right'].map((a) => list(m[a], keyLabel)).join(' ')} · ${['b1', 'b2', 'b3', 'b4'].map((a, i) => `${i + 1} = ${list(m[a], keyLabel)}`).join(' · ')}${combos}`;
+    return `Mover ${['up', 'left', 'down', 'right'].map((a) => list(m[a], keyLabel)).join(' ')} · ${['b1', 'b2', 'b3', 'b4'].map((a, i) => `${i + 1} = ${list(m[a], keyLabel)}`).join(' · ')} · bloqueo = ${list(m.block, keyLabel)}${combos}`;
   };
   const st = padStyle(), b = (a) => list(PADMAP[a], (i) => buttonLabel(i, st));
   return {
     p1: keys('p1'), p2: keys('p2'),
-    pad: `${['b1', 'b2', 'b3', 'b4'].map((a, i) => `${i + 1} = ${b(a)}`).join(' · ')} · 1+2 = ${b('b12')} · 3+4 = ${b('b34')} · agarres = ${b('b13')} / ${b('b24')}`,
+    pad: `${['b1', 'b2', 'b3', 'b4'].map((a, i) => `${i + 1} = ${b(a)}`).join(' · ')} · bloqueo = ${b('block')} · 1+2 = ${b('b12')} · 3+4 = ${b('b34')} · agarres = ${b('b13')} / ${b('b24')}`,
     pause: `ESC · ${list(KEYMAPS.p1.start, keyLabel)} (J1) · ${list(KEYMAPS.p2.start, keyLabel)} (J2) · ${b('start')} (mando)`,
   };
 }

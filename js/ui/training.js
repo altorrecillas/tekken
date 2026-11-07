@@ -1,7 +1,7 @@
 // ENTRENAMIENTO: the sparring partner's settings (what it does, whether it blocks, punishes or rolls back up), a
 // recording of its actions played back in a loop, the player's input history on screen and the combo trials of each
 // fighter (progress kept by js/ui/progress.js).
-import { B1, B2, B3, B4 } from '../fight/input.js';
+import { B1, B2, B3, B4, BLOCK } from '../fight/input.js';
 import { AIController } from '../fight/ai.js';
 import { commandList } from '../fight/moves.js';
 
@@ -10,7 +10,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const NONE = { dx: 0, dy: 0, held: 0, pressed: 0 };
 const REC_MAX = 600; // frames a recording may last (10 s)
 const ARROW = { 1: '↙', 2: '↓', 3: '↘', 4: '←', 5: '·', 6: '→', 7: '↖', 8: '↑', 9: '↗' };
-const BTNS = [[B1, '1'], [B2, '2'], [B3, '3'], [B4, '4']];
+const BTNS = [[B1, '1'], [B2, '2'], [B3, '3'], [B4, '4'], [BLOCK, 'BLQ']];
 
 // a command's notation as the move list writes it, for the trial panel
 export const notation = (cmd) => cmd.replace(/\+/g, ' + ').replace(/,/g, ', ');
@@ -148,6 +148,11 @@ export class Training {
       if (this.blockPlan?.move !== mv || this.blockPlan.mf > a.mf) this.blockPlan = { move: mv, mf: a.mf, yes: s.guard === 'all' || ((m.frame * 2654435761) >>> 0) % 2 === 0 };
       this.blockPlan.mf = a.mf;
       if (this.blockPlan.yes) guard = { dx: -fwd, dy: mv.hit.lvl === 'low' ? -1 : 0, held: 0, pressed: 0 };
+      // PARA: every blow parried (the block button pressed 3 frames before it lands), to practise punishing a parry
+      if (s.guard === 'parry') {
+        const left = mv.hit.f[0] - a.mf;
+        guard = { dx: 0, dy: mv.hit.lvl === 'low' ? -1 : 0, held: left <= 3 ? BLOCK : 0, pressed: left === 3 ? BLOCK : 0 };
+      }
     }
     b.noGuard = s.action !== 'cpu' && s.action !== 'play' && (s.guard === 'none' || (mv && mv.hit && !guard));
     let r;
@@ -288,7 +293,7 @@ export class Training {
     return `<h3>AJUSTES DE ENTRENAMIENTO</h3><div class="tset">
       <div class="row"><span>Rival</span>${seg('action', [['stand', 'DE PIE'], ['crouch', 'AGACHADO'], ['jump', 'SALTA'], ['cpu', 'CPU'], ['play', 'GRABACIÓN']])}</div>
       <div class="row"><span>Nivel de la CPU</span>${seg('level', [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5']])}</div>
-      <div class="row"><span>Bloqueo</span>${seg('guard', [['none', 'NO'], ['all', 'TODO'], ['random', 'ALEATORIO']])}</div>
+      <div class="row"><span>Bloqueo</span>${seg('guard', [['none', 'NO'], ['all', 'TODO'], ['random', 'ALEATORIO'], ['parry', 'PARA']])}</div>
       <div class="row"><span>Castiga tras bloquear</span>${seg('counter', [[false, 'NO'], [true, 'SÍ']])}</div>
       <div class="row"><span>Se recupera rodando</span>${seg('tech', [[false, 'NO'], [true, 'SÍ']])}</div>
       <div class="row"><span>Historial de entradas</span>${seg('history', [[true, 'SÍ'], [false, 'NO']])}</div>

@@ -228,6 +228,7 @@ button { touch-action: manipulation; }
 @keyframes comboPop { from { transform: scale(1.35); } }
 .popup { position: absolute; top: 38%; font-family: 'Bebas'; font-size: 40px; letter-spacing: .08em; color: #ff5b2e; text-shadow: 0 3px 0 #000, 0 0 16px rgba(255,80,20,.8); animation: popIn 1.1s ease-out forwards; }
 .popup.info { color: #9fe3ff; text-shadow: 0 3px 0 #000, 0 0 16px rgba(80,200,255,.8); }
+.popup.parry { color: #fff; font-size: 54px; text-shadow: 0 3px 0 #000, 0 0 14px rgba(120,210,255,1), 0 0 34px rgba(80,170,255,.9); }
 .popup.l { left: 4%; } .popup.r { right: 4%; }
 @keyframes popIn { 0% { transform: scale(1.8); opacity: 0; } 12% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
 #announce { position: absolute; top: 38%; width: 100%; text-align: center; font-family: 'Bebas'; font-size: min(17vw, 180px); line-height: 1; letter-spacing: .04em; opacity: 0; pointer-events: none;
@@ -368,7 +369,7 @@ button { touch-action: manipulation; }
 /* ---------- touch controls (built by js/ui/touch.js) ---------- */
 #touch { position: fixed; inset: 0; z-index: 12; pointer-events: none; display: none; --tk-alpha: .85; --rb: 34px; --R: 63px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #touch.on { display: block; }
-#touch .tzone, #touch .tbtns, #touch .trage, #touch .tpause { position: absolute; pointer-events: auto; touch-action: none; }
+#touch .tzone, #touch .tbtns, #touch .trage, #touch .tpause, #touch .tblk { position: absolute; pointer-events: auto; touch-action: none; }
 #touch .tstick { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; opacity: calc(var(--tk-alpha) * .6); transition: opacity .15s; }
 #touch .tstick.active { opacity: var(--tk-alpha); }
 #touch .ring { position: absolute; left: calc(-1 * var(--R)); top: calc(-1 * var(--R)); width: calc(2 * var(--R)); height: calc(2 * var(--R)); border-radius: 50%;
@@ -399,6 +400,14 @@ button { touch-action: manipulation; }
 #touch .trage b { font-size: calc(var(--rb) * .52); font-weight: 400; } #touch .trage small { font-size: calc(var(--rb) * .4); }
 #touch .trage.down { transform: scale(.9); }
 @keyframes tkRage { to { box-shadow: 0 0 30px 8px rgba(255,60,30,.9); } }
+/* BLOQUEO: a shield (held: the guard; pressed just in time: a parry) */
+#touch .tblk { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; opacity: var(--tk-alpha); }
+#touch .tblk i { display: block; width: 100%; height: 86%;
+  clip-path: polygon(50% 0%, 96% 12%, 92% 52%, 76% 80%, 50% 100%, 24% 80%, 8% 52%, 4% 12%);
+  background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.55), rgba(255,255,255,.08) 55%), linear-gradient(160deg, rgba(120,190,255,.55), rgba(40,90,170,.55));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.6); transition: transform .05s, filter .05s; }
+#touch .tblk small { font-family: 'Teko'; font-size: calc(var(--rb) * .3); letter-spacing: .12em; color: #fff; text-shadow: 0 1px 2px #000; margin-top: -2px; }
+#touch .tblk.down i { transform: scale(.9); filter: brightness(1.8) drop-shadow(0 0 8px rgba(140,200,255,.9)); }
 #touch .tpause { left: 50%; transform: translateX(-50%); width: 48px; height: 40px; border-radius: 10px; background: rgba(10,12,20,.55); border: 1px solid rgba(255,255,255,.4);
   display: flex; align-items: center; justify-content: center; gap: 6px; opacity: var(--tk-alpha); padding: 0; cursor: pointer; }
 #touch .tpause i { display: block; width: 5px; height: 16px; background: #fff; border-radius: 2px; }
@@ -825,20 +834,20 @@ button { touch-action: manipulation; }
 <!-- modulepreload:begin -->
 <link rel="modulepreload" href="vendor/three/build/three.core.js">
 <link rel="modulepreload" href="vendor/three/build/three.module.js">
-<link rel="modulepreload" href="js/main.js">
 <link rel="modulepreload" href="js/fight/styles.js">
 <link rel="modulepreload" href="js/fight/fatality.js">
+<link rel="modulepreload" href="js/main.js">
 <link rel="modulepreload" href="js/fight/moves.js">
 <link rel="modulepreload" href="js/audio/audio.js">
 <link rel="modulepreload" href="js/stage/core.js">
 <link rel="modulepreload" href="js/ui/online.js">
-<link rel="modulepreload" href="js/stage/neon.js">
 <link rel="modulepreload" href="js/fight/match.js">
+<link rel="modulepreload" href="js/stage/neon.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/SMAAPass.js">
 <link rel="modulepreload" href="js/anim/rig.js">
 <link rel="modulepreload" href="js/stage/terrace.js">
-<link rel="modulepreload" href="js/stage/festival.js">
 <link rel="modulepreload" href="js/fight/fighter.js">
+<link rel="modulepreload" href="js/stage/festival.js">
 <link rel="modulepreload" href="js/fx/splitbody.js">
 <link rel="modulepreload" href="js/stage/street.js">
 <link rel="modulepreload" href="vendor/three/jsm/utils/BufferGeometryUtils.js">
@@ -847,6 +856,7 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/fx/halves.js">
 <link rel="modulepreload" href="js/materials.js">
 <link rel="modulepreload" href="js/fx/accessories.js">
+<link rel="modulepreload" href="js/fx/gamepad.js">
 <link rel="modulepreload" href="js/fx/blood.js">
 <link rel="modulepreload" href="js/fx/fx.js">
 <link rel="modulepreload" href="js/net/netplay.js">
@@ -863,17 +873,17 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/UnrealBloomPass.js">
 <link rel="modulepreload" href="vendor/three/jsm/math/SimplexNoise.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/SMAAShader.js">
+<link rel="modulepreload" href="js/ui/touch.js">
 <link rel="modulepreload" href="js/net/simstate.js">
 <link rel="modulepreload" href="js/fx/tornado.js">
 <link rel="modulepreload" href="js/fx/tennis.js">
-<link rel="modulepreload" href="js/ui/touch.js">
 <link rel="modulepreload" href="js/fight/input.js">
 <link rel="modulepreload" href="js/fight/camera.js">
 <link rel="modulepreload" href="js/anim/body.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/GTAOShader.js">
+<link rel="modulepreload" href="js/fight/ai.js">
 <link rel="modulepreload" href="js/fx/dumbbells.js">
 <link rel="modulepreload" href="vendor/three/jsm/objects/Reflector.js">
-<link rel="modulepreload" href="js/fight/ai.js">
 <link rel="modulepreload" href="js/fight/ragdoll.js">
 <link rel="modulepreload" href="js/charloader.js">
 <link rel="modulepreload" href="js/fx/wear.js">
@@ -885,12 +895,14 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/fx/evaporate.js">
 <link rel="modulepreload" href="js/anim/feet.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/PoissonDenoiseShader.js">
+<link rel="modulepreload" href="vendor/three/jsm/modifiers/TessellateModifier.js">
 <link rel="modulepreload" href="js/engine/sunshadow.js">
 <link rel="modulepreload" href="js/anim/corskin.js">
 <link rel="modulepreload" href="js/anim/clip.js">
 <link rel="modulepreload" href="js/fx/headcrush.js">
 <link rel="modulepreload" href="js/ui/hud.js">
 <link rel="modulepreload" href="js/engine/device.js">
+<link rel="modulepreload" href="js/fight/padpath.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/BokehShader.js">
 <link rel="modulepreload" href="js/net/lan.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/BokehPass.js">
@@ -905,8 +917,8 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/net/qr.js">
 <link rel="modulepreload" href="js/net/sdp.js">
 <link rel="modulepreload" href="js/fx/contact.js">
-<link rel="modulepreload" href="js/ui/endings.js">
 <link rel="modulepreload" href="js/fight/stats.js">
+<link rel="modulepreload" href="js/ui/endings.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
 <link rel="modulepreload" href="js/net/signal.js">
 <link rel="modulepreload" href="js/fx/oil.js">

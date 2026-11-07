@@ -91,7 +91,7 @@ for (const ids of (run('det') || run('rollback') || run('pack') ? PAIRS : [])) {
     seen.rounds.add(R.round);
     for (const f of R.fighters) seen.states.add(f.state);
   }
-  console.log(`  recorded ${FRAMES} frames (${(tStep / FRAMES).toFixed(3)} ms a step): rounds ${[...seen.rounds].join(',')}, ${stats.kos} KOs, ${seen.throws} throws, ${seen.rage} Rage Arts, match end at ${stats.ended || '-'}, states ${seen.states.size}`);
+  console.log(`  recorded ${FRAMES} frames (${(tStep / FRAMES).toFixed(3)} ms a step): rounds ${[...seen.rounds].join(',')}, ${stats.kos} KOs, ${seen.throws} throws, ${seen.rage} Rage Arts, match end at ${stats.ended || '-'}, states ${seen.states.size}, parries ${R.stats ? R.stats.map((x) => x.parries).join('/') : '-'}`);
 
   // ---------------------------------------------------------------- 1. determinism
   if (run('det')) {
@@ -159,7 +159,7 @@ for (const ids of (run('det') || run('rollback') || run('pack') ? PAIRS : [])) {
 // the win screen of a match Noemí won, her player holding up and pressing 1 on frame 40 (the button on the screen
 // presses the same): the whole move must play the same from the same inputs, rewound over and over (the press itself
 // predicted wrong and corrected, as online when it comes late), and copied over the network mid-move
-for (const ids of (run('fatal') ? [['noemi', 'camilo'], ['camilo', 'zapponi'], ['dani', 'noemi'], ['alejandro', 'rafa'], ['rafa', 'camilo'], ['zapponi', 'noemi'], ['orion', 'dani']] : [])) {
+for (const ids of (run('fatal') ? [['noemi', 'camilo'], ['camilo', 'zapponi'], ['dani', 'noemi'], ['alejandro', 'rafa'], ['rafa', 'camilo'], ['zapponi', 'noemi'], ['orion', 'dani'], ['aleix', 'rafa']] : [])) {
   console.log(`\n== PUÑETALITY ${ids.join(' vs ')} ==`);
   const start = (m) => { m.startRound(); m.wins = [m.opts.rounds, 0]; m.winner = 0; m.phase = 'matchEnd'; m.pt = 0; m.humans = [true, true]; };
   const N = 820, rec = [];

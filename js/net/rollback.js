@@ -30,9 +30,11 @@ const RING = MAX_PREDICT + 3;    // snapshots kept (a rewind never goes further 
 export const CHECK_EVERY = 30;   // frames between two state checks
 const PKT_INPUT = 0x31, HEAD = 20;
 
-// one frame of input in 12 bits: dx and dy (-1..1, screen terms), the four buttons held and those newly pressed
-export function packIn(i) { return ((i.dx + 1) & 3) | (((i.dy + 1) & 3) << 2) | ((i.held & 15) << 4) | ((i.pressed & 15) << 8); }
-export function unpackIn(v, out = {}) { out.dx = (v & 3) - 1; out.dy = ((v >> 2) & 3) - 1; out.held = (v >> 4) & 15; out.pressed = (v >> 8) & 15; return out; }
+// one frame of input in 14 bits: dx and dy (-1..1, screen terms), the five buttons (1-4 and BLOCK) held and those
+// newly pressed
+const B5 = (b) => (b & 15) | (b & 32 ? 16 : 0), U5 = (v) => (v & 15) | (v & 16 ? 32 : 0);
+export function packIn(i) { return ((i.dx + 1) & 3) | (((i.dy + 1) & 3) << 2) | (B5(i.held) << 4) | (B5(i.pressed) << 9); }
+export function unpackIn(v, out = {}) { out.dx = (v & 3) - 1; out.dy = ((v >> 2) & 3) - 1; out.held = U5((v >> 4) & 31); out.pressed = U5((v >> 9) & 31); return out; }
 export const NEUTRAL = packIn({ dx: 0, dy: 0, held: 0, pressed: 0 });
 const FINAL_EVERY = 120;
 // the guess for a frame not heard yet: the newest input known, held on, with no new press
@@ -193,7 +195,7 @@ export class RollbackSession {
       const f = first + k;
       if (f <= this.rinMax) continue;
       if (f !== this.rinMax + 1 || f - this.frame >= HIST - 64) break;
-      const v = d.getUint16(HEAD + k * 2, true) & 0xfff;
+      const v = d.getUint16(HEAD + k * 2, true) & 0x3fff;
       this.rin[f % HIST] = v; this.rinMax = f;
       // played already with another guess: rewind there on the next refresh
       if (f < this.frame && this.used[f % HIST] !== v) this.rewindTo = Math.min(this.rewindTo, f);

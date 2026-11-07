@@ -159,9 +159,13 @@ export class Match {
   sfx(name, f, p) { this.audio?.play(name, p || f?.pos); }
   onMoveStart(f, m) {
     if (m.sfxStart) this.sfx(m.sfxStart, f);
-    if (m.hit && m.hit.dmg >= 13 && this.fx.trail) {
+    // (heavy blows trail their fist or foot; every kick, light ones too, sweeps its shin: js/fx/fx.js SweepTrail)
+    const kickLimb = m.hit && /^(foot|knee)/.test(m.hit.limb);
+    if (m.hit && (m.hit.dmg >= 13 || kickLimb) && this.fx.trail) {
       const bone = { handL: 'wrist.L', handR: 'wrist.R', footL: 'foot.L', footR: 'foot.R', kneeR: 'lowerleg01.R', kneeL: 'lowerleg01.L', forearmR: 'lowerarm02.R', forearmL: 'lowerarm02.L' }[m.hit.limb];
-      if (bone) f.pendingTrail = { bone, at: Math.max(0, m.hit.f[0] - 7), dur: (m.hit.f[1] - Math.max(0, m.hit.f[0] - 7) + 3) / 60, move: m };
+      // (a kick's sweep only over the last frames of its whip: from further back it took in the lift off the floor)
+      const lead = kickLimb ? 4 : 7;
+      if (bone) f.pendingTrail = { bone, at: Math.max(0, m.hit.f[0] - lead), dur: (m.hit.f[1] - Math.max(0, m.hit.f[0] - lead) + 3) / 60, move: m };
       else f.pendingTrail = null;
     } else f.pendingTrail = null;
     // the limb's swish a few frames before it can land (a blow cut short never swishes)
@@ -261,9 +265,14 @@ export class Match {
       for (const f of this.fighters) if (!f.ragdoll) f.animate();
       for (const f of this.fighters) {
         const pt = f.pendingTrail;
-        if (pt && f.state === 'move' && f.move === pt.move && f.mf >= pt.at) { this.fx.trail?.(f, { bone: pt.bone }, pt.dur); f.pendingTrail = null; }
+        if (pt && f.state === 'move' && f.move === pt.move && f.mf >= pt.at) { this.fx.trail?.(f, { bone: pt.bone, power: Math.min(1.25, Math.max(0.5, (pt.move.hit?.dmg || 12) / 16)) }, pt.dur); f.pendingTrail = null; }
         const pw = f.pendingWhoosh;
-        if (pw && f.state === 'move' && f.move === pw.move && f.mf >= pw.at) { this.audio?.whoosh(pw.move.sfx, f.stats.power, f.pos); f.pendingWhoosh = null; }
+        if (pw && f.state === 'move' && f.move === pw.move && f.mf >= pw.at) {
+          this.audio?.whoosh(pw.move.sfx, f.stats.power, f.pos); f.pendingWhoosh = null;
+          // a big kick pivots hard on the support foot: a scuff of dust off the floor under it
+          const H = pw.move.hit, kk = H && /^foot/.test(H.limb) && H.dmg >= 16 && !pw.move.airborne;
+          if (kk) { const sup = H.limb === 'footR' ? 'L' : 'R', p = f.boneWorld('foot.' + sup); if (p.y < 0.2) this.fx.dust?.(p.setY(0), 0.45); }
+        }
       }
       for (const f of this.fighters) { if (!f.ragdoll) f.hurtVolumes(); if (f.invuln > 0) f.invuln--; }
       if (this.phase === 'fight') {
@@ -571,7 +580,7 @@ export class Match {
     att.moveConnected = true;
     const canBlock = def.guard !== 'none';
     if (h.rage) {
-      if (canBlock && (def.guard === 'high')) { this.applyBlock(att, def, m, p); return; }
+      if (canBlock && (def.guard === 'high')) { if (def.parryW > 0) this.applyParry(att, def, m, p); else this.applyBlock(att, def, m, p); return; }
       this.startRageArt(att, def, p); return;
     }
     let blocked = false;
@@ -579,7 +588,8 @@ export class Match {
       if (def.guard === 'high' && (h.lvl === 'high' || h.lvl === 'mid' || h.lvl === 'smid')) blocked = true;
       if (def.guard === 'low' && (h.lvl === 'low' || h.lvl === 'smid')) blocked = true;
     }
-    if (blocked) this.applyBlock(att, def, m, p);
+    // (blocked in the last frames before it landed, with the block button: a parry)
+    if (blocked) { if (def.parryW > 0) this.applyParry(att, def, m, p); else this.applyBlock(att, def, m, p); }
     else this.applyHit(att, def, m, p, hitVol);
   }
 
@@ -602,6 +612,33 @@ export class Match {
     this.stats[def.index].blocks++;
     const adv = def.stun - remaining;
     this.lastEvent = `${m.name}: bloqueado <b style="color:${adv >= 0 ? '#7dff9a' : '#ff8a7a'}">${adv >= 0 ? '+' : ''}${adv}</b> frames`;
+  }
+
+  // a parry: the block button pressed just before the blow landed (fighter.js PARRY_WIN). No block stun to speak of
+  // for him; the attacker is knocked off balance (parried) long enough to be punished by anything quick: SF6's
+  // perfect parry, Soulcalibur's guard impact. A flash, its own ring, a beat of hit-stop and ¡PARADA!
+  applyParry(att, def, m, p) {
+    const low = def.guard === 'low';
+    def.parryW = 0; def.parryCD = 0; // (a string's next blow can be parried too)
+    def.stun = 3;
+    def.setState('block');
+    def.crouching = low;
+    def.play(low ? 'blockLow' : 'blockHigh', 2);
+    def.slide = 0.4;
+    att.setState('hit'); att.stun = 24; att.play('parried', 2);
+    att.slide = 3.2;
+    att.impulse(new THREE.Vector3().subVectors(att.pos, def.pos).setY(0).normalize(), 0.35, true);
+    this.hitstop = 11;
+    this.fx.blockSpark(p, def);
+    this.fx.ring?.(p, 1.1, new THREE.Color(0.55, 0.85, 1.4));
+    this.fx.sparks?.(p, 16);
+    this.camera.shake(0.16);
+    this.audio?.hit('parry', 1, p);
+    this.hud.popup(def.index, '¡PARADA!', 'info parry');
+    this.events.push({ t: 'parry', f: def, att });
+    this.lastParryFrame = this.frame; // (captures: index.html?readyon=parry)
+    this.stats[def.index].parries++;
+    this.lastEvent = `${m.name}: ¡parada! el atacante queda vendido <b style="color:#7dff9a">+${att.stun - def.stun}</b> frames`;
   }
 
   applyHit(att, def, m, p, vol) {

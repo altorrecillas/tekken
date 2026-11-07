@@ -1,24 +1,25 @@
 // Keyboard / gamepad / touch controllers. Each poll() returns a frame of input in SCREEN terms.
 // The keys and pad buttons are the player's own (OPCIONES -> CONTROLES, js/ui/controls.js), kept on the device.
-export const B1 = 1, B2 = 2, B3 = 4, B4 = 8, START = 16;
+export const B1 = 1, B2 = 2, B3 = 4, B4 = 8, START = 16, BLOCK = 32;
 
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
 
 // every action has two slots (main, alternative), null where empty
-export const ACTIONS = ['left', 'right', 'up', 'down', 'b1', 'b2', 'b3', 'b4', 'b12', 'b34', 'b13', 'b24', 'start'];
-export const PAD_ACTIONS = ['b1', 'b2', 'b3', 'b4', 'b12', 'b34', 'b13', 'b24', 'start'];
+export const ACTIONS = ['left', 'right', 'up', 'down', 'b1', 'b2', 'b3', 'b4', 'block', 'b12', 'b34', 'b13', 'b24', 'start'];
+export const PAD_ACTIONS = ['b1', 'b2', 'b3', 'b4', 'block', 'b12', 'b34', 'b13', 'b24', 'start'];
 // the buttons a combination action presses at once (one key for 1+2 and so on)
-const COMBO = { b1: B1, b2: B2, b3: B3, b4: B4, b12: B1 | B2, b34: B3 | B4, b13: B1 | B3, b24: B2 | B4, start: START };
+const COMBO = { b1: B1, b2: B2, b3: B3, b4: B4, block: BLOCK, b12: B1 | B2, b34: B3 | B4, b13: B1 | B3, b24: B2 | B4, start: START };
 export const DEFAULT_KEYMAPS = {
-  p1: { left: ['KeyA', null], right: ['KeyD', null], up: ['KeyW', null], down: ['KeyS', null], b1: ['KeyU', 'KeyY'], b2: ['KeyI', null], b3: ['KeyJ', 'KeyH'], b4: ['KeyK', null],
+  p1: { left: ['KeyA', null], right: ['KeyD', null], up: ['KeyW', null], down: ['KeyS', null], b1: ['KeyU', 'KeyY'], b2: ['KeyI', null], b3: ['KeyJ', 'KeyH'], b4: ['KeyK', null], block: ['KeyL', null],
     b12: [null, null], b34: [null, null], b13: [null, null], b24: [null, null], start: ['Enter', null] },
-  p2: { left: ['ArrowLeft', null], right: ['ArrowRight', null], up: ['ArrowUp', null], down: ['ArrowDown', null], b1: ['Numpad4', 'Digit7'], b2: ['Numpad5', 'Digit8'], b3: ['Numpad1', 'Digit9'], b4: ['Numpad2', 'Digit0'],
+  p2: { left: ['ArrowLeft', null], right: ['ArrowRight', null], up: ['ArrowUp', null], down: ['ArrowDown', null], b1: ['Numpad4', 'Digit7'], b2: ['Numpad5', 'Digit8'], b3: ['Numpad1', 'Digit9'], b4: ['Numpad2', 'Digit0'], block: ['Numpad6', 'Minus'],
     b12: [null, null], b34: [null, null], b13: [null, null], b24: [null, null], start: ['NumpadEnter', 'Backspace'] },
 };
 // PlayStation layout like Tekken (positions of the standard mapping): square=1, triangle=2, cross=3, circle=4,
-// L1 = 1+2, R1 = 3+4, L2 / R2 throws. The d-pad (12-15) and the left stick always move.
-export const DEFAULT_PADMAP = { b1: [2, null], b2: [3, null], b3: [0, null], b4: [1, null], b12: [4, null], b34: [5, null], b13: [6, null], b24: [7, null], start: [9, null] };
+// L1 = 1+2, R1 = 3+4, L2 = throw 1+3, R2 = BLOCK (held under the finger like a fighting game's block trigger). The
+// d-pad (12-15) and the left stick always move.
+export const DEFAULT_PADMAP = { b1: [2, null], b2: [3, null], b3: [0, null], b4: [1, null], block: [7, null], b12: [4, null], b34: [5, null], b13: [6, null], b24: [null, null], start: [9, null] };
 // keys a player can't take: Escape always pauses and goes back (and cancels on the controls screen), Delete clears a
 // slot there, and the rest belong to the browser or the system or change what other keys send (NumLock)
 export const RESERVED_KEYS = new Set(['Escape', 'Delete', 'MetaLeft', 'MetaRight', 'OSLeft', 'OSRight', 'ContextMenu', 'CapsLock', 'NumLock', 'ScrollLock', 'Pause', 'PrintScreen', 'Fn',

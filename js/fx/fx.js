@@ -215,6 +215,59 @@ class Trail {
   dispose(scene) { scene.remove(this.mesh); this.geo.dispose(); this.mat.dispose(); }
 }
 
+// A kick's sweep: the surface the shin and foot cut through the air over the last tenth of a second, drawn between
+// the knee and a point just past the toes (the way fighting games draw a kick's arc: a fan for a roundhouse, a
+// narrow streak for a straight kick). Brightest at the foot's edge and fading towards the knee and with age; white
+// with a cool or warm tint (a counter hit's). Fed every drawn frame with the two ends; it keeps its last samples
+const SW_N = 7;
+class SweepTrail {
+  constructor(scene, color, power) {
+    this.s = [];
+    this.power = power;
+    const g = new THREE.BufferGeometry();
+    this.pos = new Float32Array(SW_N * 2 * 3); this.al = new Float32Array(SW_N * 2);
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('alpha', new THREE.BufferAttribute(this.al, 1).setUsage(THREE.DynamicDrawUsage));
+    const idx = [];
+    for (let i = 0; i < SW_N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    g.setIndex(idx);
+    this.geo = g;
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: { color: { value: color } },
+      vertexShader: 'attribute float alpha; varying float vA; varying float vEdge; void main(){ vA = alpha; vEdge = float(gl_VertexID % 2); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      // (the outer edge: a hot white rim; towards the knee it thins out into the tint)
+      fragmentShader: 'uniform vec3 color; varying float vA; varying float vEdge; void main(){ float e = pow(vEdge, 1.8); vec3 c = mix(color * 0.6, vec3(1.15, 1.12, 1.05), smoothstep(0.8, 1.0, vEdge)); gl_FragColor = vec4(c * vA * e, 1.0); }',
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    this.mesh = new THREE.Mesh(g, this.mat);
+    this.mesh.frustumCulled = false; this.mesh.renderOrder = 9; this.mesh.userData.noGTAO = true;
+    scene.add(this.mesh);
+  }
+  push(a, b, t) {
+    const L = this.s[0];
+    // (a still leg adds nothing: under hit-stop the fan holds its shape instead of piling up on one spot; and only a
+    // foot really moving draws: the slow lift into the chamber left a fan all the way down to the floor)
+    if (L && L.b.distanceToSquared(b) < 1e-6) { L.t = t; return; }
+    if (L && L.b.distanceTo(b) / Math.max(1e-3, t - L.t) < 7) { this.s.length = 0; this.s.unshift({ a: a.clone(), b: b.clone(), t }); return; }
+    this.s.unshift({ a: a.clone(), b: b.clone(), t });
+    if (this.s.length > SW_N) this.s.pop();
+  }
+  build(now, fade) {
+    const n = this.s.length;
+    for (let i = 0; i < SW_N; i++) {
+      const S = this.s[Math.min(i, n - 1)];
+      if (!S) { this.al[i * 2] = this.al[i * 2 + 1] = 0; continue; }
+      this.pos.set([S.a.x, S.a.y, S.a.z, S.b.x, S.b.y, S.b.z], i * 6);
+      const age = now - S.t, f = 1 - i / SW_N;
+      const a = i < n ? Math.max(0, 1 - age / 0.075) * Math.pow(f, 1.2) * fade * this.power * 0.6 : 0;
+      this.al[i * 2] = a; this.al[i * 2 + 1] = a;
+    }
+    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.alpha.needsUpdate = true;
+    this.mesh.visible = n > 1;
+  }
+  dispose(scene) { scene.remove(this.mesh); this.geo.dispose(); this.mat.dispose(); }
+}
+
 export function setFxViewHeight(h) { PT_VIEW_H.value = h; }
 
 export class FX {
@@ -235,6 +288,13 @@ export class FX {
   }
 
   trail(fighter, limb, duration, color = new THREE.Color(0.9, 0.95, 1.0)) {
+    // (a kick: the sweep of the whole shin and foot, from the knee to past the toes)
+    const side = limb && { 'foot.L': 'L', 'foot.R': 'R', 'lowerleg01.L': 'L', 'lowerleg01.R': 'R' }[limb.bone];
+    if (side && fighter) {
+      const power = limb.power ?? 1;
+      this.trails.push({ fighter, limb, side, t0: this.clock, dur: duration, tr: new SweepTrail(this.scene, color.clone().lerp(new THREE.Color(0.55, 0.75, 1.25), 0.5), power), sweep: true });
+      return;
+    }
     this.trails.push({ fighter, limb, t0: this.clock, dur: duration, tr: new Trail(this.scene, color) });
   }
 
@@ -259,11 +319,20 @@ export class FX {
       const T = this.trails[i];
       const age = this.clock - T.t0;
       if (age > T.dur + 0.2) { T.tr.dispose(this.scene); this.trails.splice(i, 1); continue; }
-      if (age <= T.dur && T.fighter) {
+      if (age <= T.dur && T.fighter && T.sweep) {
+        const B = T.fighter.ch.bones, kn = B['lowerleg01.' + T.side], ft = B['foot.' + T.side], toe = B['toe3-1.' + T.side] || B['toe1-1.' + T.side];
+        if (kn && ft) {
+          const k = kn.getWorldPosition(new THREE.Vector3()), a = ft.getWorldPosition(new THREE.Vector3());
+          // (the outer edge a little past the toes: the ball of the foot and the instep both cut the air)
+          const tip = toe ? toe.getWorldPosition(new THREE.Vector3()) : a.clone().addScaledVector(_tv1.subVectors(a, k).normalize(), 0.16);
+          tip.addScaledVector(_tv1.subVectors(tip, a), 0.35);
+          T.tr.push(k.lerp(a, 0.5), tip, this.clock);
+        }
+      } else if (age <= T.dur && T.fighter) {
         const b = T.fighter.ch.bones[T.limb.bone];
         if (b) { const p = new THREE.Vector3(); b.getWorldPosition(p); T.tr.push(p, this.clock); }
       }
-      T.tr.build(this.camera, this.clock, 1);
+      if (T.sweep) T.tr.build(this.clock, 1); else T.tr.build(this.camera, this.clock, 1);
     }
   }
 

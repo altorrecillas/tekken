@@ -25,11 +25,13 @@ import { Halves } from '../fx/halves.js';
 import { Burn } from '../fx/burn.js';
 import { EyeBeams, Sprites, AshPile } from '../fx/eyebeam.js';
 import { oilObjects, LENS_OIL } from '../fx/oil.js';
+import { makeGamepad, Pancake, BUTTON_COLOR } from '../fx/gamepad.js';
+import { PADP, padState, padHands } from './padpath.js';
 import { HAND_SCALE } from '../anim/body.js';
 import { POSE } from '../anim/rig.js';
 
 const $ = (s) => document.querySelector(s);
-const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const UP = new THREE.Vector3(0, 1, 0);
 // a window's weight: 0 before a, up to 1 by b, 1 until c, back to 0 by d
@@ -1454,7 +1456,260 @@ const ORION = {
   ],
 };
 
-const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI, alejandro: ALEJANDRO, rafa: RAFA, zapponi: ZAPPONI, orion: ORION };
+// ------------------------------------------------------------------ Aleix: the giant controller
+// He cracks his knuckles and takes a controller out from behind his back, plays a little, and lifts it over his head as
+// it grows to giant size (2.75 m across) in a burst of the buttons' colours; "fin de la partida", and down it comes on
+// the loser, flattening him (js/fx/gamepad.js Pancake) with the blood squeezed out all round its edges. He plays an
+// invisible one: it rumbles three times, its buttons lighting with his thumbs, more blood each time; then it breaks up
+// into pixels and what is left of the loser is a stain on the floor. Its path (and his hands on it) is
+// js/fight/padpath.js, shared with the simulation; frames of his move are styles.js aleix.fatal.
+const ALEIX = {
+  cracks: [22, 32], out: PADP.appear, grow: 118, levelUp: 150, wind: 190, throw: 196, rumbles: [262, 282, 302], dissolve: [330, 392],
+  // the blood that reaches him: his shins and shoes (it is squeezed out along the floor)
+  spat: { m: [0, 0.42, 0.26, 0.34], a: [0.3, 0.95, 0.06, 0.08], b: [-0.3, 0.95, 0.06, 0.08] },
+  // the edge of the controller, its own metres, where the blood comes out from under it (and which way)
+  edges: [[0.08, 0, 0], [-0.08, 0, 0], [0, 0, 0.056], [0.048, 0, 0.056], [-0.048, 0, 0.056], [0, 0, -0.027], [0.056, 0, -0.064], [-0.056, 0, -0.064], [0.079, 0, 0.026], [-0.079, 0, 0.026], [0.03, 0, -0.05], [-0.03, 0, -0.05]],
+  setup(d) {
+    const g = d.g;
+    d.pad = makeGamepad();
+    for (const o of [d.pad.root, d.pad.sparks, d.pad.voxels]) { o.userData.noOil = true; g.scene.add(o); }
+    d.pad.root.traverse((o) => { o.userData.noOil = true; });
+    d.cake = new Pancake(d.L.ch, d.oil);
+    d.sy = 1; d.bloody = 0; d.padW = new THREE.Vector3(); d.padQ = new THREE.Quaternion();
+    d.W0 = (d.m.fatalW0 || d.W.pos).clone(); d.yaw = d.W.yaw;
+    // (on show behind the black, so its shaders are ready when it comes out)
+    d.pad.root.visible = true; d.pad.setScale(1); d.pad.root.position.copy(d.W0).setY(1);
+  },
+  dispose(d) {
+    d.pad?.dispose();
+    d.cake?.restore();
+  },
+  // a point of the move's frame (x his left, y up, z the way he faces, from where he started) in the world
+  toWorld(d, v, out) {
+    const c = Math.cos(d.yaw), s = Math.sin(d.yaw);
+    return out.set(v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c).add(d.W0);
+  },
+  // the controller's world transform at time t (the hands' actual place pulls it while he holds it), rumble included
+  place(d, t) {
+    const D = this, P = padState(t), pad = d.pad;
+    D.toWorld(d, P.c, d.padW);
+    if (P.held && t >= PADP.held - 2) {
+      // (on his hands: where the path wanted them and where the arms got to differ by a little; it follows the arms)
+      const H = padHands(t), wl = d.W.ch.bones['wrist.L'], wr = d.W.ch.bones['wrist.R'];
+      if (wl && wr) {
+        const a = wl.getWorldPosition(new THREE.Vector3()).add(wr.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5);
+        const b = D.toWorld(d, [(H.L[0] + H.R[0]) / 2, (H.L[1] + H.R[1]) / 2, (H.L[2] + H.R[2]) / 2], new THREE.Vector3());
+        const off = a.sub(b), k = Math.min(1, (t - PADP.held + 2) / 4);
+        if (off.length() < 0.25) d.padW.addScaledVector(off, k);
+      }
+    }
+    const qy = _q1.setFromAxisAngle(UP, d.yaw), qp = _q2.setFromAxisAngle(_v.set(1, 0, 0), P.pitch);
+    d.padQ.copy(qy).multiply(qp);
+    // rumbling: a hard shiver, sideways and up and down, and a little roll
+    let rum = 0;
+    for (const r of D.rumbles) if (t >= r && t < r + 16) rum = Math.max(rum, Math.sin((t - r) / 16 * Math.PI));
+    if (rum > 0) {
+      const ph = t * 2.9;
+      d.padW.x += Math.sin(ph * 7.1) * 0.018 * rum; d.padW.z += Math.cos(ph * 6.3) * 0.018 * rum; d.padW.y += Math.abs(Math.sin(ph * 8.7)) * 0.02 * rum;
+      d.padQ.multiply(_q2.setFromEuler(_e.set(Math.sin(ph * 5.3) * 0.012 * rum, 0, Math.cos(ph * 4.7) * 0.014 * rum)));
+    }
+    pad.root.position.copy(d.padW); pad.root.quaternion.copy(d.padQ);
+    pad.setScale(P.s);
+    return P;
+  },
+  // a point in the controller's own metres, in the world (as placed this frame)
+  padPoint(d, p, out) { return out.set(p[0], p[1], p[2]).multiplyScalar(d.pad.pad.scale.x).applyQuaternion(d.padQ).add(d.padW); },
+  frame(d, t) {
+    const D = this, F = d.F, W = d.W, L = d.L, B = d.blood, g = d.g, au = g.audio, pad = d.pad;
+    if (t === 12) pad.root.visible = false;
+    // (where it is on this frame of the fight: the blood and the sparks come off it from there, drawn or not)
+    if (t >= PADP.held - 2) D.place(d, t);
+    for (const c of D.cracks) if (t === c) au.fatal?.('knuckles', W.pos);
+    if (t === D.out) { pad.root.visible = true; au.fatal?.('padbtn', W.pos, { gain: 2 }); }
+    // his thumbs on it: clicks
+    if ((t >= 64 && t < 92 && (t - 64) % 6 === 0) || (t >= 100 && t < 108 && t % 4 === 0)) au.fatal?.('padbtn', W.pos);
+    if (t === D.grow) au.fatal?.('padgrow', W.pos);
+    // the growth: sparks off its rim in the four buttons' colours
+    if (t >= D.grow && t < D.levelUp + 4) {
+      const P = padState(t), n = 3 + Math.round(5 * Math.min(1, (P.s - 1) / 10));
+      for (let i = 0; i < n; i++) {
+        const a = B.R() * Math.PI * 2, rim = [Math.cos(a) * 0.075, (B.R() - 0.5) * 0.02, Math.sin(a) * 0.055];
+        const p = D.padPoint(d, rim, new THREE.Vector3()), v = p.clone().sub(d.padW).setY(0).normalize().multiplyScalar(0.8 + 1.6 * B.R()).setY(0.4 + B.R());
+        const col = Object.values(BUTTON_COLOR)[(i + t) % 4];
+        pad.spark(p, v, [col[0] * 2, col[1] * 2, col[2] * 2], 0.6 + 0.5 * B.R());
+      }
+    }
+    if (t === D.levelUp) { au.fatal?.('levelup', W.pos); g.effects.hitFlash = Math.max(g.effects.hitFlash, 0.25); g.camCtl.shake(0.15); }
+    if (t === D.wind) au.fatal?.('whoosh', W.pos);
+    if (t === D.throw) { au.fatal?.('whoosh', W.pos); au.voice?.(W, 'attack'); }
+    if (t === 182) au.voice?.(L, 'hurt');
+    if (t === F.cut) D.slam(d);
+    // after it: oozing out at the edges, the pool spreading
+    if (t > F.cut && t < F.cut + 40 && t % 2 === 0) D.squeeze(d, 0.4 * (1 - (t - F.cut) / 40) + 0.15, 3);
+    for (const r of D.rumbles) {
+      if (t === r) { au.fatal?.('rumble', d.padW, { dur: 0.26 }); g.camCtl.shake(0.25); B.splat(L.pos, 1.2 + 0.25 * D.rumbles.indexOf(r), 3, B.R() * 6, 50); }
+      if (t >= r && t < r + 12 && t % 2 === 0) D.squeeze(d, 0.7, 4);
+      if (t === r + 4) au.fatal?.('spurt', d.padW, { power: 0.6 });
+    }
+    if (t === D.dissolve[0]) au.fatal?.('pixels', d.padW);
+    // pixels flying off it as it goes
+    if (t > D.dissolve[0] && t < D.dissolve[1]) {
+      const k = (t - D.dissolve[0]) / (D.dissolve[1] - D.dissolve[0]), n = 7;
+      for (let i = 0; i < n; i++) {
+        const lx = (B.R() - 0.5) * 0.14, lz = (B.R() - 0.5) * 0.1, ly = 0.018 - k * 0.04;
+        const p = D.padPoint(d, [lx, ly, lz], new THREE.Vector3());
+        const v = new THREE.Vector3((B.R() - 0.5) * 1.2, 0.8 + B.R() * 1.8, (B.R() - 0.5) * 1.2);
+        const ci = B.R(), col = ci < 0.78 ? [0.03, 0.032, 0.036] : Object.values(BUTTON_COLOR)[Math.floor(B.R() * 4) % 4];
+        pad.pixel(p, v, 0.045 + 0.06 * B.R(), col, ci < 0.78 ? 0.7 : 1.6, 0.9 + 0.8 * B.R());
+      }
+    }
+    if (t === D.dissolve[1]) pad.root.visible = false;
+  },
+  // down on him: the blood shot out all round from under its edges, bits of him, dust, the floor shaking
+  slam(d) {
+    const D = this, g = d.g, B = d.blood, L = d.L;
+    const c = d.padW.clone().setY(0.06);
+    g.audio.fatal?.('padslam', c);
+    g.audio.fatal?.('crunch', c);
+    g.audio.voice?.(L, 'ko');
+    g.effects.hitFlash = Math.max(g.effects.hitFlash, 0.7); g.effects.radial = Math.max(g.effects.radial, 0.8);
+    g.camCtl.shake(1.1);
+    D.squeeze(d, 1, 40);
+    // jets: out of the four sides, thick and fast, low over the floor
+    for (const e of [[0.08, 0, 0], [-0.08, 0, 0], [0, 0, 0.056], [0, 0, -0.027]]) {
+      const p = D.padPoint(d, e, new THREE.Vector3()).setY(0.06), out = p.clone().sub(d.padW).setY(0).normalize();
+      B.spray(p, out.clone().setY(0.22).normalize(), 60, { speed: [2.5, 6.5], spread: 0.09, size: [0.01, 0.03], bright: 0.4 });
+      B.spray(p, out.clone().setY(0.5).normalize(), 25, { speed: [1.5, 4], spread: 0.25, size: [0.004, 0.012], bright: 0.8 });
+      B.puff(p, 3, { size: [0.12, 0.35], speed: 1.4, life: 1.2 });
+    }
+    const lp = L.pos.clone().setY(0.1);
+    B.spray(lp, UP, 40, { speed: [1.5, 4.5], spread: 0.9, size: [0.002, 0.007], bright: 1 });
+    B.puff(lp, 10, { size: [0.08, 0.22], speed: 1.2, life: 1.4 });
+    for (const e of D.edges) {
+      const p = D.padPoint(d, e, new THREE.Vector3()).setY(0.08), out = p.clone().sub(d.padW).setY(0).normalize();
+      B.gore(p, out.clone().setY(0.4), 2);
+      if (B.R() < 0.4) B.gore(p, out.clone().setY(0.5), 1, 'bone');
+      g.fx.dust?.(p, 1.6);
+    }
+    B.splat(L.pos, 1.0, 3, 0, 120);
+    B.splat(L.pos, 0.7, 1, 1.3, 60);
+    // the pool seeping out from under every side of it
+    for (const e of D.edges) {
+      const p = D.padPoint(d, e, new THREE.Vector3()), out = p.clone().sub(d.padW).setY(0).normalize();
+      const ang = Math.atan2(-out.z, out.x);
+      B.splat(p.clone().addScaledVector(out, 0.05), 0.75 + 0.45 * B.R(), 3, ang, 30 + (B.R() * 25 | 0));
+      // splashes thrown out along the floor, drawn out the way they went
+      for (let k = 0; k < 2; k++) B.splat(p.clone().addScaledVector(out, 0.35 + 0.7 * B.R()).addScaledVector(_w.set(-out.z, 0, out.x), (B.R() - 0.5) * 0.5), 0.5 + 0.6 * B.R(), 1, ang + (B.R() - 0.5) * 0.5, 6);
+    }
+    d.lens.splash(5, 1.0);
+    d.spat.amount.value = 0.4;
+  },
+  // blood squeezed out from under the edges: power 0..1, n drops per edge point
+  squeeze(d, power, n) {
+    const D = this, B = d.blood;
+    for (const e of D.edges) {
+      // (mostly where he is under it: the edges nearest him)
+      const p = D.padPoint(d, e, new THREE.Vector3()).setY(0.05);
+      const near = Math.max(0.25, 1 - p.distanceTo(_w.copy(d.L.pos).setY(0.05)) / 2.2);
+      const out = p.clone().sub(d.padW).setY(0).normalize();
+      const dir = out.clone().multiplyScalar(1).setY(0.12 + 0.25 * power).normalize();
+      // (giant scale: the drops big enough to read from where the camera is, a jet with a few heavy gouts in it)
+      B.spray(p, dir, Math.max(1, Math.round(n * near)), { speed: [0.6 + 1.6 * power, 1.4 + 3.6 * power], spread: 0.2, size: [0.004, 0.011], bright: 0.5 });
+      if (power > 0.5) B.spray(p, dir, Math.max(1, Math.round(n * near * 0.35)), { speed: [0.4 + 1.0 * power, 1.0 + 2.2 * power], spread: 0.12, size: [0.014, 0.03], bright: 0.3 });
+      if (power > 0.6 && B.R() < 0.5 * near + 0.15) B.splat(p.clone().addScaledVector(out, 0.15 + 0.55 * B.R()), 0.3 + 0.4 * B.R(), (B.R() * 3) | 0, Math.atan2(-out.z, out.x), 25);
+    }
+  },
+  draw(d, t, alpha, dt) {
+    const D = this, F = d.F, pad = d.pad, L = d.L;
+    const tt = Math.max(0, t);
+    if (tt >= 12 && tt < D.out) pad.root.visible = false;
+    else if (tt >= D.out && tt < D.dissolve[1]) pad.root.visible = true;
+    if (pad.root.visible && tt >= 12) {
+      if (tt < PADP.held - 2) {
+        // out from behind his back in his right hand
+        const wr = d.W.ch.bones['wrist.R'];
+        if (wr) {
+          wr.updateWorldMatrix(true, false);
+          const p = wr.getWorldPosition(new THREE.Vector3()), q = wr.getWorldQuaternion(new THREE.Quaternion());
+          pad.root.position.copy(p).add(_v.set(0, -0.02, 0.07).applyQuaternion(q));
+          pad.root.quaternion.copy(q).multiply(_q2.setFromEuler(_e.set(-1.4, 0, 0)));
+          pad.setScale(1);
+          d.padW.copy(pad.root.position); d.padQ.copy(pad.root.quaternion);
+        }
+      } else D.place(d, tt);
+    }
+    // the buttons and the sticks with his thumbs; the giant one's buttons light with the invisible one's
+    const mash = (a, b, step) => (tt >= a && tt < b ? Math.floor((tt - a) / step) : -1);
+    const m1 = mash(64, 108, 6), m2 = mash(252, 322, 5);
+    const keys = ['A', 'X', 'B', 'Y'];
+    for (let i = 0; i < 4; i++) {
+      const k = keys[i];
+      let a = 0;
+      if (m1 >= 0 && m1 % 4 === i) a = Math.sin(((tt - 64) % 6) / 6 * Math.PI);
+      if (m2 >= 0 && m2 % 4 === i) a = Math.sin(((tt - 252) % 5) / 5 * Math.PI);
+      pad.press(k, a);
+    }
+    if (m1 >= 0) pad.stick('LS', Math.sin(tt * 0.31) * 0.8, Math.cos(tt * 0.23) * 0.6); else pad.stick('LS', 0, 0);
+    let glow = tt < D.grow ? 0.15 : tt < D.levelUp ? 0.3 + 0.7 * Math.abs(Math.sin(tt * 0.4)) : 0.25;
+    for (const r of D.rumbles) if (tt >= r && tt < r + 16) glow = Math.max(glow, 1 - (tt - r) / 16);
+    pad.glow(glow);
+    // the dissolve
+    const dk = Math.min(1, Math.max(0, (tt - D.dissolve[0]) / (D.dissolve[1] - D.dissolve[0])));
+    pad.dissolve(dk, 0.0, 0.9);
+    // the loser: pressed down as its underside comes down over him
+    if (tt >= PADP.release) {
+      const P = padState(Math.min(tt, PADP.land + 30));
+      const under = d.padW.y - 0.0185 * P.s, horiz = Math.hypot(d.padW.x - L.pos.x, d.padW.z - L.pos.z);
+      const H = (L.ch.meta?.height || 1.75) + 0.25; // (his hands up over his head)
+      if (horiz < 1.1 && under < H) d.sy = Math.min(d.sy, Math.max(0.07 / H, under / H));
+    }
+    if (tt > F.cut) d.bloody = Math.min(1, 0.45 + (tt - F.cut) / 60 + D.rumbles.filter((r) => tt > r).length * 0.12);
+    // (rumbling: the stain trembles with it)
+    let jig = 1;
+    for (const r of D.rumbles) if (tt >= r && tt < r + 16) jig = 1 + 0.25 * Math.sin(tt * 9.1) * Math.sin((tt - r) / 16 * Math.PI);
+    if (d.sy < 1) d.cake.set(d.sy * jig, d.bloody);
+    pad.update(dt);
+  },
+  lp: (d) => d.L.ch.group.position.clone().setY(0),
+  lHead: (d) => (d.sy < 0.5 ? d.L.ch.group.position.clone().setY(0.08) : null),
+  mid: (d) => (d.pad?.root.visible ? d.padW.clone() : null),
+  shots: [
+    // him, three quarters from his left: the knuckles
+    [0, (c, t) => ({ tp: c.at(c.wp, 1.55 - 0.15 * t, -0.95, 1.5), tl: c.wHead.clone().addScaledVector(c.right, -0.05).setY(c.wHead.y - 0.28), fov: 32, focus: c.wHead })],
+    // the controller out from behind his back: from his right, the hands and the face
+    [38, (c, t) => ({ tp: c.at(c.wp, 1.05, 1.0, 1.32), tl: c.wp.clone().addScaledVector(c.wf, 0.15).setY(1.18 + 0.05 * t), fov: 31, focus: c.wHead })],
+    // playing: close on the controller in his hands, his face above it
+    // playing: over his right shoulder, down onto the controller in his hands, the loser beyond
+    [62, (c, t) => ({ tp: c.at(c.wp, 0.08 + 0.04 * t, 0.66, 1.86), tl: c.wp.clone().addScaledVector(c.wf, 0.4).addScaledVector(c.right, 0.04).setY(1.02 + 0.03 * t), fov: 36, focus: c.prop })],
+    // the loser, puzzled, over Aleix's shoulder
+    [92, (c, t) => ({ tp: c.at(c.wp, -0.75, 0.42, 1.62), tl: c.lHead.clone().setY(c.lHead.y - 0.1), fov: 30, focus: c.lHead })],
+    // it grows: wide and low, from the front and to his left, looking up as it goes over his head
+    [112, (c, t) => ({ tp: c.at(c.wp, 3.3 + 0.6 * t, -2.0 - 0.4 * t, 0.85), tl: c.wp.clone().addScaledVector(c.wf, 0.3).setY(1.45 + 0.75 * t), fov: 40 + 6 * t, focus: c.wHead })],
+    // held up: low behind the loser, Aleix and the giant thing over him against the sky
+    [152, (c, t) => ({ tp: c.at(c.lp, 0.95, 0.55, 0.55 - 0.05 * t), tl: c.wp.clone().setY(1.95 + 0.1 * t), fov: 52, focus: c.wHead })],
+    // his face as he says it (looking down at the loser)
+    [160, (c, t) => ({ tp: c.at(c.wp, 0.85, -0.42, c.wHead.y - 0.08), tl: c.wHead.clone().setY(c.wHead.y - 0.04), fov: 30, focus: c.wHead })],
+    // down: wide from the side, slow motion
+    [186, (c, t) => ({ tp: c.mid.clone().addScaledVector(c.right, 6.4).addScaledVector(c.wf, 0.2).setY(1.9 - 0.3 * t), tl: c.mid.clone().addScaledVector(c.wf, 0.25).setY(1.65 - 1.05 * t), fov: 46, focus: c.mid.clone().setY(1.0) })],
+    // on him: low at the floor, the blood coming out from under it
+    // on him: from high on its right, the blood pushed out from under its edge
+    [208, (c, t) => ({ tp: c.at(c.lp, -0.5 - 0.3 * t, 3.3, 3.1 + 0.3 * t), tl: c.lp.clone().addScaledVector(c.right, 0.3).setY(0.15), fov: 48, focus: c.lp.clone().setY(0.3) })],
+    // Aleix behind it, straightening up
+    [234, (c, t) => ({ tp: c.at(c.wp, 3.1, 1.3, 1.5), tl: c.mid.clone().setY(0.95), fov: 36, focus: c.wHead })],
+    // the rumble: from high over its far end, the lit buttons, him playing beyond it
+    [256, (c, t) => ({ tp: c.at(c.lp, 1.55, -0.35 + 0.3 * t, 2.55), tl: c.lp.clone().addScaledVector(c.wf, -0.45).setY(0.35), fov: 44, focus: c.prop })],
+    // his thumbs and face: playing
+    [288, (c, t) => ({ tp: c.at(c.wp, 1.05, 0.5, 1.5), tl: c.wHead.clone().setY(c.wHead.y - 0.22), fov: 34, focus: c.wHead })],
+    // it breaks up: high and wide
+    [324, (c, t) => ({ tp: c.mid.clone().addScaledVector(c.right, 3.0).addScaledVector(c.wf, 0.6).setY(2.2 + 0.3 * t), tl: c.lp.clone().setY(0.35), fov: 42, focus: c.lp.clone().setY(0.2) })],
+    // what is left: from above
+    [384, (c, t) => ({ tp: c.at(c.lp, 0.75, 1.05, 1.75 - 0.15 * t), tl: c.lp.clone().setY(0.0), fov: 38, focus: c.lp.clone().setY(0.05) })],
+    // GG
+    [408, (c, t) => ({ tp: c.at(c.wp, 1.85 + 0.3 * t, -0.75, 1.42), tl: c.wHead.clone().setY(c.wHead.y - 0.25), fov: 34, focus: c.wHead })],
+  ],
+};
+
+const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI, alejandro: ALEJANDRO, rafa: RAFA, zapponi: ZAPPONI, orion: ORION, aleix: ALEIX };
 export function fatalOf(id) { return MOVES[id] || null; }
 
 export class FatalityDirector {

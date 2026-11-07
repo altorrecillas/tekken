@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mando de Aleix</title>
+<style>html,body{margin:0;height:100%;background:#1a1b1e;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/jsm/"}}</script>
+</head>
+<body>
+<script type="module">
+// the controller of Aleix's PUÑETALITY (js/fx/gamepad.js) on its own: ?az=&el=&dist=&press=A&dis=0.5&w=&h=
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeGamepad } from './js/fx/gamepad.js';
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1); renderer.toneMapping = THREE.AgXToneMapping; renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2c30);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+const key = new THREE.DirectionalLight(0xfff1e0, 2.6); key.position.set(1.5, 3, 2.0); key.castShadow = true; scene.add(key);
+const rim = new THREE.DirectionalLight(0xbfd8ff, 1.4); rim.position.set(-2, 2, -2.5); scene.add(rim);
+const pad = makeGamepad();
+scene.add(pad.root);
+if (q.get('press')) pad.press(q.get('press'), 1);
+if (q.get('glow')) pad.glow(+q.get('glow'));
+if (q.get('dis')) pad.dissolve(+q.get('dis'), -0.04, 0.04);
+const az = +(q.get('az') ?? 0), el = +(q.get('el') ?? 0.75), dist = +(q.get('dist') ?? 0.32);
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 20);
+cam.position.set(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, -Math.cos(az) * Math.cos(el) * dist);
+cam.lookAt(0, 0, 0);
+function frame() { if (window.__stopped) return; renderer.render(scene, cam); if (window.__stopAfterNext) { window.__stopped = true; return; } requestAnimationFrame(frame); }
+frame();
+setTimeout(() => (window.__ready = true), 800);
+</script>
+</body>
+</html>

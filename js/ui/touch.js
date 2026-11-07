@@ -7,8 +7,10 @@
 //  - attacks: the four limb buttons in the Tekken arcade layout (1 2 / 3 4) tilted to the right thumb's arc.
 //    The gaps between neighbours are chord zones (1+2, 3+4, 1+3, 2+4) and a thumb can slide across buttons.
 //  - RAGE ART button (1+2+3+4) that only shows while rage is available; pause button under the timer.
+//  - BLOQUEO (a shield, left of the cluster, under the thumb's inner reach): held, the guard; pressed just before a
+//    blow lands, a parry (js/fight/match.js applyParry).
 //  - hit areas larger than the art, feedback on every press, haptic tick where the platform supports it.
-import { B1, B2, B3, B4 } from '../fight/input.js';
+import { B1, B2, B3, B4, BLOCK } from '../fight/input.js';
 import { haptic, setHaptics, viewSize } from '../engine/device.js';
 
 // (dx, dy) of the eight 45 degree sectors, counter-clockwise from "right"; dy = +1 is up
@@ -50,11 +52,12 @@ export class TouchController {
         ${PAIRS.map(([a, b]) => `<i class="tch c${a + 1}${b + 1}"></i>`).join('')}
       </div>
       <div class="trage"><b>RAGE</b><small>ART</small></div>
+      <div class="tblk"><i></i><small>BLOQUEO</small></div>
       <button class="tpause" id="touchPause" aria-label="Pausa"><i></i><i></i></button>`;
     this.el = {
       zone: r.querySelector('.tzone'), stick: r.querySelector('.tstick'), knob: r.querySelector('.knob'),
       dirs: [...r.querySelectorAll('.ring .d')], btns: r.querySelector('.tbtns'), tb: [...r.querySelectorAll('.tb')],
-      chords: [...r.querySelectorAll('.tch')], rage: r.querySelector('.trage'), pause: r.querySelector('.tpause'),
+      chords: [...r.querySelectorAll('.tch')], rage: r.querySelector('.trage'), pause: r.querySelector('.tpause'), blk: r.querySelector('.tblk'),
     };
     const onDown = (kind) => (e) => {
       if (!this.enabled) return;
@@ -64,6 +67,7 @@ export class TouchController {
       if (kind === 'stick') this.stickDown(e);
       else if (kind === 'btns') this.btnsMove(e);
       else if (kind === 'rage') { this.rageT = 5; haptic(30); this.el.rage.classList.add('down'); }
+      else if (kind === 'block') { haptic(12); this.el.blk.classList.add('down'); }
     };
     const onMove = (e) => {
       const p = this.ptr.get(e.pointerId); if (!p) return;
@@ -76,9 +80,10 @@ export class TouchController {
       this.ptr.delete(e.pointerId);
       if (p.kind === 'stick') this.stickUp();
       else if (p.kind === 'rage') this.el.rage.classList.remove('down');
+      else if (p.kind === 'block' && ![...this.ptr.values()].some((q) => q.kind === 'block')) this.el.blk.classList.remove('down');
       this.recomputeButtons();
     };
-    for (const [el, kind] of [[this.el.zone, 'stick'], [this.el.btns, 'btns'], [this.el.rage, 'rage']]) {
+    for (const [el, kind] of [[this.el.zone, 'stick'], [this.el.btns, 'btns'], [this.el.rage, 'rage'], [this.el.blk, 'block']]) {
       el.addEventListener('pointerdown', onDown(kind));
       el.addEventListener('pointermove', onMove);
       el.addEventListener('pointerup', onUp);
@@ -132,6 +137,9 @@ export class TouchController {
     // rage art: up and left of the cluster, where the thumb reaches by stretching
     const rr = rb * 0.82;
     Object.assign(this.el.rage.style, { left: `${this.cx + this.bpos[0][0] - rb * 1.6 - rr}px`, top: `${this.cy + this.bpos[0][1] - rb * 1.9 - rr}px`, width: `${rr * 2}px`, height: `${rr * 2}px` });
+    // block: a shield left of the cluster, low, where the right thumb reaches inwards
+    const br = rb * 0.92;
+    Object.assign(this.el.blk.style, { left: `${this.cx + this.bpos[2][0] - rb * 2.55 - br}px`, top: `${this.cy + this.bpos[2][1] + rb * 0.25 - br}px`, width: `${br * 2}px`, height: `${br * 2.1}px` });
     // stick: rest position bottom left; the capture zone is the left half below the health bars
     this.rest = { x: s.l + m + R * 1.25, y: H - s.b - m - R * 1.2 };
     Object.assign(this.el.zone.style, { left: '0px', top: `${Math.round(H * 0.2)}px`, width: `${Math.round(W * 0.48)}px`, height: `${H - Math.round(H * 0.2)}px` });
@@ -237,7 +245,7 @@ export class TouchController {
   }
   disable() {
     this.enabled = false;
-    this.ptr.clear(); this.stickUp(); this.recomputeButtons(); this.rageT = 0;
+    this.ptr.clear(); this.stickUp(); this.recomputeButtons(); this.rageT = 0; this.el.blk.classList.remove('down');
     this.setVisible(false);
   }
   // shown only while fighting; dimmed during cinematics (a tap still skips the intro)
@@ -257,6 +265,7 @@ export class TouchController {
     let held = this.held;
     if (this.rageT > 0) { held |= B1 | B2 | B3 | B4; this.rageT--; }
     if (this.tapT > 0) { held |= B1; this.tapT--; }
+    for (const p of this.ptr.values()) if (p.kind === 'block') held |= BLOCK;
     const pressed = held & ~this.prev;
     this.prev = held;
     return { dx: this.dx, dy: this.dy, held, pressed };

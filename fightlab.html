@@ -22,6 +22,7 @@ import { Match } from './js/fight/match.js';
 import { B1, B2, B3, B4 } from './js/fight/input.js';
 import { AIController } from './js/fight/ai.js';
 import { Rig } from './js/anim/rig.js';
+import { FX } from './js/fx/fx.js';
 
 const q = new URLSearchParams(location.search);
 const W = +q.get('w') || innerWidth, H = +q.get('h') || innerHeight;
@@ -156,6 +157,9 @@ else if (camMode === 'custom') {
   cam.position.set(focus.pos.x + cp[0], cp[1], focus.pos.z + cp[2]); cam.lookAt(focus.pos.x + cl[0], cl[1], focus.pos.z + cl[2]);
 }
 cam.updateProjectionMatrix();
+// fx=1: the game's own effects (sparks, the kicks' sweep trails...), run on the fight's frames at 60 a second
+let fx = null;
+if (q.get('fx')) { fx = new FX(scene, cam); m.fx = fx; }
 key.target.position.copy(mid); key.position.copy(mid).add(new THREE.Vector3(2, 5, 4));
 const log = [];
 const follow = q.get('follow') !== '0';
@@ -183,9 +187,10 @@ for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
   el.textContent = `${m.frame} ${a.state === 'move' ? a.moveName : a.state}/${b.state === 'move' ? b.moveName : b.state}`;
   document.body.appendChild(el);
   log.push({ frame: m.frame, a: a.state, b: b.state, clipA: a.clipName });
-  for (let k = 0; k < step; k++) { m.step(); m.events.length = 0; }
+  for (let k = 0; k < step; k++) { m.step(); m.events.length = 0; if (fx) { for (const f of m.fighters) f.syncRender(1); fx.camera = cam; fx.update(1 / 60); fx.updateTrails(); } }
 }
 window.__log = log;
+if (fx) window.__debug = () => JSON.stringify(fx.trails.map((T) => ({ sweep: !!T.sweep, n: T.tr.s?.length ?? T.tr.pts?.length, vis: T.tr.mesh.visible, a: T.tr.al ? Math.max(...T.tr.al) : null })));
 window.__ready = true;
 </script>
 </body>

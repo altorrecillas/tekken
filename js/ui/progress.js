@@ -18,6 +18,8 @@ export const ACHIEVEMENTS = [
   { id: 'rageKO', name: 'FURIA DESATADA', desc: 'Remata una ronda con un Rage Art.' },
   { id: 'counterKO', name: 'A CONTRAPIÉ', desc: 'Remata una ronda con un contraataque.' },
   { id: 'throwKO', name: 'AL SUELO', desc: 'Remata una ronda con un agarre.' },
+  { id: 'parry', name: '¡PARADA!', desc: 'Para un golpe pulsando BLOQUEO justo antes de que te dé.' },
+  { id: 'parry20', name: 'MURO', desc: 'Para 20 golpes en total.', count: (p) => [Math.min(20, p.n.parries || 0), 20] },
   { id: 'comeback', name: 'REMONTADA', desc: 'Gana una ronda con un 10 % de vida o menos.' },
   { id: 'timeout', name: 'AL LÍMITE', desc: 'Gana una ronda por tiempo.' },
   { id: 'hits500', name: 'MANO DURA', desc: 'Conecta 500 golpes en total.', count: (p) => [Math.min(500, p.n.hits), 500] },
@@ -74,7 +76,7 @@ export class Progress {
     if (i === 0 || i === 1) {
       const S = m.stats[i];
       d.n.fights++;
-      d.n.hits += S.hits; d.n.kos += S.kos;
+      d.n.hits += S.hits; d.n.kos += S.kos; d.n.parries = (d.n.parries || 0) + (S.parries || 0);
       if (m.winner === i) {
         d.n.wins++;
         this.unlock('firstWin');
@@ -82,6 +84,7 @@ export class Progress {
         if (mode === 'online') this.unlock('online');
       }
       if (S.perfects > 0) this.unlock('perfect');
+      if (S.parries > 0) this.unlock('parry');
       if (S.combo >= 5) this.unlock('combo5');
       if (S.combo >= 7) this.unlock('combo7');
       if (S.rageKOs > 0) this.unlock('rageKO');

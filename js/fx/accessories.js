@@ -90,8 +90,10 @@ export class Accessories {
     // (nylor: a fine metal bar over the top of each lens and down its sides, the bottom of the lens held by a nylon
     // thread (only the lens's polished edge shows there); wide lenses set a little wider apart than the eyes)
     const nylor = style === 'nylor';
-    const lw = ipd * (style === 'thick' ? 0.86 : nylor ? 0.92 : 0.8), lh = lw * (style === 'thick' ? 0.58 : nylor ? 0.48 : 0.52);
-    const t = style === 'thick' ? 0.0045 : style === 'half' ? 0.0028 : nylor ? (g.rim || 0.0011) : 0.0014;
+    // (a fighter's own frame, from his photos: g.lw lens width and g.half lens centre in eye distances, g.lh lens height in
+    // lens widths, g.rim the frame's thickness in metres)
+    const lw = ipd * (g.lw ?? (style === 'thick' ? 0.86 : nylor ? 0.92 : 0.8)), lh = lw * (g.lh ?? (style === 'thick' ? 0.58 : nylor ? 0.48 : 0.52));
+    const t = g.rim ?? (style === 'thick' ? 0.0045 : style === 'half' ? 0.0028 : nylor ? 0.0011 : 0.0014);
     const depth = style === 'thick' ? 0.004 : 0.0022;
     // g.color is authored in sRGB
     const fc = new THREE.Color().setRGB(...g.color, THREE.SRGBColorSpace);
@@ -100,7 +102,7 @@ export class Accessories {
       : new THREE.MeshPhysicalMaterial({ color: fc, roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.15, specularIntensity: 0.5 });
     const grp = new THREE.Group();
     const zFront = 0.024;
-    const half = nylor ? ipd * 0.54 : ipd / 2;
+    const half = ipd * (g.half ?? (nylor ? 0.54 : 0.5));
     for (const sgn of [1, -1]) {
       const cx = sgn * half;
       // half-rim (browline): heavy top bar, the bottom of the lens is held by a nylon thread (practically invisible)

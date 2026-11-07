@@ -58,6 +58,7 @@ FATALS = {
     'rafa': 'Te dije que iría despacito.',
     'zapponi': '¡Eso sí que ha sido espectacular, vale!',
     'orion': 'Acceso denegado. Borrando usuario.',
+    'aleix': 'Fin de la partida.',
 }
 # the announcer's call as the finishing move ends (spelt as it is said: «pu-ñe-TÁ-li-ti»)
 ANNOUNCER = {'punetality': 'Puñetáliti.', 'win_orion': '¡Gana Orión!', 'win_aleix': '¡Gana Aléish!'}  # (Aleix said the Catalan way: «a-LEISH»)

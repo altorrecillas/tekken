@@ -107,6 +107,19 @@ await wait(700); seen.add((await dbg()).f[0].mv);
 await touch('touchEnd', []);
 check('slide 3 -> 4 registers a new press', [...seen].some(m => m === 'roundhouse' || m === 'frontKick'), `(moves ${[...seen].join(',')})`);
 await wait(1500);
+// the block shield held: the guard up; let go: back to standing
+{
+  const bb = await box('#touch .tblk'), sx = bb.x + bb.width / 2, sy = bb.y + bb.height / 2;
+  await touch('touchStart', [[sx, sy, 6]]); await wait(1000);
+  d = await dbg();
+  const tk = await p.evaluate(() => { const g = window.__game, f = g.match.fighters[0]; return JSON.stringify({ ptr: [...g.touch.ptr.values()].map((q) => q.kind), held: f.inp?.held, guard: f.guard, ctrl: f.ctrl === g.p1ctrl }); });
+  check('block shield held -> guard', d.f[0].st === 'guard', `(state ${d.f[0].st} ${tk})`);
+  await p.screenshot({ path: (process.env.SHOTS || '.') + '/mtouch_block.png' });
+  await touch('touchEnd', []); await wait(1000);
+  d = await dbg();
+  check('block shield let go -> guard down', d.f[0].st !== 'guard', `(state ${d.f[0].st})`);
+}
+await wait(600);
 // pause button, then resume by tap
 await tapSel('#touchPause'); await wait(300);
 check('pause by tap', (await dbg()).state === 'pause');

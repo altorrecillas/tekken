@@ -72,6 +72,7 @@ const QNAME = { low: 'BAJA', medium: 'MEDIA', high: 'ALTA', ultra: 'ULTRA' };
 // tips on the loading card
 const TIPS = [
   'Mantén ATRÁS para bloquear los golpes altos y medios; ABAJO-ATRÁS bloquea los bajos.',
+  'BLOQUEO (L, gatillo derecho o el escudo en el móvil): mantenlo para cubrirte. Púlsalo justo antes del golpe y harás una PARADA: el rival queda vendido.',
   'Toca ARRIBA o ABAJO para esquivar de lado, y ADELANTE dos veces para un dash.',
   'Agarre: 1+3 o 2+4. Para zafarte, pulsa 1 o 2 justo cuando te agarran.',
   'Cuando la barra de vida brilla en rojo tienes furia: 1+2+3+4 lanza tu RAGE ART.',
@@ -266,7 +267,7 @@ class Game {
 
   async boot() {
     const bar = $('#loading .bar i'), tip = $('#loading .tip'), status = $('#loading .st');
-    const tips = ['Consejo: mantén atrás para bloquear golpes altos y medios.', 'Consejo: agáchate (abajo-atrás) para bloquear los golpes bajos.',
+    const tips = ['Consejo: mantén atrás para bloquear golpes altos y medios.', 'Consejo: agáchate (abajo-atrás) para bloquear los golpes bajos.', 'Consejo: pulsa BLOQUEO justo antes del golpe y harás una parada.',
       'Consejo: toca arriba o abajo para esquivar lateralmente.', 'Consejo: abajo-adelante + 2 lanza al rival por los aires.', 'Consejo: 1+3 agarra; pulsa 1 o 2 para zafarte de un agarre.', 'Consejo: pulsa un botón justo al caer al suelo para recuperarte rodando.'];
     tip.textContent = tips[Math.floor(Math.random() * tips.length)];
     // (the bar runs on its own while the code downloads: index.html; from here on it shows the real progress)
@@ -1795,10 +1796,11 @@ class Game {
           || (ro === 'win' && m.phase === 'matchEnd' && m.pt >= (ra || 90))
           // a few frames after the first heavy/counter hit past frame `readyat` (impact VFX checks)
           || (ro === 'hit' && m.lastHeavyFrame >= ra && m.frame - m.lastHeavyFrame >= +(q.get('hitage') || 2))
-          || (ro === 'tech' && m.lastTechFrame >= ra && m.frame - m.lastTechFrame >= +(q.get('hitage') || 8));
+          || (ro === 'tech' && m.lastTechFrame >= ra && m.frame - m.lastTechFrame >= +(q.get('hitage') || 8))
+          || (ro === 'parry' && m.lastParryFrame >= ra && m.frame - m.lastParryFrame >= +(q.get('hitage') || 3));
         const koHit = stopAt();
         // impact captures freeze the simulation on the stop frame; the camera snaps and the particles age by `hitage` once
-        if ((ro === 'hit' || ro === 'tech' || ro === 'fatal' || ro === 'fight' || (ro === 'win' && q.get('winnow'))) && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
+        if ((ro === 'hit' || ro === 'tech' || ro === 'parry' || ro === 'fatal' || ro === 'fight' || (ro === 'win' && q.get('winnow'))) && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
         const fastForward = simonly && m.phase !== 'showcase' && m.frame < simonly && !koHit;
         if (koHit && !window.__ready) { this.readyIn = (this.readyIn ?? 8) - 1; if (this.readyIn <= 0) window.__ready = true; }
         if (fastForward) { this.acc = 400 / FPS; maxSteps = 400; }
