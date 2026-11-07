@@ -216,7 +216,8 @@ button { touch-action: manipulation; }
 .plate .wins i.on { background: radial-gradient(circle at 35% 35%, #fff7c4, #ffb21f 60%, #b35b00); box-shadow: 0 0 10px #ffb21f; }
 .portrait { position: absolute; top: -4px; width: 78px; height: 78px; border: 2px solid #f1e6c8; background: #222 center/cover; box-shadow: 0 0 0 2px #000, 0 4px 14px rgba(0,0,0,.6); filter: brightness(1.18) contrast(1.06) saturate(1.05); }
 .p1 .portrait { left: -10px; transform: translateX(-100%); } .p2 .portrait { right: -10px; transform: translateX(100%); }
-.portrait { background-position: 50% 30% !important; background-size: 150% !important; }
+/* (the portraits are 3:4, the eyes 44 % of the way down them: zoomed in on the face, the eyes about 2/5 down the box) */
+.portrait { background-position: 50% 47% !important; background-size: 160% !important; }
 #timer { position: absolute; top: max(1.2vh, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font-family: 'Teko'; font-weight: 600; font-size: 64px; line-height: 1; color: #fff4d6; text-shadow: 0 4px 0 #000, 0 0 18px rgba(255,170,60,.5); min-width: 90px; text-align: center; }
 #timer.low { color: #ff6a55; }
 .combo { position: absolute; top: 24%; font-family: 'Bebas'; opacity: 0; transition: opacity .2s; }
@@ -252,27 +253,46 @@ button { touch-action: manipulation; }
 #winner .quote.on { opacity: 1; transform: none; }
 /* PUÑETALITY (js/fight/fatality.js): the button on the win screen, the line said in it, its name dripping blood, and
    drops on the camera's lens */
-#fatalBtn { position: fixed; right: max(4%, env(safe-area-inset-right)); bottom: 15%; z-index: 14; transform: scale(.55); transform-origin: 100% 100%; opacity: 0; pointer-events: none;
-  font-family: 'Bebas'; font-size: min(3.8vw, 34px); line-height: 1; letter-spacing: .06em; color: #fff; padding: .2em .7em .16em; border: 0; cursor: pointer;
-  border-radius: 5px; background: radial-gradient(120% 150% at 50% 0%, #c0160e 0%, #620505 52%, #1d0000 100%);
-  box-shadow: 0 0 0 2px #050000, 0 0 0 3px #8f0d07, 0 8px 20px rgba(0,0,0,.7), 0 0 26px rgba(255,30,10,.4);
-  text-shadow: 0 2px 0 #000, 0 0 12px rgba(255,60,30,.85); -webkit-tap-highlight-color: transparent;
-  transition: opacity .25s, transform .4s cubic-bezier(.2,1.5,.3,1); }
-/* (it blinks, bright and dim a little more than once a second, so that it is plain it can be pressed: well under the
-   rate that could trouble anyone sensitive to flashing) */
-#fatalBtn.on { opacity: 1; transform: scale(1); pointer-events: auto; animation: fatalBlink .9s ease-in-out infinite; }
-#fatalBtn .h { display: block; font-family: 'Teko'; font-size: .42em; letter-spacing: .28em; color: #ffd0c8; margin-top: .05em; text-shadow: 0 2px 0 #000; }
-body.touchui #fatalBtn .h { display: none; }
-#fatalBtn .bar { position: absolute; left: 8%; right: 8%; bottom: 3px; height: 3px; background: rgba(0,0,0,.55); border-radius: 2px; overflow: hidden; }
-#fatalBtn .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff3b2f, #ffb4a0); transform-origin: left; }
+/* the PUÑETALITY button (on the win screen, when the winner has one): a big red arcade button, raised, that sinks
+   when pressed; rings ripple out of it like a "tap here", the call to finish the loser off by name, the key or "TOCA
+   AQUÍ", the time left as a bar; blood drips off its edge. Over the loser lying there, a red target (it can be tapped
+   too): it is him it is done to. The glow breathes about once a second: well under any flashing that could trouble
+   anyone sensitive to it */
+#fatalBtn { position: fixed; right: max(3.5%, env(safe-area-inset-right)); bottom: 13%; z-index: 14; transform: scale(.5); transform-origin: 100% 100%; opacity: 0; pointer-events: none;
+  display: flex; align-items: center; gap: .45em; padding: .34em 1.0em .3em .55em; border: 0; border-radius: 999px; cursor: pointer;
+  font-family: 'Bebas'; font-size: min(4.2vw, 40px); line-height: 1; letter-spacing: .05em; color: #fff; text-align: left;
+  background: radial-gradient(130% 120% at 50% 0%, #ff5a3c 0%, #d0180e 32%, #7a0606 70%, #3a0000 100%);
+  box-shadow: inset 0 3px 0 rgba(255,200,180,.55), inset 0 -4px 0 rgba(0,0,0,.35), 0 0 0 3px #1a0000, 0 0 0 5px #ff3b24, 0 8px 0 #3a0000, 0 12px 22px rgba(0,0,0,.7), 0 0 30px rgba(255,40,20,.55);
+  text-shadow: 0 2px 0 #4a0000; -webkit-tap-highlight-color: transparent; transition: opacity .25s, transform .45s cubic-bezier(.2,1.6,.3,1); }
+#fatalBtn.on { opacity: 1; transform: scale(1); pointer-events: auto; animation: fatalBreath 1.1s ease-in-out infinite; }
+#fatalBtn:hover { filter: brightness(1.12); }
+#fatalBtn:active { transform: translateY(6px) !important; box-shadow: inset 0 3px 0 rgba(255,200,180,.4), inset 0 -2px 0 rgba(0,0,0,.35), 0 0 0 3px #1a0000, 0 0 0 5px #ff3b24, 0 2px 0 #3a0000, 0 4px 10px rgba(0,0,0,.7), 0 0 40px rgba(255,60,30,.8); animation: none; }
+@keyframes fatalBreath { 50% { box-shadow: inset 0 3px 0 rgba(255,200,180,.7), inset 0 -4px 0 rgba(0,0,0,.35), 0 0 0 3px #1a0000, 0 0 0 5px #ff8a6a, 0 8px 0 #3a0000, 0 12px 22px rgba(0,0,0,.7), 0 0 55px rgba(255,60,30,.95); filter: brightness(1.18); } }
+/* (rings rippling out of it) */
+#fatalBtn .rg { position: absolute; inset: -5px; border-radius: inherit; border: 3px solid rgba(255,70,40,.9); pointer-events: none; opacity: 0; }
+#fatalBtn.on .rg { animation: fatalRing 1.6s ease-out infinite; } #fatalBtn.on .rg.b { animation-delay: .8s; }
+@keyframes fatalRing { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.35, 1.7); opacity: 0; } }
+/* (its icon: a target, as over the loser) */
+#fatalBtn .ic { width: 1.35em; height: 1.35em; flex: none; filter: drop-shadow(0 2px 0 #4a0000); }
+#fatalBtn.on .ic { animation: fatalSpin 4s linear infinite; }
+@keyframes fatalSpin { to { transform: rotate(360deg); } }
+#fatalBtn .tx { display: flex; flex-direction: column; }
+#fatalBtn .t { font-size: 1em; }
+#fatalBtn .who { font-family: 'Teko'; font-size: .5em; letter-spacing: .14em; color: #ffe2d8; margin-top: .02em; }
+#fatalBtn .who b { font-weight: 400; color: #fff; }
+#fatalBtn .h { display: inline-block; align-self: flex-start; font-family: 'Teko'; font-size: .42em; letter-spacing: .2em; color: #2a0000; background: #ffe2d8; border-radius: 3px; padding: .1em .45em 0; margin-top: .2em; text-shadow: none; }
+#fatalBtn .bar { position: absolute; left: 14%; right: 14%; bottom: 5px; height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden; }
+#fatalBtn .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffd27a, #fff); transform-origin: left; }
 /* (blood dripping off the button's bottom edge) */
-#fatalBtn .dr { position: absolute; top: 100%; width: 4px; border-radius: 0 0 4px 4px; background: linear-gradient(#5d0404, #9a0a06); animation: fatalDrip 2.4s ease-in infinite; }
+#fatalBtn .dr { position: absolute; top: 96%; width: 4px; border-radius: 0 0 4px 4px; background: linear-gradient(#5d0404, #9a0a06); animation: fatalDrip 2.4s ease-in infinite; }
 #fatalBtn .dr::after { content: ''; position: absolute; left: 50%; bottom: -3px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #9a0a06; }
 @keyframes fatalDrip { 0% { height: 0; opacity: 1; } 70% { height: var(--h, 22px); opacity: 1; } 100% { height: var(--h, 22px); opacity: 0; } }
-@keyframes fatalBlink {
-  0%, 40% { filter: brightness(1.45) saturate(1.15); color: #fff; box-shadow: 0 0 0 2px #050000, 0 0 0 3px #ff2a18, 0 8px 20px rgba(0,0,0,.7), 0 0 44px rgba(255,50,25,.95); }
-  55%, 92% { filter: brightness(.6); color: #ffb9ad; box-shadow: 0 0 0 2px #050000, 0 0 0 3px #6d0905, 0 8px 20px rgba(0,0,0,.7), 0 0 10px rgba(255,30,10,.2); }
-  100% { filter: brightness(1.45) saturate(1.15); color: #fff; box-shadow: 0 0 0 2px #050000, 0 0 0 3px #ff2a18, 0 8px 20px rgba(0,0,0,.7), 0 0 44px rgba(255,50,25,.95); } }
+/* the target over the loser */
+#fatalMark { position: fixed; left: 0; top: 0; z-index: 13; width: 96px; height: 96px; margin: -48px 0 0 -48px; opacity: 0; pointer-events: none; transition: opacity .3s; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#fatalMark.on { opacity: 1; pointer-events: auto; }
+#fatalMark svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(255,40,20,.9)) drop-shadow(0 2px 0 #000); animation: fatalSpin 5s linear infinite; }
+#fatalMark.on .pulse { position: absolute; inset: 18%; border-radius: 50%; border: 3px solid rgba(255,60,30,.9); animation: fatalRing 1.2s ease-out infinite; }
+#fatalMark b { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); white-space: nowrap; font-family: 'Bebas'; font-size: 20px; letter-spacing: .08em; color: #fff; text-shadow: 0 2px 0 #000, 0 0 10px rgba(255,40,20,.9); }
 #fatalSub { position: absolute; bottom: 14%; width: 100%; text-align: center; font-family: 'Rajdhani'; font-size: 26px; font-style: italic; color: #f2ece4;
   text-shadow: 0 2px 0 #000, 0 0 14px rgba(0,0,0,.9); opacity: 0; transform: translateY(8px); transition: opacity .35s, transform .35s; }
 #fatalSub.on { opacity: 1; transform: none; }
@@ -605,7 +625,7 @@ body.touchui #fatalBtn .h { display: none; }
 .rs-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 4px 20px; }
 .rs-grid.ol-stats { grid-template-columns: auto; justify-content: center; margin-top: 8px; }
 .rs-f { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
-.rs-f img { width: 88px; height: 88px; object-fit: cover; object-position: 50% 22%; border: 2px solid var(--p1); filter: saturate(.9); }
+.rs-f img { width: 88px; height: 88px; object-fit: cover; object-position: 50% 50%; border: 2px solid var(--p1); filter: saturate(.9); }
 .rs-f.p2 img { border-color: var(--p2); }
 .rs-f.win img { box-shadow: 0 0 0 2px var(--gold), 0 0 24px rgba(255,200,60,.7); filter: none; }
 .rs-f b { font-family: 'Bebas'; font-weight: 400; font-size: 26px; letter-spacing: .05em; margin-top: 5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -742,6 +762,7 @@ body.touchui #fatalBtn .h { display: none; }
   #selBack { font-size: 18px; padding: 3px 12px; min-height: 36px; top: max(8px, env(safe-area-inset-top)); }
   .stagebar { top: 12%; font-size: 15px; } .stagebar small { display: none; } .stagebar .stg b { padding: 0 .7em; }
   #selHint { top: 19%; font-size: 11px; }
+  #fatalBtn { font-size: min(5vw, 26px); bottom: 12%; } #fatalMark { width: 70px; height: 70px; margin: -35px 0 0 -35px; } #fatalMark b { font-size: 15px; }
   #stagesel h2 { font-size: 26px; padding: 6px 0 12px; }
   #ssBack { font-size: 18px; padding: 3px 12px; min-height: 36px; top: max(8px, env(safe-area-inset-top)); }
   .ss-match { top: 12%; font-size: 15px; gap: 8px; } .ss-match img, .ss-match .q { width: 24px; height: 24px; border-width: 1.5px; } .ss-match em { font-size: 18px; }
@@ -807,12 +828,12 @@ body.touchui #fatalBtn .h { display: none; }
 <link rel="modulepreload" href="js/fight/fatality.js">
 <link rel="modulepreload" href="js/fight/moves.js">
 <link rel="modulepreload" href="js/audio/audio.js">
-<link rel="modulepreload" href="js/ui/online.js">
 <link rel="modulepreload" href="js/stage/core.js">
-<link rel="modulepreload" href="vendor/three/jsm/postprocessing/SMAAPass.js">
-<link rel="modulepreload" href="js/fight/match.js">
-<link rel="modulepreload" href="js/anim/rig.js">
+<link rel="modulepreload" href="js/ui/online.js">
 <link rel="modulepreload" href="js/stage/neon.js">
+<link rel="modulepreload" href="js/fight/match.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/SMAAPass.js">
+<link rel="modulepreload" href="js/anim/rig.js">
 <link rel="modulepreload" href="js/stage/terrace.js">
 <link rel="modulepreload" href="js/stage/festival.js">
 <link rel="modulepreload" href="js/fight/fighter.js">
@@ -824,9 +845,9 @@ body.touchui #fatalBtn .h { display: none; }
 <link rel="modulepreload" href="js/fx/halves.js">
 <link rel="modulepreload" href="js/materials.js">
 <link rel="modulepreload" href="js/fx/blood.js">
+<link rel="modulepreload" href="js/fx/fx.js">
 <link rel="modulepreload" href="js/net/netplay.js">
 <link rel="modulepreload" href="js/fx/bicycle.js">
-<link rel="modulepreload" href="js/fx/fx.js">
 <link rel="modulepreload" href="vendor/qr/qrcode.js">
 <link rel="modulepreload" href="js/fx/accessories.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/GTAOPass.js">
@@ -853,6 +874,7 @@ body.touchui #fatalBtn .h { display: none; }
 <link rel="modulepreload" href="js/fight/ai.js">
 <link rel="modulepreload" href="js/fight/ragdoll.js">
 <link rel="modulepreload" href="js/charloader.js">
+<link rel="modulepreload" href="js/fx/wear.js">
 <link rel="modulepreload" href="vendor/three/jsm/lights/SunLightShadow.js">
 <link rel="modulepreload" href="js/anim/clothsway.js">
 <link rel="modulepreload" href="js/fx/burn.js">
@@ -885,6 +907,7 @@ body.touchui #fatalBtn .h { display: none; }
 <link rel="modulepreload" href="js/ui/endings.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
 <link rel="modulepreload" href="js/net/signal.js">
+<link rel="modulepreload" href="js/fx/oil.js">
 <link rel="modulepreload" href="js/anim/poses.js">
 <link rel="modulepreload" href="vendor/three/jsm/lights/SunLight.js">
 <link rel="modulepreload" href="js/engine/offline.js">
@@ -1009,7 +1032,8 @@ body.touchui #fatalBtn .h { display: none; }
 <div id="achToast"></div>
 
 <div id="touch"></div>
-<button id="fatalBtn" type="button"><span class="t">PUÑETALITY</span><span class="h">↑ + GOLPE</span><i class="bar"><i></i></i><i class="dr" style="left:18%;--h:11px"></i><i class="dr" style="left:47%;--h:18px;animation-delay:.7s"></i><i class="dr" style="left:76%;--h:9px;animation-delay:1.3s"></i></button>
+<button id="fatalBtn" type="button"><span class="rg"></span><span class="rg b"></span><span class="ic"><svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"><circle cx="50" cy="50" r="34"/><circle cx="50" cy="50" r="14" stroke-width="5"/><path d="M50 4v18M50 78v18M4 50h18M78 50h18"/><circle cx="50" cy="50" r="4" fill="#fff" stroke="none"/></svg></span><span class="tx"><span class="t">PUÑETALITY</span><span class="who">¡REMATA A <b></b>!</span><span class="h">↑ + GOLPE</span></span><i class="bar"><i></i></i><i class="dr" style="left:22%;--h:11px"></i><i class="dr" style="left:50%;--h:18px;animation-delay:.7s"></i><i class="dr" style="left:74%;--h:9px;animation-delay:1.3s"></i></button>
+<div id="fatalMark"><span class="pulse"></span><svg viewBox="0 0 100 100" fill="none" stroke="#ff3b24" stroke-width="7" stroke-linecap="round"><circle cx="50" cy="50" r="34"/><circle cx="50" cy="50" r="14" stroke-width="5"/><path d="M50 4v18M50 78v18M4 50h18M78 50h18"/><circle cx="50" cy="50" r="4" fill="#fff" stroke="none"/></svg><b>¡REMÁTALO!</b></div>
 <div id="netMsg"></div>
 <div id="olToast"></div>
 <div id="ver"></div>

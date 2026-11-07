@@ -24,6 +24,7 @@ import { makeBicycle, makeHelmet, poseBicycle, BIKE } from '../fx/bicycle.js';
 import { Halves } from '../fx/halves.js';
 import { Burn } from '../fx/burn.js';
 import { EyeBeams, Sprites, AshPile } from '../fx/eyebeam.js';
+import { oilObjects, LENS_OIL } from '../fx/oil.js';
 import { HAND_SCALE } from '../anim/body.js';
 import { POSE } from '../anim/rig.js';
 
@@ -67,7 +68,7 @@ float fatalSpatter( vec3 P, vec3 N, float amount ) {
   }
   return s;
 }`;
-function spatterMaterial(mat, U) {
+function spatterMaterial(mat, U, oil = false) {
   const m = mat.clone();
   m.userData = { ...mat.userData };
   // (a clone leaves the defines behind: the beard's shells need theirs, USE_UV)
@@ -79,10 +80,10 @@ function spatterMaterial(mat, U) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSpP; varying vec3 vSpN;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvSpP = position; vSpN = normal;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSpP; varying vec3 vSpN; uniform float uSpat;' + SPAT_GLSL)
-      .replace('#include <color_fragment>', '#include <color_fragment>\n\tfloat fSpat = fatalSpatter( vSpP, normalize( vSpN ), uSpat );\n\tdiffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.12, 0.004, 0.006 ), fSpat * 0.95 );')
+      .replace('#include <color_fragment>', `#include <color_fragment>\n\tfloat fSpat = fatalSpatter( vSpP, normalize( vSpN ), uSpat );\n\tdiffuseColor.rgb = mix( diffuseColor.rgb, ${oil ? 'vec3( 0.022, 0.016, 0.009 )' : 'vec3( 0.12, 0.004, 0.006 )'}, fSpat * 0.95 );`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = mix( roughnessFactor, 0.2, fSpat );');
   };
-  m.customProgramCacheKey = () => (prevKey ? prevKey() : '') + '|spat';
+  m.customProgramCacheKey = () => (prevKey ? prevKey() : '') + (oil ? '|spatOil' : '|spat');
   return m;
 }
 
@@ -1013,7 +1014,7 @@ const ZAPPONI = {
     d.L0 = (m.fatalL0 || L.pos).clone().setY(0); d.W0 = (m.fatalW0 || W.pos).clone().setY(0);
     d.ax = d.L0.clone().sub(d.W0).normalize(); d.sd = new THREE.Vector3(-d.ax.z, 0, d.ax.x);
     // the bike (in the scene until he is on it, then his)
-    d.bk = makeBicycle(); g.scene.add(d.bk.group);
+    d.bk = makeBicycle(); g.scene.add(d.bk.group); d.bk.group.userData.noOil = true; // (its red trim stays red on Orión too)
     d.bk.group.visible = false;
     // the helmet, made to his head (its cranium above the eyes, the chin), carried by the head bone once on
     const ch = W.ch, R = ch.rest, head = R.head.head.clone();
@@ -1026,7 +1027,7 @@ const ZAPPONI = {
       if (Math.abs(v.x) < 0.015 && v.z > head.z && v.y > eyeY - 0.2 && v.y < eyeY - 0.05 && (!chin || v.y < chin.y)) chin = v.clone();
     }
     d.hel = makeHelmet(head, cr, chin || head.clone().add(new THREE.Vector3(0, -0.085, 0.07)));
-    d.hel.group.matrixAutoUpdate = false; d.hel.group.visible = false; g.scene.add(d.hel.group);
+    d.hel.group.matrixAutoUpdate = false; d.hel.group.visible = false; g.scene.add(d.hel.group); d.hel.group.userData.noOil = true;
     // the loser, as two halves from now on (whole until the cut)
     d.hv = new Halves(g.scene, L); d.hv.begin();
     d.wheel = 0; d.rearLock = 0; d.prevWp = W.pos.clone(); d.crank = 0; d.cutDone = false; d.hitN = 0; d.rideSnd = false;
@@ -1466,6 +1467,11 @@ export class FatalityDirector {
   start(m) {
     const g = this.g, W = m.fighters[m.fatalBy | 0], L = W.opp;
     this.m = m; this.W = W; this.L = L; this.F = W.style.fatal; this.D = fatalOf(W.id);
+    // a machine bleeds oil (js/fx/oil.js): what the move adds to the scene and the loser's own materials, remapped
+    this.oil = !!L.ch.meta?.robot && !W.style.fatal?.ash; // (not Orión's own beams on a robot: no blood there, only fire)
+    this.lens.palette = this.oil ? LENS_OIL : null;
+    const before = this.oil ? new Set() : null;
+    if (before) g.scene.traverse((o) => before.add(o));
     this.t = -1; this.fired = new Set(); this.shotK = -1;
     this.torsoDown = false; this.legsDown = false; this.headDown = false; this.headC = null;
     this.blood = new Blood(g.scene);
@@ -1477,9 +1483,10 @@ export class FatalityDirector {
       const mt = mesh.material;
       if (!mesh.isSkinnedMesh || mt.transparent || mt.alphaTest > 0 || /hair|eye|cornea|lash|teeth|beard/i.test(mesh.name)) continue;
       this.spatMeshes.push([mesh, mt]);
-      mesh.material = spatterMaterial(mt, this.spat);
+      mesh.material = spatterMaterial(mt, this.spat, this.oil);
     }
     this.D?.setup(this);
+    if (this.oil) { this.oilBefore = before; this.oilNow(); }
     // the sound: the music steps away, a low hum and a heartbeat build up
     g.audio.hush?.();
     g.audio.musicFade?.(0.12, 0.4);
@@ -1499,6 +1506,13 @@ export class FatalityDirector {
     this.hud(false);
     for (const k of ['split', 'blood', 'sw', 'spatMeshes', 'trail', 'glint', 'db', 'crush', 'loose', 'swB', 'swT']) this[k] = null;
     this.m = null;
+  }
+  // the oil remap on what the move has put in the scene since it started (and the loser), not the winner nor the stage
+  oilNow() {
+    const before = this.oilBefore, g = this.g, skip = new Set([this.W.ch.group]);
+    const roots = [this.L.ch.group];
+    g.scene.traverse((o) => { if (!before.has(o) && o.parent && before.has(o.parent) && o !== this.W.ch.group) roots.push(o); });
+    oilObjects(roots, skip);
   }
   hud(on) {
     // (nothing of the fight's own screen over the move: the pause hint gone too)
@@ -1525,6 +1539,18 @@ export class FatalityDirector {
     const g = this.g, D = this.D, F = this.F, W = this.W, au = g.audio;
     if (!D) return;
     if (t === 1) { g.effects.fade = 1; au.fatal?.('cutin', null); }
+    // (oil: what the move made in its first frames, behind the black, remapped too; then the sparks and crackle of a
+    // machine torn open, on the cut and for a while after)
+    if (this.oil) {
+      if (t < 12 && t % 3 === 0) this.oilNow();
+      const cut = F.cut ?? F.hit ?? F.burst;
+      if (cut != null && t >= cut && t < cut + 200 && (t === cut || (t - cut) % 23 === 0)) {
+        const b = this.L.ch.bones[['spine02', 'spine03', 'neck01', 'spine04', 'upperarm02.L', 'upperarm02.R'][((t - cut) / 23 | 0) % 6]];
+        const p = b ? b.getWorldPosition(new THREE.Vector3()) : this.L.pos.clone().setY(1.1);
+        if (t === cut) { g.fx.electric?.(p, null); au.play?.('zap', p); }
+        g.fx.sparks?.(p, t === cut ? 26 : 10);
+      }
+    }
     if (t === F.sayAt) { au.line?.(W, 'fatal'); this.subtitle(F.say); }
     if (t === F.sayAt + (F.sayLen || 112)) $('#fatalSub')?.classList.remove('on');
     D.frame(this, t);

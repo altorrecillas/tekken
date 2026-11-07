@@ -157,7 +157,7 @@ export class NeonStage {
     this.koView = new THREE.Vector3(0, 0, -1);
     // the key: the street lamps and the glow of the street, cool, high on the left
     this.sunDir = new THREE.Vector3(-0.35, 0.82, 0.45).normalize();
-    this.signs = [];
+    this.signs = []; this.obstacles = [];
     this.rainOn = quality !== 'low';
     // (the sky and the lights now, everything else in ready(), a part at a time with a breath between them: the page
     // and its loading card keep moving while the street is made)
@@ -166,14 +166,20 @@ export class NeonStage {
   }
   async ready() {
     const steps = [() => this.buildGround(), () => this.buildTowers(), () => this.buildSkyline(), () => this.buildShops(), () => this.buildSigns(), () => this.buildHologram(),
-      () => this.buildLamps(), () => this.buildStreetProps(), () => this.buildCables(), () => this.buildSteam(), () => this.buildTraffic(), () => this.rainOn && this.buildRain()];
+      () => this.buildLamps(), () => this.buildStreetProps(), () => this.buildCables(), () => this.buildSteam(), () => this.buildTraffic(), () => this.rainOn && this.buildRain(), () => { this.ripples = this.makeRipples(); }];
     for (const f of steps) { f(); await new Promise((r) => setTimeout(r, 0)); }
   }
 
   // walkable: the roadway and the pavements, between the kerb-side lamps
+  // walkable: the street and the pavements up to the shop windows (a fighter knocked back into one cracks it: react),
+  // round the lamp posts, the vending machine and the rubbish bags
   clampWalk(p, r = 0) {
     p.x = THREE.MathUtils.clamp(p.x, -40 + r, 40 - r);
-    p.z = THREE.MathUtils.clamp(p.z, FRONT + 1.2 + r, BACKF - 1.2 - r);
+    p.z = THREE.MathUtils.clamp(p.z, FRONT + 0.16 + r, BACKF - 0.16 - r);
+    for (const [ox, oz, R0] of this.obstacles || []) {
+      const dx = p.x - ox, dz = p.z - oz, d = Math.hypot(dx, dz), R = R0 + r;
+      if (d < R) { if (d < 1e-4) p.x = ox + R; else { p.x = ox + dx / d * R; p.z = oz + dz / d * R; } }
+    }
     return p;
   }
   clampCam(p) { p.x = THREE.MathUtils.clamp(p.x, -42, 42); p.z = THREE.MathUtils.clamp(p.z, FRONT + 1.2, BACKF - 1.2); p.y = Math.max(0.3, p.y); return p; }
@@ -443,6 +449,7 @@ export class NeonStage {
       const arm = new THREE.BoxGeometry(0.08, 0.08, 1.6); arm.translate(x, 6.4, z - side * 0.8); geos.push(arm);
       const hd = new THREE.BoxGeometry(0.7, 0.1, 0.3); hd.translate(x, 6.32, z - side * 1.5); heads.push(hd);
       this.lampSpots.push([x, z - side * 1.5]);
+      this.obstacles.push([x, z, 0.16]);
     }
     const pm = new THREE.Mesh(bake(geos), pole); pm.castShadow = true; this.group.add(pm);
     this.group.add(new THREE.Mesh(bake(heads), head));
@@ -461,11 +468,12 @@ export class NeonStage {
       g.fillStyle = '#111'; g.font = '700 16px Arial'; g.fillText('BEBIDAS', 26, h - 8);
     }), color: new THREE.Color(1.4, 1.4, 1.4) }));
     front.position.set(0, 1.15, 0.41); vm.add(front);
-    vm.position.set(-7.4, 0.15, FRONT + 3.2); vm.rotation.y = 0.5; this.group.add(vm);
-    const vmL = new THREE.PointLight(new THREE.Color(0.7, 0.9, 1.0), 3, 5, 2); vmL.position.set(-7.1, 1.2, FRONT + 4.0); this.group.add(vmL);
+    vm.position.set(-15.5, 0.15, FRONT + 1.0); vm.rotation.y = 0.3; this.group.add(vm);
+    this.obstacles.push([-15.5, FRONT + 1.0, 0.75], [rnd(14.5, 15), FRONT + 0.9, 1.0]);
+    const vmL = new THREE.PointLight(new THREE.Color(0.7, 0.9, 1.0), 3, 5, 2); vmL.position.set(-15.2, 1.2, FRONT + 1.8); this.group.add(vmL);
     const bag = new THREE.MeshStandardMaterial({ color: 0x0d0d10, roughness: 0.25, metalness: 0.1 });
     const bags = [];
-    for (let i = 0; i < 7; i++) { const s = new THREE.SphereGeometry(rnd(0.25, 0.4), 10, 8); s.scale(1, rnd(0.7, 1.0), 1); s.translate(rnd(9, 11.5), 0.4, FRONT + rnd(3.0, 3.8)); bags.push(s); }
+    for (let i = 0; i < 7; i++) { const s = new THREE.SphereGeometry(rnd(0.25, 0.4), 10, 8); s.scale(1, rnd(0.7, 1.0), 1); s.translate(rnd(14, 16), 0.4, FRONT + rnd(0.6, 1.3)); bags.push(s); }
     const bm = new THREE.Mesh(bake(bags), bag); bm.castShadow = true; this.group.add(bm);
   }
   buildCables() {
@@ -567,6 +575,81 @@ export class NeonStage {
     });
   }
 
+  // ------------------------------------------------------------------ the street answers the fight
+  // (main.js: wetness() soaks the fighters, feet() every frame, react() each event of the fight; fx and audio are the
+  // game's, set on the stage as it is made)
+  wetness() { return this.rainOn ? 0.9 : 0.5; }
+  // a splash where a foot comes down on the wet street: a ring on the water and a few drops
+  feet(fighters, dt) {
+    this.footY ||= new Map();
+    for (const f of fighters) for (const s of ['L', 'R']) {
+      const b = f.ch?.bones['foot.' + s]; if (!b) continue;
+      const p = b.getWorldPosition(new THREE.Vector3()), k = f.index + s, was = this.footY.get(k) ?? p.y;
+      this.footY.set(k, p.y);
+      if (was > 0.09 && p.y <= 0.09) this.splash(p.setY(0.02), 0.22, 2);
+    }
+  }
+  splash(p, size, drops) {
+    this.ripples ||= this.makeRipples();
+    const R = this.ripples, q = R.list[R.k]; R.k = (R.k + 1) % R.list.length;
+    q.x = p.x; q.z = p.z; q.age = 0; q.size = size;
+    if (drops) this.fx?.sweat?.(p.clone().setY(0.06), drops);
+  }
+  makeRipples() {
+    const tex = canvasTex(128, 128, (g, w, h) => { g.strokeStyle = 'rgba(210,225,255,0.9)'; for (const [r, lw, a] of [[56, 2.5, 1], [42, 1.2, 0.5]]) { g.globalAlpha = a; g.lineWidth = lw; g.beginPath(); g.arc(w / 2, h / 2, r, 0, 6.3); g.stroke(); } g.globalAlpha = 1; });
+    const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.3, blending: THREE.AdditiveBlending });
+    const inst = new THREE.InstancedMesh(geo, mat, 24); inst.frustumCulled = false; inst.renderOrder = 3; this.group.add(inst);
+    const list = Array.from({ length: 24 }, () => ({ x: 0, z: 0, age: 9, size: 1 }));
+    const o = new THREE.Object3D(), col = new THREE.Color();
+    this.animated.push((dt) => {
+      list.forEach((q, i) => {
+        q.age += dt; const k = Math.min(1, q.age / 0.7);
+        o.position.set(q.x, 0.022, q.z); o.scale.setScalar(q.age < 0.7 ? q.size * (0.2 + k * 1.3) : 0.0001); o.updateMatrix(); inst.setMatrixAt(i, o.matrix);
+        inst.setColorAt(i, col.setScalar(1 - k));
+      });
+      inst.instanceMatrix.needsUpdate = true; if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    });
+    return { list, k: 0 };
+  }
+  react(ev) {
+    if (ev.t === 'land' && ev.f) {
+      // a body down on the wet street: a big splash, a sheet of drops
+      const p = ev.f.pos.clone().setY(0.02);
+      this.splash(p, 0.9, 14); this.splash(p.clone().add(new THREE.Vector3(0.35, 0, 0.15)), 0.55, 6);
+    } else if (ev.t === 'hit' && ev.pos && (ev.heavy || ev.ch)) {
+      // the rain on his clothes thrown off by the blow
+      this.fx?.sweat?.(ev.pos, 10);
+    } else if (ev.t === 'wall' && ev.f) this.crackWindow(ev.f, ev.pos);
+  }
+  // a fighter knocked back into a shop window: the glass cracks in a star round where he hit it (it stays), shards
+  // fall glinting, the sign above flickers
+  crackWindow(f, pos) {
+    const now = this.t;
+    this.wallT ||= {};
+    if (now - (this.wallT[f.index] || -9) < 0.8) return;
+    this.wallT[f.index] = now;
+    const far = pos.z < 0, z = far ? FRONT + 0.075 : BACKF - 0.075;
+    if (!this.crackTex) this.crackTex = canvasTex(256, 256, (g, w, h) => {
+      g.translate(w / 2, h / 2); g.strokeStyle = 'rgba(235,245,255,0.9)'; g.lineCap = 'round';
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + Math.random() * 0.3; let x = 0, y = 0; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, 0); for (let k = 0; k < 5; k++) { x += Math.cos(a + (Math.random() - 0.5) * 0.5) * 22; y += Math.sin(a + (Math.random() - 0.5) * 0.5) * 22; g.lineTo(x, y); } g.stroke(); }
+      for (const r of [18, 38, 64, 92]) { g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i <= 14; i++) { const a = i / 14 * Math.PI * 2, rr = r * (0.85 + Math.random() * 0.3); i ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.stroke(); }
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.arc(0, 0, 10, 0, 6.3); g.fill();
+    });
+    this.cracks ||= [];
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: this.crackTex, transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -4 }));
+    m.position.set(pos.x, 1.15, z); m.rotation.z = Math.random() * 6.3; if (!far) m.rotation.y = Math.PI;
+    this.group.add(m); this.cracks.push(m);
+    if (this.cracks.length > 8) { const o = this.cracks.shift(); this.group.remove(o); o.geometry.dispose(); o.material.dispose(); }
+    const at = new THREE.Vector3(pos.x, 1.15, z + (far ? 0.05 : -0.05));
+    this.fx?.shards?.(at, 16); this.fx?.sparks?.(at, 4, false);
+    this.audio?.play?.('glass', at);
+    // (the nearest sign flickers off a moment)
+    let best = null, bd = 9;
+    for (const sg of this.signs) { const d = Math.abs(sg.refl.position.x - pos.x); if (d < bd) { bd = d; best = sg; } }
+    if (best) best.kick = 0.6;
+  }
+
   bakeEnvironment() {
     // (the reflections in the wet street and on the metal: the signs, the windows, the smog; the rain not in it)
     const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
@@ -588,6 +671,7 @@ export class NeonStage {
     for (const s of this.signs) {
       let k = 1;
       if (s.flick > 0) { const n = Math.sin(this.t * 37 + s.ph) * Math.sin(this.t * 13 + s.ph * 2); if (n > 1 - s.flick * 8) k = 0.15; }
+      if (s.kick > 0) { s.kick -= dt; if (Math.sin(this.t * 60) > -0.2) k = 0.1; }
       k *= 0.96 + 0.04 * Math.sin(this.t * 60 + s.ph);
       s.m.color.setScalar(s.base * k); s.refl.material.opacity = k;
     }

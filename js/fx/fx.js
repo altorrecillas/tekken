@@ -328,6 +328,24 @@ export class FX {
     for (let i = 0; i < 12; i++) this.glow.add({ p: p.clone(), vel: new THREE.Vector3().randomDirection().multiplyScalar(1.5 + Math.random() * 2), age: 0, life: 0.3 + Math.random() * 0.2, s0: 0.1, s1: 0.02, a0: 1, c: col, drag: 4 });
   }
 
+  // a short burst of hot sparks (a damaged machine's joint, metal striking metal), falling under their weight
+  sparks(p, n = 10, glow = true) {
+    const col = new THREE.Color(1.0, 0.62, 0.22);
+    for (let i = 0; i < n; i++) {
+      const d = new THREE.Vector3().randomDirection(); d.y = Math.abs(d.y) * 0.8 + 0.2;
+      this.streaks.add({ p: p.clone(), vel: d.multiplyScalar(1.5 + Math.random() * 3), age: 0, life: 0.18 + Math.random() * 0.3, c: col, len: 0.018, w: 0.004 });
+    }
+    if (glow) this.glow.add({ p: p.clone(), vel: new THREE.Vector3(), age: 0, life: 0.08, s0: 0.12, s1: 0.2, a0: 0.7, c: new THREE.Color(1.3, 0.85, 0.5), fadePow: 1.6 });
+  }
+  // glass breaking: small bright splinters falling, glinting
+  shards(p, n = 12) {
+    const col = new THREE.Color(0.85, 0.92, 1.0);
+    for (let i = 0; i < n; i++) {
+      const d = new THREE.Vector3().randomDirection(); d.y = Math.abs(d.y) * 0.5;
+      this.streaks.add({ p: p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, 0)), vel: d.multiplyScalar(0.8 + Math.random() * 1.6), age: 0, life: 0.35 + Math.random() * 0.4, c: col, len: 0.01, w: 0.003 });
+    }
+  }
+
   blockSpark(p) {
     const col = new THREE.Color(0.55, 0.8, 1.0);
     for (let i = 0; i < 14; i++) {

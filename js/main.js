@@ -12,6 +12,7 @@ import { CoreStage } from './stage/core.js';
 import { PostFX } from './engine/post.js';
 import { setupOffline } from './engine/offline.js';
 import { FX, setFxViewHeight } from './fx/fx.js';
+import { Wear } from './fx/wear.js';
 import { HUD } from './ui/hud.js';
 import { Audio } from './audio/audio.js';
 import { FightCamera } from './fight/camera.js';
@@ -57,16 +58,17 @@ const STAGES = {
     desc: 'El escenario de las fiestas a la hora dorada: el DJ, las luces y el barrio entero bailando.', tags: ['HORA DORADA', 'FIESTA', 'CLUB'], acc: '#ffd34d',
     grade: { sat: 1.08, slope: [1.02, 1.0, 0.97] } },
   // the neighbourhood in 2099: a cyberpunk street at night in the rain, neon signs mirrored in the wet asphalt (made by code)
-  neon: { cls: NeonStage, name: 'DISTRITO NEÓN', sub: 'EL BARRIO EN 2099', dust: [0.35, 0.38, 0.45], dustLight: 0.35, amb: 'neon', music: 'neon',
+  neon: { cls: NeonStage, name: 'DISTRITO NEÓN', sub: 'EL BARRIO EN 2099', surface: 'wet', dust: [0.35, 0.38, 0.45], dustLight: 0.35, amb: 'neon', music: 'neon',
     desc: 'Lluvia, rótulos de neón y coches voladores sobre el asfalto mojado. Así será el barrio en 2099.', tags: ['NOCHE', 'LLUVIA', 'SYNTHWAVE'], acc: '#ff3cb4',
     grade: { sat: 1.16, slope: [1.0, 0.98, 1.05] } },
   // Orión's home: the inside of the computer where the AI lives, the fight on the motherboard (made by code)
-  pc: { cls: CoreStage, name: 'DENTRO DEL PC', sub: 'EL HOGAR DE ORIÓN', dust: [0.3, 0.6, 0.7], dustLight: 0.5, amb: 'pc', music: 'pc',
+  pc: { cls: CoreStage, name: 'DENTRO DEL PC', sub: 'EL HOGAR DE ORIÓN', surface: 'metal', dust: [0.3, 0.6, 0.7], dustLight: 0.5, amb: 'pc', music: 'pc',
     desc: 'Dentro de la torre donde vive Orión: luchas sobre la tarjeta gráfica, entre ventiladores RGB, memorias y su bomba de agua con sus ojos rojos.', tags: ['DIGITAL', 'RGB', 'ELECTRO'], acc: '#3ce8ff',
     shot: { pos: [-6.5, 6.2, 9.0], look: [5.5, 3.6, -5.5], fov: 60 },
     grade: { sat: 1.12, slope: [0.98, 1.0, 1.05] } },
 };
 const STAGE_KEYS = Object.keys(STAGES);
+const QNAME = { low: 'BAJA', medium: 'MEDIA', high: 'ALTA', ultra: 'ULTRA' };
 // tips on the loading card
 const TIPS = [
   'Mantén ATRÁS para bloquear los golpes altos y medios; ABAJO-ATRÁS bloquea los bajos.',
@@ -110,7 +112,11 @@ const q = new URLSearchParams(location.search);
 class Game {
   constructor() {
     this.canvas = $('#game');
-    this.quality = q.get('q') || lsGet('pdb_quality') || defaultQuality();
+    // the quality: the player's own choice, or (AUTOMÁTICA, the default) the one this device has shown it can hold
+    // (autoTune: measured in the fights, kept for the next time the game opens), or the device's first guess
+    const userQ = lsGet('pdb_quality');
+    this.autoQ = !q.get('q') && (!userQ || userQ === 'auto');
+    this.quality = q.get('q') || (this.autoQ ? lsGet('pdb_quality_auto') : userQ) || defaultQuality();
     this.difficulty = DIFFICULTY[lsGet('pdb_diff')] ? lsGet('pdb_diff') : 'normal';
     if (!['low', 'medium', 'high', 'ultra'].includes(this.quality)) this.quality = defaultQuality();
     const bud = budget(this.quality);
@@ -145,6 +151,9 @@ class Game {
     this.fatal = new FatalityDirector(this);
     this.fatalBtn = $('#fatalBtn');
     this.fatalBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.fatalPress(); });
+    // (the target over the loser does it too)
+    this.fatalMark = $('#fatalMark');
+    this.fatalMark?.addEventListener('click', (e) => { e.stopPropagation(); this.fatalPress(); });
     this.roster = ROSTER;
     // the version, small in a corner (which build this is: see js/version.js); out of the way during a fight
     this.verEl = $('#ver');
@@ -161,7 +170,7 @@ class Game {
       // a touch on a hybrid laptop (or after a gamepad session) brings the touch controls (back)
       if (e.pointerType === 'touch' && this.touch.opt.show !== 'never') { this.padActive = false; this.touch.enable(); document.body.classList.add('touchui'); }
       const ph = this.match?.phase;
-      if (e.target?.closest?.('#fatalBtn')) return; // (its own click: not a tap that ends the win screen)
+      if (e.target?.closest?.('#fatalBtn') || e.target?.closest?.('#fatalMark')) return; // (its own click: not a tap that ends the win screen)
       if (this.state === 'fight' && this.replaying) { this.online.replayEnded(); return; }
       if (this.state === 'highlight' && this.hl?.phase === 'play') { this.endHighlight(); return; }
       if (this.state === 'ending') { this.endingTap(); return; }
@@ -205,12 +214,13 @@ class Game {
   loadAudioPrefs() {
     try { const v = JSON.parse(lsGet('pdb_audio') || 'null'); if (v) Object.assign(this.audio.vol, v); } catch (e) { /* ignore */ }
     // accessibility (OPCIONES): subtitles, camera shake (1 normal, 0.4 gentle, 0 none), screen flashes (1, 0.35)
-    this.prefs = { subs: true, shake: 1, flash: 1 };
+    this.prefs = { subs: true, shake: 1, flash: 1, fatal: true };
     try {
       const v = JSON.parse(lsGet('pdb_prefs') || 'null') || {};
       if (typeof v.subs === 'boolean') this.prefs.subs = v.subs;
       if ([0, 0.4, 1].includes(v.shake)) this.prefs.shake = v.shake;
       if ([0.35, 1].includes(v.flash)) this.prefs.flash = v.flash;
+      if (typeof v.fatal === 'boolean') this.prefs.fatal = v.fatal;
     } catch (e) { /* ignore */ }
     this.applyPrefs();
   }
@@ -350,12 +360,31 @@ class Game {
     // (online, only down during a fight: every change rebuilds the render targets, a stutter the other phone would
     // have to wait for; it climbs back between fights)
     if (this.online.inFight && ns > d.scale) ns = d.scale;
+    if (this.autoQ && !this.online.inFight && this.state === 'fight') this.autoTune(avg, d.scale);
     d.t = 0; d.acc = 0; d.n = 0;
     if (Math.abs(ns - d.scale) > 0.01) {
       d.scale = ns;
       this.renderer.setPixelRatio(d.base * ns);
       this.resize();
     }
+  }
+
+  // AUTOMÁTICA: a device that cannot hold its frame rate even at the lowest render resolution goes one quality down
+  // (six seconds of it), one that has plenty to spare at full resolution for a minute goes one up (as far as ALTA);
+  // kept for the next time the game opens (the quality is set as it starts), and said once
+  autoTune(avg, scale) {
+    const a = this.auto || (this.auto = { slow: 0, fast: 0, done: false });
+    if (a.done) return;
+    const order = ['low', 'medium', 'high', 'ultra'], i = order.indexOf(this.quality);
+    a.slow = avg > 0.026 && scale <= 0.61 ? a.slow + 1 : Math.max(0, a.slow - 1);
+    a.fast = avg < 0.0115 && scale >= 0.99 ? a.fast + 1 : 0;
+    let to = null;
+    if (a.slow >= 4 && i > 0) to = order[i - 1];
+    else if (a.fast >= 40 && i >= 0 && i < 2) to = order[i + 1];
+    if (!to) return;
+    a.done = true;
+    lsSet('pdb_quality_auto', to);
+    this.online.toast?.(`Calidad <b>${QNAME[to]}</b> para este dispositivo, desde la próxima vez que abras el juego`, 4500);
   }
 
   resize() {
@@ -385,6 +414,7 @@ class Game {
     this.audio.surface = def.surface || 'concrete';
     this.audio.setSpace(key); // (the blows ring in the stage's own space)
     this.stage.beatClock = () => this.audio.musicBeat(); // (the festival's lights and dancers keep the music's time)
+    this.stage.fx = this.fx; this.stage.audio = this.audio; // (a stage that answers the fight: splashes, sparks, glass)
     this.fx.dustColor = new THREE.Color(...def.dust);
     this.fx.dustLight = def.dustLight ?? 0.8;
     this.camCtl.koView = this.stage.koView || null;
@@ -448,9 +478,9 @@ class Game {
   }
   // costume: index into js/fight/costumes.js (0: the clothes of the photo)
   makeFighterModel(id, costume = 0) {
-    const key = makeFighterKey();
-    const ch = buildCharacter(this.chars[id], (def, base, lt, name) => makeFighterMaterial(def, base, lt, name, key));
-    ch.fighterKey = key;
+    const key = makeFighterKey(), wear = new Wear();
+    const ch = buildCharacter(this.chars[id], (def, base, lt, name) => wear.material(makeFighterMaterial(def, base, lt, name, key), def.type));
+    ch.fighterKey = key; ch.wear = wear;
     this.accessories.attach(ch, STYLES[id], this.chars[id].meta);
     ch.group.userData.fighter = true;
     ch.costumeIdx = costume | 0;
@@ -545,7 +575,8 @@ class Game {
     const btns = [...document.querySelectorAll(`${sel} button`)].filter((b) => !b.hidden && b.style.display !== 'none');
     this.menu = { btns, cb, idx: 0 };
     btns.forEach((b, i) => {
-      b.onpointerenter = (e) => { if (e.pointerType !== 'mouse') return; this.menu.idx = i; this.refreshMenu(); };
+      // (a mouse over a button while an overlay is up and no menu is live: nothing to move)
+      b.onpointerenter = (e) => { if (e.pointerType !== 'mouse' || !this.menu || this.menu.btns !== btns) return; this.menu.idx = i; this.refreshMenu(); };
       b.onclick = () => { this.audio.init(); this.audio.play('uiok'); cb(b.dataset.act); };
     });
     this.refreshMenu();
@@ -1060,7 +1091,10 @@ class Game {
     else { const ai = new AIController(opts.ai || 3); ai.attach(b, this.match); b.ctrl = ai; }
     if (opts.demo && !opts.training) { const ai1 = new AIController(opts.ai || 3); ai1.attach(a, this.match); a.ctrl = ai1; }
     // (who is a person: only a person finishes with a PUÑETALITY; its line is fetched now, not as it starts)
-    this.match.humans = [!opts.demo, !!opts.human2];
+    this.match.humans = this.fatalHumans(opts);
+    // (and the computer, when it wins, finishes the person off with its own: with the PUÑETALITYs switched on)
+    this.match.cpu = [!!opts.demo, !opts.human2];
+    this.match.cpuFatal = this.prefs?.fatal !== false && !opts.demo && !opts.training;
     for (const id of [id1, id2]) if (STYLES[id]?.fatal) this.audio.preloadFatal?.(id);
     if (this.rec) { a.ctrl = this.rec.wrap(a.ctrl, 0); b.ctrl = this.rec.wrap(b.ctrl, 1); }
     if (opts.training && !opts.demo) this.training.start(this.match); else this.training.stop();
@@ -1082,7 +1116,7 @@ class Game {
     } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
     // (?winnow=1: straight to player 1's win pose, for captures: index.html?demo=1&p1=…&winnow=1&readyon=win&readyat=<frame>)
-    if (q.get('winnow')) { const m = this.match; m.startRound(); m.koWinner = 0; m.wins = [m.opts.rounds - 1, 0]; m.afterRound(); }
+    if (q.get('winnow')) { const m = this.match; m.startRound(); m.koWinner = 0; m.wins = [m.opts.rounds - 1, 0]; m.afterRound(); if (q.get('fatalbtn')) m.humans = [true, false]; }
     // (?fatalnow=1: straight to player 1's PUÑETALITY, for captures: index.html?demo=1&p1=noemi&p2=…&fatalnow=1&readyon=fatal&readyat=<frame>)
     if (q.get('fatalnow') && this.match.fighters[0].style.fatal) {
       const m = this.match;
@@ -1592,12 +1626,12 @@ class Game {
   }
   // (keep: the choices made on the screen before going to CONTROLES and back, not saved yet)
   showOptions(keep) {
-    const QN = { low: 'BAJA', medium: 'MEDIA', high: 'ALTA', ultra: 'ULTRA' };
+    const QN = { auto: `AUTOMÁTICA (${QNAME[this.quality]})`, ...QNAME };
     const t = this.touch.opt, sel = (id, list, cur) => `<select id="${id}">${list.map(([v, l]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
     const fs = fullscreenSupported() ? '<div class="row"><span>Pantalla completa</span><button id="optFs" class="mini">ACTIVAR / SALIR</button></div>' : '';
     this.showOverlay(`<h3>OPCIONES</h3><div class="opts"><div>
       <h4>GENERAL</h4>
-      <div class="row"><span>Calidad gráfica</span>${sel('optQ', Object.entries(QN), this.quality)}</div>
+      <div class="row"><span>Calidad gráfica</span>${sel('optQ', Object.entries(QN), this.autoQ ? 'auto' : this.quality)}</div>
       <div class="row"><span>Música</span><input id="optM" type="range" min="0" max="1" step="0.05" value="${this.audio.vol.music}"></div>
       <div class="row"><span>Efectos</span><input id="optS" type="range" min="0" max="1" step="0.05" value="${this.audio.vol.sfx}"></div>
       <div class="row"><span>Voces</span><input id="optV" type="range" min="0" max="1" step="0.05" value="${this.audio.vol.voice}"></div>
@@ -1614,27 +1648,30 @@ class Game {
       <div class="row"><span>Subtítulos</span>${sel('optSub', [[1, 'Sí'], [0, 'No']], this.prefs.subs ? 1 : 0)}</div>
       <div class="row"><span>Temblor de cámara</span>${sel('optShk', [[1, 'Normal'], [0.4, 'Suave'], [0, 'Sin temblor']], this.prefs.shake)}</div>
       <div class="row"><span>Destellos</span>${sel('optFl', [[1, 'Normales'], [0.35, 'Suaves']], this.prefs.flash)}</div>
+      <div class="row"><span>Puñetality</span>${sel('optFat', [[1, 'Activados'], [0, 'Desactivados']], this.prefs.fatal === false ? 0 : 1)}</div>
       </div></div>
       <p class="note">Un cambio de calidad gráfica recarga el juego.</p>
       <p class="note">Música: Kevin MacLeod (incompetech.com) · Público: Gregor Quendel · licencia CC BY 4.0 · Gritos: HaelDB, VoiceBosch, PlumpDev y SkyRae (OpenGameArt) · Voces: Piper (davefx; Sharvard, CC BY 3.0) · Golpes, pasos y ambiente (CC0): Kenney, artisticdude, IgnasD y Kresiek The Furry</p>`, () => {
       const T = this.touch;
       T.opt = { ...T.opt, show: $('#optTs').value, size: +$('#optTz').value, opacity: +$('#optTo').value, stick: $('#optTk').value, haptics: $('#optTh').value === '1' };
       saveTouchPrefs(T.opt);
-      this.prefs = { subs: $('#optSub').value === '1', shake: +$('#optShk').value, flash: +$('#optFl').value };
+      this.prefs = { subs: $('#optSub').value === '1', shake: +$('#optShk').value, flash: +$('#optFl').value, fatal: $('#optFat').value === '1' };
+      // (a fight under way, off line: the change counts from now on)
+      if (this.match?.humans && !this.online.inFight) { this.match.humans = this.fatalHumans(this.fightOpts || {}); this.match.cpuFatal = this.prefs.fatal !== false && !this.fightOpts?.demo && !this.fightOpts?.training; }
       lsSet('pdb_prefs', JSON.stringify(this.prefs));
       this.applyPrefs();
       if (T.opt.show === 'never') { T.disable(); document.body.classList.remove('touchui'); }
       else if (T.opt.show === 'always' || DEVICE.touch) { T.enable(); T.applyPrefs(); document.body.classList.add('touchui'); }
       this.saveAudioPrefs();
       const nq = $('#optQ')?.value;
-      if (nq && nq !== this.quality) { lsSet('pdb_quality', nq); location.reload(); return; }
+      if (nq && nq !== (this.autoQ ? 'auto' : this.quality)) { lsSet('pdb_quality', nq); location.reload(); return; }
       this.toTitle();
     }, () => { this.saveAudioPrefs(); this.toTitle(); }, { ok: 'GUARDAR', back: 'VOLVER' });
     $('#optM').oninput = (e) => { this.audio.vol.music = +e.target.value; if (this.audio.musicBus) this.audio.musicBus.gain.value = +e.target.value; };
     $('#optS').oninput = (e) => { this.audio.vol.sfx = +e.target.value; if (this.audio.sfxBus) this.audio.sfxBus.gain.value = +e.target.value; };
     $('#optV').oninput = (e) => { this.audio.vol.voice = +e.target.value; if (this.audio.voiceBus) this.audio.voiceBus.gain.value = +e.target.value; };
     if ($('#optFs')) $('#optFs').onclick = () => toggleFullscreen();
-    const FORM = ['optQ', 'optTs', 'optTz', 'optTo', 'optTk', 'optTh', 'optSub', 'optShk', 'optFl'];
+    const FORM = ['optQ', 'optTs', 'optTz', 'optTo', 'optTk', 'optTh', 'optSub', 'optShk', 'optFl', 'optFat'];
     for (const id of FORM) if (keep?.[id] != null && $('#' + id)) $('#' + id).value = keep[id];
     $('#optCtl').onclick = (e) => {
       e.stopPropagation(); this.audio.play('uiok');
@@ -1827,6 +1864,10 @@ class Game {
     const mine = this.online.inFight ? this.online.local : 0, feel = document.body.classList.contains('touchui') && this.state === 'fight' && !this.replaying;
     if (m) for (const ev of m.events) {
       if (ev.t === 'hit' && (ev.heavy || ev.ch)) { e.radial = Math.max(e.radial, ev.ch ? 0.35 : 0.2); e.hitFlash = Math.max(e.hitFlash, ev.ch ? 0.35 : 0.18); }
+      // the marks a fight leaves on them (js/fx/wear.js), and the stage's answer to a blow or a fall (stage.react)
+      if (ev.t === 'hit' && ev.def?.ch?.wear) ev.def.ch.wear.hit(ev.def.ch, ev.pos, (ev.dmg || 10) / 22 * (ev.heavy || ev.ch ? 1.3 : 1));
+      if (ev.t === 'land' && ev.f?.ch?.wear) ev.f.ch.wear.fall();
+      if (this.stage?.react) this.stage.react(ev);
       if (feel && ev.t === 'hit' && ev.def && ev.def.index === mine) haptic(ev.def.ko ? 90 : ev.heavy || ev.ch ? 40 : 14);
       if (feel && ev.t === 'block' && ev.f && ev.f.index === mine) haptic(8);
       if (ev.t === 'rageArt') { e.radial = 0.8; e.hitFlash = 0.6; e.desat = 0.5; }
@@ -1836,6 +1877,8 @@ class Game {
     setFxViewHeight(this.renderer.getDrawingBufferSize(this._dbs || (this._dbs = new THREE.Vector2())).y);
     this.fx.update(this.capFrozen ? (this.capFrozen++ === 1 ? (+(q.get('hitage') || 2)) / FPS : 0) : dt);
     this.stage.update(dt, this.camera);
+    if (m && (this.state === 'fight' || this.state === 'pause')) { const wet = this.stage.wetness?.() || 0; for (const f of m.fighters) f.ch?.wear?.update(f, this.state === 'fight' ? dt : 0, wet, this.fx); }
+    if (m && this.stage.feet) this.stage.feet(m.fighters, dt);
     if (q.get('fxtest')) { const [r, h, d] = q.get('fxtest').split(',').map(Number); e.radial = r; e.hitFlash = h; e.desat = d || 0; }
     // (capture: the stage alone, for the stage select screen's pictures: tools/stageshots.sh)
     if (q.get('nofighters')) {
@@ -1874,8 +1917,28 @@ class Game {
     const b = this.fatalBtn;
     if (!b) return;
     const W = m && m.phase === 'matchEnd' && !m.endSent ? m.fighters[m.winner] : null;
-    const on = !!W && this.state === 'fight' && !this.replaying && m.pt > FATAL_FROM && m.canFatal(W) && (!this.online.inFight || this.online.local === W.index);
-    if (on !== !!this._fatalOn) { this._fatalOn = on; b.classList.toggle('on', on); }
+    const on = !!W && this.state === 'fight' && !this.replaying && m.pt > FATAL_FROM && m.canFatal(W) && this.prefs?.fatal !== false && (!this.online.inFight || this.online.local === W.index);
+    if (on !== !!this._fatalOn) {
+      this._fatalOn = on; b.classList.toggle('on', on); this.fatalMark?.classList.toggle('on', on);
+      if (on) {
+        // whom to finish, and how: TOCA AQUÍ on a phone, the winner's own up key + a punch or kick otherwise
+        const L = W.opp, who = b.querySelector('.who b'), h = b.querySelector('.h');
+        if (who) who.textContent = this.meta[L.id]?.display || L.ch?.meta?.display || '';
+        const km = W.index === 0 || this.online.inFight ? KEYMAPS.p1 : KEYMAPS.p2, up = km.up?.find(Boolean);
+        if (h) h.textContent = document.body.classList.contains('touchui') ? 'TOCA AQUÍ' : `PULSA ${up ? keyLabel(up) : '↑'} + GOLPE`;
+      }
+    }
+    if (on && this.fatalMark) {
+      // the target on the loser's chest, wherever he lies
+      const L = W.opp, bn = L.ch?.bones.spine03 || L.ch?.bones.spine02;
+      const v = (bn ? bn.getWorldPosition(this._fmV || (this._fmV = new THREE.Vector3())) : this._fmV.copy(L.pos).setY(0.4)).project(this.camera);
+      const r = this.canvas.getBoundingClientRect();
+      // (only while he is in the shot, clear of the button: the win shots often leave him out, and then the button's
+      // own "¡REMATA A …!" says it)
+      const x = v.x, y = v.y, inside = v.z < 1 && Math.abs(x) < 0.88 && y > -0.62 && y < 0.8 && !(x > 0.25 && y < -0.2);
+      this.fatalMark.style.visibility = inside ? 'visible' : 'hidden';
+      this.fatalMark.style.transform = `translate(${(r.left + (x + 1) / 2 * r.width).toFixed(1)}px, ${(r.top + (1 - y) / 2 * r.height).toFixed(1)}px)`;
+    }
     if (on) {
       // the time left before the win screen ends by itself (Match: matchEnd)
       const st = W.style, minT = st.say ? (st.sayAt || 80) + (st.sayLen || 120) : 60, end = Math.max(420, minT + 60);
@@ -1884,6 +1947,9 @@ class Game {
       if (bar) bar.style.transform = `scaleX(${k.toFixed(3)})`;
     }
   }
+  // who may finish with a PUÑETALITY: a person (not the CPU), and only with them switched on in OPCIONES (off line: online
+  // the simulation must be the same on both phones, so there the option only hides the button)
+  fatalHumans(opts) { const on = this.prefs?.fatal !== false; return [!opts.demo && on, !!opts.human2 && on]; }
   // the button pressed: up and 1 for the winner, through his own controls (an input like any other)
   fatalPress() {
     const m = this.match;

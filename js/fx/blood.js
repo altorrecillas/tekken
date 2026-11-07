@@ -354,17 +354,19 @@ export class LensBlood {
     };
     // the body: thin in the middle, a darker ring where it is thick at its edge
     const body = g.createRadialGradient(-px * 0.15, -px * 0.2, px * 0.05, 0, 0, px * 1.15);
-    body.addColorStop(0, 'rgba(150,6,14,0.3)'); body.addColorStop(0.65, 'rgba(110,3,10,0.48)'); body.addColorStop(0.92, 'rgba(60,0,5,0.8)'); body.addColorStop(1, 'rgba(40,0,3,0.5)');
+    const P = this.palette;
+    const cols = P ? P.body : ['rgba(150,6,14,0.3)', 'rgba(110,3,10,0.48)', 'rgba(60,0,5,0.8)', 'rgba(40,0,3,0.5)'];
+    body.addColorStop(0, cols[0]); body.addColorStop(0.65, cols[1]); body.addColorStop(0.92, cols[2]); body.addColorStop(1, cols[3]);
     g.fillStyle = body; shape(1); g.fill();
     // light through it at one side, a bright point at the other
     g.save(); g.globalCompositeOperation = 'lighter';
-    g.strokeStyle = 'rgba(255,90,80,0.22)'; g.lineWidth = px * 0.12; g.beginPath(); g.arc(0, 0, px * 0.7, 2.2, 3.6); g.stroke();
+    g.strokeStyle = P ? P.glint : 'rgba(255,90,80,0.22)'; g.lineWidth = px * 0.12; g.beginPath(); g.arc(0, 0, px * 0.7, 2.2, 3.6); g.stroke();
     g.fillStyle = 'rgba(255,225,220,0.5)'; g.beginPath(); g.ellipse(-px * 0.38, -px * 0.42, px * 0.15, px * 0.07, -0.7, 0, 6.28); g.fill();
     g.restore();
     // a spray of fine drops round it, flung along the streak
     for (let i = 0; i < 9; i++) {
       const t = (R() - 0.5) * 2.2, dd = px * (1.3 + R() * 1.6), rr = px * (0.05 + R() * 0.12);
-      g.fillStyle = `rgba(90,2,8,${0.5 + R() * 0.35})`; g.beginPath(); g.arc(Math.cos(t) * dd, Math.sin(t) * dd, rr, 0, 6.28); g.fill();
+      g.fillStyle = P ? P.spray(0.5 + R() * 0.35) : `rgba(90,2,8,${0.5 + R() * 0.35})`; g.beginPath(); g.arc(Math.cos(t) * dd, Math.sin(t) * dd, rr, 0, 6.28); g.fill();
     }
     return { c, S };
   }
@@ -391,7 +393,8 @@ export class LensBlood {
       if (fall > 0) {
         // the trail it leaves, thinning upwards
         const gr = g.createLinearGradient(x, y - fall, x, y);
-        gr.addColorStop(0, 'rgba(90,2,8,0)'); gr.addColorStop(1, 'rgba(90,2,8,0.55)');
+        const tr = this.palette?.trail || ['rgba(90,2,8,0)', 'rgba(90,2,8,0.55)'];
+        gr.addColorStop(0, tr[0]); gr.addColorStop(1, tr[1]);
         g.fillStyle = gr; g.fillRect(x - px * 0.18, y - fall, px * 0.36, fall);
       }
       g.drawImage(d.sprite.c, x - d.sprite.S, y - d.sprite.S);

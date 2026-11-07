@@ -632,6 +632,15 @@ export class CoreStage {
     this.animated.push(() => { U.uViewH.value = this.renderer.getDrawingBufferSize(v2).y; });
   }
 
+  // a body falling on the graphics card's metal plate: sparks off it where he lands (the clang is the audio's 'metal'
+  // surface); a blow that sends him into the card's edge... there is none: the card is open on every side
+  react(ev) {
+    if (ev.t === 'land' && ev.f && this.fx) {
+      const p = ev.f.pos;
+      for (let i = 0; i < 2; i++) this.fx.sparks(new THREE.Vector3(p.x + (Math.random() - 0.5) * 0.8, 0.03, p.z + (Math.random() - 0.5) * 0.5), 6, i === 0);
+    }
+  }
+
   bakeEnvironment() {
     const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     const cc = new THREE.CubeCamera(0.1, 400, cubeRT);

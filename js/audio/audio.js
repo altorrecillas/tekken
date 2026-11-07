@@ -424,6 +424,16 @@ export class Audio {
     if (!this.ctx || !this.enabled) return;
     const t = this.ctx.currentTime;
     const out = this.pan(pos?.x); out.connect(this.sfxBus);
+    // (the floor's own sound on top: the neon district's wet street splashes, the graphics card's plate rings)
+    if (name === 'step' || name === 'land' || name === 'bodyfall') {
+      const big = name === 'bodyfall' ? 1 : name === 'land' ? 0.6 : 0.3;
+      if (this.surface === 'wet') {
+        this.noise(t + 0.004, 0.08 + 0.25 * big, { type: 'bandpass', f0: 2800, f1: 1100, q: 0.8, gain: 0.07 + 0.28 * big, attack: 0.003, out, rev: 0.15 });
+        for (let k = 0; k < Math.round(1 + big * 5); k++) this.noise(t + 0.03 + Math.random() * 0.2 * big, 0.015, { type: 'bandpass', f0: 2000 + Math.random() * 3000, q: 3, gain: 0.03 + 0.05 * big, out, rev: 0.1 });
+      } else if (this.surface === 'metal' && name !== 'step') {
+        for (const [f, g] of [[610, 0.11], [1480, 0.07], [2710, 0.045], [4390, 0.025]]) this.tone(t, 0.5 + big * 0.5, { type: 'sine', f0: f, f1: f * 0.995, gain: g * (0.5 + big), attack: 0.002, out, rev: 0.45 });
+      }
+    }
     // (footsteps on the stage's floor: concrete, or the festival's wooden platform; `surface` is set with the stage)
     const step = this.surface === 'wood' ? 'stepW' : 'stepC', rec = !!this.takes;
     if (name === 'step') {
@@ -440,6 +450,12 @@ export class Audio {
         this.take(step, t + 0.02, { out, gain: 0.7, rate: 0.8 });
         this.tone(t, 0.3, { f0: 80, f1: 30, gain: 0.4, out, dist: true, rev: 0.3 });
       } else { this.tone(t, 0.3, { f0: 80, f1: 30, gain: 0.9, out, dist: true, rev: 0.3 }); this.noise(t, 0.35, { type: 'lowpass', f0: 1200, f1: 200, gain: 0.5, out, rev: 0.3 }); }
+    } else if (name === 'glass') {
+      // a shop window cracking: a sharp crack, the crazing spreading, a few pieces tinkling down
+      this.noise(t, 0.08, { type: 'highpass', f0: 2500, gain: 0.5, attack: 0.001, out, rev: 0.3 });
+      this.tone(t, 0.15, { f0: 160, f1: 70, gain: 0.35, out, rev: 0.2 });
+      for (let k = 0; k < 9; k++) this.noise(t + 0.03 + Math.random() * 0.25, 0.02, { type: 'bandpass', f0: 3500 + Math.random() * 4500, q: 4, gain: 0.08 + Math.random() * 0.1, out, rev: 0.3 });
+      for (let k = 0; k < 5; k++) { const f = 3000 + Math.random() * 3000; this.tone(t + 0.3 + Math.random() * 0.5, 0.12, { type: 'sine', f0: f, f1: f * 0.98, gain: 0.03, attack: 0.002, out, rev: 0.35 }); }
     } else if (name === 'grab') {
       this.noise(t, 0.2, { f0: 2000, q: 0.6, gain: 0.25, attack: 0.02, out });
       if (rec) this.take('swishL', t, { out, gain: 0.3, rate: 0.62 });

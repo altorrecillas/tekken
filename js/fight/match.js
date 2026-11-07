@@ -170,6 +170,7 @@ export class Match {
     if (m.hit && m.hit.dmg >= 16 && this.crand() < 0.55) this.audio?.voice(f, 'attack');
   }
   onLand(f, ko) {
+    this.events.push({ t: 'land', f, ko });
     this.fx.dust(f.pos, ko ? 1.6 : 1.1);
     this.camera.shake(ko ? 0.5 : 0.28);
     this.sfx('bodyfall', f);
@@ -300,6 +301,10 @@ export class Match {
       // the winner says his line on its frame of his win pose (styles.js: say, sayAt), its subtitle with it; a button
       // ends the win screen once it has been said
       const W = this.fighters[this.winner]?.style || {}, sayAt = W.sayAt || 80;
+      // the CPU beat a person: once its line has been said, it finishes him off with its own PUÑETALITY (cpuFatal: set
+      // by the game, with them switched on; cpu: who is played by the computer). Before a button can end the screen
+      if (!this.endSent && this.cpuFatal && this.cpu?.[this.winner] && !this.cpu?.[1 - this.winner] && Wf?.style.fatal && !this.training
+        && this.pt === Math.max(FATAL_FROM + 20, W.say ? sayAt + (W.sayLen || 120) : 70)) { this.startFatal(); return; }
       if (W.say && this.pt === sayAt) { this.audio?.say?.(this.fighters[this.winner]); this.hud.say?.(this.fighters[this.winner]); }
       const minT = W.say ? sayAt + (W.sayLen || 120) : 60;
       // (once: this runs every frame of the win screen)
@@ -514,7 +519,11 @@ export class Match {
     for (const f of this.fighters) {
       const r = Math.hypot(f.pos.x, f.pos.z);
       if (r > this.arenaR) { f.pos.x *= this.arenaR / r; f.pos.z *= this.arenaR / r; }
+      const x0 = f.pos.x, z0 = f.pos.z;
       this.game.stage?.clampWalk?.(f.pos, 0.3);
+      // (knocked back into something of the stage: drawn only, a window that cracks... stage.react)
+      const dx = f.pos.x - x0, dz = f.pos.z - z0;
+      if (dx * dx + dz * dz > 0.0004 && (f.state === 'hit' || f.state === 'air' || f.state === 'land')) this.events.push({ t: 'wall', f, pos: f.pos.clone() });
     }
   }
 
@@ -690,7 +699,8 @@ export class Match {
     }
     att.slide = heavy ? 0.4 : 0.2;
     if (def.comboHits >= 2) this.hud.combo(att.index, def.comboHits, def.comboDmg);
-    this.events.push({ t: 'hit', att, def, dmg, ch, heavy });
+    // (pos: where it landed, for the marks it leaves on him: js/fx/wear.js; drawn only)
+    this.events.push({ t: 'hit', att, def, dmg, ch, heavy, pos: p?.isVector3 ? p.clone() : null });
     if (heavy || ch) this.lastHeavyFrame = this.frame;
     const adv = def.state === 'hit' ? def.stun - (m.total - att.mf) : null;
     this.lastEvent = `${m.name}: ${ch ? 'COUNTER ' : ''}golpe ${dmg} dmg` +
