@@ -233,6 +233,7 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
     photo_adj = np.clip(photo_c * ratio[..., None], 0, 255)
     # chroma: take low frequencies from the (colour matched) base -> removes lens tints / colour casts
     la = cv2.cvtColor(photo_adj.astype(np.uint8), cv2.COLOR_BGR2LAB).astype(np.float32)
+    la_photo = la.copy()
     lb_ = cv2.cvtColor(np.clip(base_m, 0, 255).astype(np.uint8), cv2.COLOR_BGR2LAB).astype(np.float32)
     csig = P.get('chroma_sigma', 10)
     for ch in (1, 2):
@@ -257,6 +258,12 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
         la[..., 1] = mu[0] + (la[..., 1] - mu[0]) * sc
         la[..., 2] = mu[1] + (la[..., 2] - mu[1]) * sc
         print('  chroma clamp: %.1f%% of texels pulled in' % (100 * (d[wt > 0.5] > k).mean()))
+    bpc = P.get('beard_photo_chroma', 0.0)
+    if bpc > 0 and P.get('beard', 0) > 0:
+        # a dense beard in the photo keeps its own colour (brown, greying): the skin's chroma corrections above would
+        # turn it into pink skin sprinkled with painted stubble
+        bk = np.clip(cv2.GaussianBlur(bm_pre.astype(np.float32), (0, 0), 3) * 1.4, 0, 1) * bpc
+        la[..., 1:] = la[..., 1:] * (1 - bk[..., None]) + la_photo[..., 1:] * bk[..., None]
     photo_adj = cv2.cvtColor(np.clip(la, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR).astype(np.float32)
 
     bm = cv2.erode(wt, np.ones((9, 9), np.uint8))
@@ -279,6 +286,22 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
         cov = stubble((HTH, HTW), dens * (0.22 if shells else 0.55), seed=3, length=(2.5, 5), count_scale=1.0)
         cov = np.clip(cov * (0.45 if shells else 0.9) + cv2.GaussianBlur(dens, (0, 0), 2) * 0.35 * P.get('beard_shadow', 1.0), 0, 1)
         head = head * (1 - cov[..., None]) + beard_col * cov[..., None]
+        gd = P.get('goatee_dark', 0.0)
+        if gd > 0:
+            # a moustache and a goatee darker than the rest of the beard (Aleix): the centre of the face from under the
+            # nose to under the chin, as wide as the mouth, the lips left clear
+            lm = frame.lm
+            lips_c = (lm[13] + lm[14]) / 2
+            lr = np.linalg.norm(lm[61] - lm[291]) / 2
+            x_, y_ = pos[..., 0], pos[..., 1]
+            core = smoothstep(lr * 1.45, lr * 0.85, np.abs(x_ - lips_c[0])) * smoothstep(lm[2][1], lm[2][1] - 0.03, y_) \
+                * smoothstep(lm[152][1] - 0.12, lm[152][1] + 0.04, y_)
+            dl = np.sqrt(((x_ - lips_c[0]) / (lr * 1.05)) ** 2 + ((y_ - lips_c[1]) / (lr * P.get('beard_lip_clear', 0.34))) ** 2)
+            core = core * smoothstep(0.85, 1.15, dl) * valid
+            core = cv2.GaussianBlur(core.astype(np.float32), (0, 0), 2.5)
+            mk = np.clip(core * gd, 0, 1)[..., None]
+            dcol = np.array(P.get('beard_strand_color', (40, 32, 26)), np.float32)[::-1]
+            head = head * (1 - mk) + (head * 0.3 + dcol * 0.7) * mk
         # the share of grey hairs over the face: one value, or whiter on the chin (the goatee patch below the lower
         # lip) and salt-and-pepper on the moustache and cheeks
         gmap = None
@@ -302,7 +325,7 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
             wh = stubble((HTH, HTW), dens * salt * g, seed=9, length=sl) * 0.8
             head = head * (1 - dk[..., None]) + dcol * dk[..., None]
             head = head * (1 - wh[..., None]) + wcol * wh[..., None]
-        rough = np.maximum(rough, bmask * bd * 0.75)
+        rough = np.maximum(rough, np.clip(bmask * bd * P.get('beard_rough_gain', 1.0), 0, 1) * 0.75)
         if shells:
             # density map for the fur-shell beard + texel size in metres (strand tiling)
             dmap = dilate_fill(cv2.GaussianBlur(np.clip(bmask * bd, 0, 1).astype(np.float32), (0, 0), 1.5), valid, 16)
@@ -364,7 +387,23 @@ def build_head_textures(pid, P, Vg, Vtex, tris, tuv, VT, head_tris, head_vidx, P
         hairy = np.clip((ref - Lh) / 22.0, 0, 1)
         lin = np.array(P.get('brow_color', P.get('hair_color', (0.04, 0.03, 0.025))), np.float32)
         bcol = (np.power(np.clip(lin, 0, 1), 1 / 2.2) * 255)[::-1]  # linear RGB -> sRGB BGR
-        amt = np.clip(bb * bmk * (0.35 + 0.65 * hairy), 0, 0.92)[..., None]
+        bst = P.get('brow_strokes', 0.0)
+        if bst > 0:
+            # hairs rather than paint: short strokes laid along the brow (the face lies on its side in the texture: the
+            # brow runs along its v axis), over a lighter even tone
+            rng_b = np.random.default_rng(11)
+            fl_ = (bmk / max(bmk.sum(), 1e-6)).ravel().astype(np.float64)
+            nst = int(bmk.sum() * 0.35 * bst)
+            idx_b = rng_b.choice(fl_.size, size=nst, p=fl_ / fl_.sum())
+            ys_, xs_ = np.divmod(idx_b, HTW)
+            img_b = np.zeros((HTH, HTW), np.uint8)
+            for x0_, y0_ in zip(xs_, ys_):
+                an = np.pi / 2 + rng_b.normal(0, 0.3); ln = rng_b.uniform(7, 15)
+                cv2.line(img_b, (int(x0_), int(y0_)), (int(x0_ + np.cos(an) * ln), int(y0_ + np.sin(an) * ln)), int(rng_b.integers(150, 255)), 1, cv2.LINE_AA)
+            strokes = img_b.astype(np.float32) / 255 * np.clip(bmk * 1.3, 0, 1)
+            amt = np.clip(bb * bmk * (0.12 + 0.3 * hairy) + strokes * 0.85, 0, 0.92)[..., None]
+        else:
+            amt = np.clip(bb * bmk * (0.35 + 0.65 * hairy), 0, 0.92)[..., None]
         head = head * (1 - amt) + bcol * amt
         print('  brows: boost %.2f over %d texels' % (bb, int((bmk > 0.3).sum())))
     # oily T-zone
@@ -480,6 +519,25 @@ def build(pid, quick=False):
     pm = P.get('post_mods', {})
     if pm:
         Vg = M.apply_targets(Vg, M.modifier_targets(pm))
+    sc_ = P.get('smooth_chin', 0)
+    if sc_:
+        # the fit can leave a crease down the middle of the chin (a light line under a beard): a few rounds of
+        # umbrella smoothing over the chin, below the lower lip, fading out towards its edges
+        li, lp = mh_landmarks(Vg)
+        L_ = dict(zip(li.tolist(), lp))
+        lo_lip, chin_, mw = L_[17], L_[152], np.linalg.norm(L_[61] - L_[291]) / 2
+        w_ = smoothstep(mw * 1.3, mw * 0.7, np.abs(Vg[:, 0] - chin_[0])) * smoothstep(lo_lip[1] + 0.02, lo_lip[1] - 0.06, Vg[:, 1]) \
+            * smoothstep(chin_[1] - 0.35, chin_[1] - 0.1, Vg[:, 1]) * (Vg[:, 2] > chin_[2] - 0.6)
+        w_[13380:] = 0  # (the body only: no eyes, teeth, tongue)
+        e_ = np.concatenate([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]]])
+        e_ = np.concatenate([e_, e_[:, ::-1]])
+        deg = np.bincount(e_[:, 0], minlength=len(Vg)).astype(np.float64)
+        for _ in range(sc_):
+            nb = np.zeros_like(Vg)
+            np.add.at(nb, e_[:, 0], Vg[e_[:, 1]])
+            avg = nb / np.maximum(deg, 1)[:, None]
+            Vg = Vg + (avg - Vg) * (w_ * 0.5)[:, None]
+        print('  chin smoothed: %d verts' % int((w_ > 0.05).sum()))
     sRt = cam
 
     # ---- islands: head texture triangles
@@ -571,7 +629,8 @@ def build(pid, quick=False):
         print(f'  garment {g.name}: {len(sh["pos"])} verts, hides {len(sh["hide"])} faces')
         if g.collar:
             from garments import make_collar
-            col_ = make_collar(ctx, sh, Wg if False else smooth_shell_weights(sh, Wfull, bnames, iters=4, ctx=ctx) if False else Wfull, **g.collar)
+            ccfg = dict(g.collar); stripes = ccfg.pop('stripes', None)
+            col_ = make_collar(ctx, sh, Wg if False else smooth_shell_weights(sh, Wfull, bnames, iters=4, ctx=ctx) if False else Wfull, **ccfg)
             if col_ is not None:
                 # collar texture: rib knit along the collar, stitched edge
                 CW, CH = 1024, 256
@@ -582,6 +641,10 @@ def build(pid, quick=False):
                 ctex *= (0.965 + 0.035 * rib[..., None])
                 edge = (np.abs(yy - CH * 0.06) < 2) | (np.abs(yy - CH * 0.94) < 2)
                 ctex[edge] *= 0.72
+                # tipping: stripes along the leaf's edge, [(v0, v1, colour)], v 1 at the folded edge (rows from the top)
+                for v0, v1, sc in stripes or []:
+                    r0, r1 = int((1 - v1) * CH), int((1 - v0) * CH)
+                    ctex[r0:r1] = np.array(sc, np.float32)[::-1] * 255 * (0.965 + 0.035 * rib[r0:r1, :, None])
                 cv2.imwrite(os.path.join(outdir, 'collar.jpg'), np.clip(ctex, 0, 255).astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 90])
                 hh = (np.sin(xx * 1.6)).astype(np.float32)
                 from headtex import normal_from_height
@@ -649,6 +712,8 @@ def build(pid, quick=False):
         bdef = dict(type='beard', map='beard_d.png', color=bc.tolist(), grey=P.get('beard_grey', 0.0),
                     length=P.get('beard_len', 0.0025), shells=P.get('beard_layers', 6),
                     scale=[HTW * bo['texel'][0] / tile, HTH * bo['texel'][1] / tile])
+        if 'beard_shell_rough' in P:
+            bdef['rough'] = P['beard_shell_rough']  # (rougher strands: no light streak down a bearded chin)
         if 'beard_grey_color' in P:
             # colour of the grey strands (salt-and-pepper stubble: white hairs among dark ones)
             bdef['greyColor'] = (np.array(P['beard_grey_color'], np.float32) / 255).tolist()
@@ -701,7 +766,11 @@ def build(pid, quick=False):
                 a = 1 - 0.8 * np.clip((u - 0.05) / 0.4, 0, 1) - 0.35 * np.clip((-u - 0.3) / 0.35, 0, 1) - 0.3 * np.clip((x - 0.55) / 0.3, 0, 1)
                 ao[m] = np.clip(a, 0.22, 1)
             return np.stack([ao, ao * 0.97, ao * 0.95], 1)
-        return [('eyes', ~cornea, dict(type='eye', map='../../shared/eye_brown.webp'), eye_ao),
+        # (the shared dark brown iris, or the fighter's own colour: eye.png in his folder, fighter_eye)
+        emap = '../../shared/eye_brown.webp'
+        if P.get('eyes', 'brownlight') != 'brownlight':
+            fighter_eye(P['eyes'], os.path.join(outdir, 'eye.png'), P.get('eye_hue'), P.get('eye_sat', 1.0), P.get('eye_val', 1.0), P.get('eye_sclera', 1.0)); emap = 'eye.png'
+        return [('eyes', ~cornea, dict(type='eye', map=emap), eye_ao),
                 ('cornea', cornea, dict(type='cornea'))]
 
     add_proxy('eyes', os.path.join(M.MHD, 'eyes/high-poly/high-poly.mhclo'), None, split=eye_split)
@@ -746,6 +815,8 @@ def build(pid, quick=False):
         hc = dict(hc)
         if hc.get('stop_brows'):
             hc['stop_y'] = float(frame.lm[105][1] + 0.12)  # just above the eyebrows
+        elif hc.get('fringe_stop') is not None:
+            hc['stop_y'] = float(frame.lm[105][1] + hc['fringe_stop'])  # a fringe that ends this far (dm) above the brows
         hc['face_top'] = float(frame.lm[10][1] + 0.05)  # hair may not fall over the forehead unless it is a fringe
         band = None
         if hc['comb'] == 'topknot':
@@ -908,6 +979,25 @@ def build(pid, quick=False):
         # New Balance trainers painted from the shoe's shape, the N on both sides (nbshoes.py)
         import nbshoes
         nbshoes.build(outdir, P['shoes_nb'])
+
+
+def fighter_eye(name, path, hue=None, sat=1.0, val=1.0, sclera=1.0):
+    """A fighter's own iris colour (MakeHuman's <name>_eye.png), the iris a little deeper and the sclera as the shared
+    one's; hue (degrees) / sat / val turn the iris to another shade (Aleix: a greyish blue from the blue one)."""
+    eye = cv2.imread(os.path.join(M.MHA, f'eyes/materials/{name}_eye.png'), cv2.IMREAD_UNCHANGED)
+    hsv = cv2.cvtColor(eye[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)
+    # (a blue or green iris: its own hue only, never the red veins of the white, which would turn to blue blotches)
+    iris = cv2.GaussianBlur(((hsv[..., 1] > 40) & (hsv[..., 2] < 235) & (hsv[..., 0] > 60) & (hsv[..., 0] < 140)).astype(np.float32), (0, 0), 2)
+    if hue is not None:
+        h2 = hsv.copy(); h2[..., 0] = hue / 2; h2[..., 1] = np.clip(h2[..., 1] * sat, 0, 255); h2[..., 2] = np.clip(h2[..., 2] * val, 0, 255)
+        shifted = cv2.cvtColor(h2.astype(np.uint8), cv2.COLOR_HSV2BGR).astype(np.float32)
+        eye[..., :3] = np.clip(eye[..., :3] * (1 - iris[..., None]) + shifted * iris[..., None], 0, 255).astype(np.uint8)
+    deeper = eye[..., :3].astype(np.float32) * np.array([0.78, 0.72, 0.66])
+    base = eye[..., :3].astype(np.float32) * (1 - iris[..., None]) + deeper * iris[..., None]
+    base = base * (1 - (1 - iris)[..., None] * 0.24) * np.array([0.93, 0.95, 1.0])
+    base = base * (1 - (1 - iris)[..., None] * (1 - sclera))  # (sclera < 1: a less bright white, eyes in the shade of heavy lids)
+    eye[..., :3] = np.clip(base, 0, 255).astype(np.uint8)
+    cv2.imwrite(path, eye)
 
 
 def shared_assets():

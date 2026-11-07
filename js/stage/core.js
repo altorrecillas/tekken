@@ -296,16 +296,14 @@ export class CoreStage {
     this.group.add(new THREE.HemisphereLight(new THREE.Color(0.18, 0.24, 0.34), new THREE.Color(0.07, 0.08, 0.11), 1.1));
     // the RGB round the fight: the front fans' (right), the memory's (behind, high), the pump's cyan, a soft fill from the glass
     this.frontL = new THREE.PointLight(PINK.clone(), 24, 22, 1.5); this.frontL.position.set(10.5, 5.0, 0.5);
-    this.ramL = new THREE.PointLight(PINK.clone(), 22, 14, 1.5); this.ramL.position.set(2.0, 4.0, -3.4);
-    this.pumpL = new THREE.PointLight(CYAN.clone(), 18, 12, 1.5); this.pumpL.position.set(-3.4, 3.4, -3.6);
-    this.rearL = new THREE.PointLight(CYAN.clone(), 26, 22, 1.5); this.rearL.position.set(-11.5, 6.5, -2);
-    this.group.add(this.frontL, this.ramL, this.pumpL, this.rearL);
+    this.pumpL = new THREE.PointLight(CYAN.clone(), 22, 14, 1.5); this.pumpL.position.set(-1.0, 3.6, -3.4);
+    // (two lights only: every one more is paid for on every pixel of every fighter, too much for a phone; the memory's
+    // and the rear fan's colours reach the fighters through the kicker, followCamera)
+    this.group.add(this.frontL, this.pumpL);
     this.animated.push(() => {
       const p = this.pulse();
       this.frontL.color.setHSL(this.hueAt(0.0), 1, 0.55); this.frontL.intensity = 20 + 10 * p;
-      this.ramL.color.setHSL(this.hueAt(0.35), 1, 0.55);
-      this.rearL.color.setHSL(this.hueAt(0.6), 1, 0.55);
-      this.pumpL.intensity = 16 + 10 * p;
+      this.pumpL.intensity = 18 + 10 * p;
     });
   }
   followShadow(center, spread = 3) { aimFightSun(this.sun, this.sunDir, center, Math.max(2.4, spread * 0.5 + 1.6)); }

@@ -1,7 +1,7 @@
 """The download diet for textures: the fighters' and the stages' JPEG maps served as WebP (about 40 % smaller for the
 same look). The JPEGs stay as the pipeline's sources; this writes a .webp next to each and points the game at it.
   - fighters (assets/chars/<id>/): every map named in mesh.json except the face's (head*.jpg: the likeness is judged on
-    it, close up), each converted and its name in mesh.json changed to the .webp. Run it again after
+    it, close up), and a fighter's own iris (eye.png, alpha kept), each converted and its name in mesh.json changed to the .webp. Run it again after
     tools/pipeline/buildchar.py rebuilds a fighter (the rebuild writes .jpg names).
   - stages (assets/stage/*.jpg): all converted; the stages' loaders ask for the .webp (js/stage/*.js `tex`).
   Normal / roughness / ORM maps at quality 90, colour maps at 86. A few maps are also made smaller where their size
@@ -21,7 +21,7 @@ def convert(src, key=None):
     if os.path.exists(dst) and os.path.getmtime(dst) >= os.path.getmtime(src):
         return dst, False
     im = Image.open(src)
-    if im.mode not in ('RGB', 'L'):
+    if im.mode not in ('RGB', 'L') and not (src.endswith('.png') and im.mode == 'RGBA'):
         im = im.convert('RGB')
     if key in SHRINK and max(im.size) > SHRINK[key]:
         k = SHRINK[key] / max(im.size)
@@ -37,7 +37,8 @@ def fighter(d):
     cid, before, after, changed = os.path.basename(d.rstrip('/')), 0, 0, False
     for p in m['parts']:
         for k, v in list(p['mat'].items()):
-            if not isinstance(v, str) or '/' in v or not v.endswith('.jpg') or v.startswith('head'):
+            # (and a fighter's own iris, eye.png: Aleix's blue-grey ones, its alpha kept)
+            if not isinstance(v, str) or '/' in v or not (v.endswith('.jpg') or v == 'eye.png') or v.startswith('head'):
                 continue
             src = os.path.join(d, v)
             if not os.path.exists(src):
@@ -52,7 +53,7 @@ def fighter(d):
         for k, v in p['mat'].items():
             if isinstance(v, str) and '/' not in v and v.endswith(('.webp', '.jpg')) and os.path.exists(os.path.join(d, v)):
                 after += os.path.getsize(os.path.join(d, v))
-                j = os.path.join(d, v[:-5] + '.jpg') if v.endswith('.webp') else os.path.join(d, v)
+                j = os.path.join(d, v[:-5] + ('.png' if v == 'eye.webp' else '.jpg')) if v.endswith('.webp') else os.path.join(d, v)
                 before += os.path.getsize(j) if os.path.exists(j) else 0
     print(f'{cid:10s} maps {before // 1024:6d} KB -> {after // 1024:6d} KB')
 

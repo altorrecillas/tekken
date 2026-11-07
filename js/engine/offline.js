@@ -1,7 +1,7 @@
-// The game kept on the phone (sw.js, written by tools/swbuild.py): registered only on the published site
-// (tekken.torrecillas.cat, GitHub Pages; ?sw=1 to try it elsewhere). On a development server it is taken away, so the
-// files there are always the ones just changed. When a newer version has been stored and waits, onUpdate(apply) is
-// called: apply() switches to it and reloads the page.
+// The game kept on the phone (sw.js, written by tools/swbuild.py), for playing with no connection: registered on the
+// published site (tekken.torrecillas.cat, GitHub Pages; ?sw=1 to try it elsewhere), taken away elsewhere. It always
+// asks the server first, so the files are never older than the server's; a new worker takes over at once (the page
+// reloads once when it does). onUpdate(apply) stays for a worker left waiting by an older one.
 const PUBLISHED = /(^|\.)torrecillas\.cat$|\.github\.io$/;
 
 export function setupOffline(onUpdate) {

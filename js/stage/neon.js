@@ -201,8 +201,8 @@ export class NeonStage {
     // the signs' light on the fight: magenta from the left, cyan from the right, low and close
     this.pinkL = new THREE.PointLight(new THREE.Color(...NEON.pink), 22, 16, 1.6); this.pinkL.position.set(-6.5, 3.2, -4.5);
     this.cyanL = new THREE.PointLight(new THREE.Color(...NEON.cyan), 20, 16, 1.6); this.cyanL.position.set(6.5, 3.0, -4.0);
-    this.warmL = new THREE.PointLight(new THREE.Color(1.0, 0.7, 0.4), 8, 12, 1.8); this.warmL.position.set(0, 3.5, 6.5);
-    this.group.add(this.pinkL, this.cyanL, this.warmL);
+    // (two lights only: every one more is paid for on every pixel of every fighter, too much for a phone)
+    this.group.add(this.pinkL, this.cyanL);
   }
   followShadow(center, spread = 3) { aimFightSun(this.sun, this.sunDir, center, Math.max(2.4, spread * 0.5 + 1.6)); }
   followCamera(camera, center) {
@@ -470,7 +470,6 @@ export class NeonStage {
     front.position.set(0, 1.15, 0.41); vm.add(front);
     vm.position.set(-15.5, 0.15, FRONT + 1.0); vm.rotation.y = 0.3; this.group.add(vm);
     this.obstacles.push([-15.5, FRONT + 1.0, 0.75], [rnd(14.5, 15), FRONT + 0.9, 1.0]);
-    const vmL = new THREE.PointLight(new THREE.Color(0.7, 0.9, 1.0), 3, 5, 2); vmL.position.set(-15.2, 1.2, FRONT + 1.8); this.group.add(vmL);
     const bag = new THREE.MeshStandardMaterial({ color: 0x0d0d10, roughness: 0.25, metalness: 0.1 });
     const bags = [];
     for (let i = 0; i < 7; i++) { const s = new THREE.SphereGeometry(rnd(0.25, 0.4), 10, 8); s.scale(1, rnd(0.7, 1.0), 1); s.translate(rnd(14, 16), 0.4, FRONT + rnd(0.6, 1.3)); bags.push(s); }

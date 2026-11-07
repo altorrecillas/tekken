@@ -230,6 +230,47 @@ def outfit_alejandro_alt(ctx, P):
               snap=dict(leg=0.55, y_high=ctx.y_navel - 0.25))]
 
 
+def shield_img():
+    # a small generic embroidered crest (not a real brand): a white shield with a tiny chevron, as on Aleix's polos
+    im = Image.new('RGBA', (200, 230), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.polygon([(22, 18), (178, 18), (178, 120), (100, 212), (22, 120)], outline=(232, 236, 240, 255), width=12)
+    d.line([(52, 120), (100, 72), (148, 120)], fill=(232, 236, 240, 255), width=12)
+    return pil_to_bgra(im)
+
+
+def tipped_cuffs(color_a, color_b):
+    """Twin tipping round the sleeves' edges (a polo's cuffs): two thin stripes near the hem."""
+    def paint(ctx, col, height, A):
+        e = A.get('edge')
+        if e is None:
+            return
+        arm = (A['armness'] > 0.45) & A['valid']
+        for (e0, e1, c) in ((0.035, 0.06, color_a), (0.085, 0.105, color_b)):
+            band = arm & (e > e0) & (e < e1)
+            col[band] = np.array(c, np.float32)[::-1] * 255 if col.max() > 2 else np.array(c, np.float32)[::-1]
+    return paint
+
+
+def outfit_aleix(ctx, P):
+    """Navy piqué polo (as in most of his photos): twin-tipped collar and cuffs, light blue and white, a small white
+    crest on the chest, three buttons; dark jeans."""
+    top = cover_top(ctx, sleeve=0.42, hem=ctx.y_hip - 0.28, neck=CREW)
+    navy = (0.085, 0.11, 0.24)
+    nbgr = [int(navy[2] * 255), int(navy[1] * 255), int(navy[0] * 255)]
+    tip_a, tip_b = (0.62, 0.74, 0.86), (0.93, 0.94, 0.95)
+    decals = [front_decal(ctx, placket_img(nbgr), 0.0, ctx.y_neck - 0.82, 0.3, 1.55, min_facing=0.35, bump=0.9),
+              front_decal(ctx, shield_img(), 0.8, ctx.y_neck - 1.6, 0.17, 0.19, min_facing=0.3, bump=0.6)]
+    pants = cover_bottom(ctx, length=1.93)
+    return [G('shirt', top, loose(ctx, 0.12, 0.12), navy, rough=0.86, knit=1.0, fold=1.1, decals=decals, sheen=0.55,
+              sheen_color=(0.35, 0.42, 0.7), snap=dict(arm=0.42, y_low=ctx.y_hip - 0.28), pique=1.0, rib_cuffs=1.0,
+              extra=tipped_cuffs(tip_a, tip_b),
+              collar=dict(stand=0.25, leaf=0.36, gap=0.17, tip=0.2, stripes=[(0.84, 0.9, tip_a), (0.93, 0.97, tip_b)]),
+              buttons=[dict(y=ctx.y_neck - 0.4), dict(y=ctx.y_neck - 0.85), dict(y=ctx.y_neck - 1.3)]),
+            G('pants', pants, loose(ctx, 0.15, 0, 0.12), (0.075, 0.085, 0.12), rough=0.9, knit=0.35, fold=1.6, sheen=0.35,
+              sheen_color=(0.2, 0.22, 0.3), snap=dict(leg=1.93, y_high=ctx.y_navel - 0.25))]
+
+
 def outfit_arnau(ctx, P):
     """Black zip jacket (long sleeves) + black cargo pants."""
     top = cover_top(ctx, sleeve=1.93, hem=ctx.y_hip - 0.45, neck=ZIP_NECK)
@@ -503,5 +544,5 @@ def outfit_noemi(ctx, P):
             G('pants', pants, loose(ctx, 0.15, 0, 0.1), (0.07, 0.1, 0.2), rough=0.9, knit=0.2, fold=1.6, extra=denim_extra,
               sheen=0.12, sheen_color=(0.4, 0.5, 0.7), snap=dict(leg=1.93, y_high=ctx.y_navel - 0.15))]
 
-OUTFITS = dict(alejandro=outfit_alejandro, alejandro_pool=outfit_alejandro_pool, alejandro_alt=outfit_alejandro_alt, arnau=outfit_arnau, camilo=outfit_camilo,
+OUTFITS = dict(aleix=outfit_aleix, alejandro=outfit_alejandro, alejandro_pool=outfit_alejandro_pool, alejandro_alt=outfit_alejandro_alt, arnau=outfit_arnau, camilo=outfit_camilo,
                rafa=outfit_rafa, zapponi=outfit_zapponi, dani=outfit_dani, noemi=outfit_noemi)

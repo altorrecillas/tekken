@@ -22,7 +22,7 @@ const { Snap, saveMatch, loadMatch, hashSnap, packSnap, unpackSnap } = await imp
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const PAIRS = (opt('pairs') || 'alejandro:rafa,zapponi:camilo,dani:arnau,rafa:rafa').split(',').map((p) => p.split(':'));
+const PAIRS = (opt('pairs') || 'alejandro:rafa,zapponi:camilo,dani:aleix,rafa:rafa').split(',').map((p) => p.split(':'));
 const FRAMES = +(opt('frames') || 5400);
 const ONLY = opt('only') ? opt('only').split(',') : null;
 const run = (k) => !ONLY || ONLY.includes(k);

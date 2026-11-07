@@ -13,7 +13,7 @@ globalThis.window = globalThis; globalThis.addEventListener = () => {}; globalTh
 const THREE = await import('three');
 const { buildCharacter } = await import(GAME + '/js/charloader.js');
 const { Match } = await import(GAME + '/js/fight/match.js');
-const ids = process.argv[2] && process.argv[2] !== 'all' ? process.argv[2].split(',') : ['alejandro', 'arnau', 'camilo', 'dani', 'noemi', 'rafa', 'zapponi'];
+const ids = process.argv[2] && process.argv[2] !== 'all' ? process.argv[2].split(',') : ['alejandro', 'aleix', 'camilo', 'dani', 'noemi', 'rafa', 'zapponi'];
 const onlyMoves = process.argv[3] ? new Set(process.argv[3].split(',')) : null;
 const load = (id) => { const meta = JSON.parse(fs.readFileSync(`${GAME}/assets/chars/${id}/mesh.json`)); const b = fs.readFileSync(`${GAME}/assets/chars/${id}/mesh.bin`); return { id, base: '', meta, bin: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; };
 const mat = () => new THREE.MeshBasicMaterial();

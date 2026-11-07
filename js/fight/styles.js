@@ -206,7 +206,8 @@ export const STYLES = {
       [200, { handR: [0.24, 0.06, 0.72], neck: [-0.06, 0.04, 0] }, 'sine'],
     ],
   },
-  arnau: {
+  // Aleix (since 2026-11-07, in the place of Arnau): the same gamer style and moves, his own lines
+  aleix: {
     intro: [
       [0, { rootPos: [0, 0, 0], rootRot: [0, 0.1, 0], spine: [0, 0, 0], neck: [0.1, 0, 0], handL: [0.2, -0.88, 0.1], handR: [0.2, -0.88, 0.1], aimL: 1, aimR: 1, fistL: 0.3, fistR: 0.3, footL: [0.14, 0.071, 0.04], footR: [0.14, 0.071, -0.02], footRotL: [0, 0.15, 0], footRotR: [0, 0.2, 0], kneeL: [0.1, 0, 1], kneeR: [0.1, 0, 1] }],
       [24, { handR: [-0.45, 0.62, 0.42], fistR: 0.85, poleR: [0.4, -1, 0], neck: [0.25, 0, 0] }, 'inout'],
@@ -215,12 +216,12 @@ export const STYLES = {
       [66, { handR: [-0.2, 0.05, 0.52], fistR: 1, handL: [-0.15, 0.05, 0.52], neck: [0.2, 0.3, 0] }, 'inout'],
       [95, null, 'inout'],
     ],
-    title: 'El Gamer', desc: 'Joven e impredecible. Cabezazos y barridos.',
-    say: '¡En mi consola esto era más difícil!', sayAt: 78, sayLen: 166, // (the line spoken on winning: tools/quotes_tts.py)
-    introSay: 'Partida nueva. Esta la gano yo.', introLen: 117, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
+    title: 'El Gamer', desc: 'Ningún juego se le resiste. Cabezazos y barridos.',
+    say: 'Te lo dije, no me puedes ganar.', sayAt: 78, sayLen: 102, // (the line spoken on winning: tools/quotes_tts.py)
+    introSay: 'No hay juego que se me resista.', introLen: 98, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.2, weight: 1.12, power: 1.12, speed: 1.04 },
-    hairSway: 0.75, // how far the hair swings with the head: a long fringe (js/anim/hairsway.js)
-    clothSway: 0.45, // how far the hem swings with the hips: a track jacket, its elastic waist holds it (js/anim/clothsway.js)
+    hairSway: 0.6, // how far the hair swings with the head: a side fringe (js/anim/hairsway.js)
+    clothSway: 0.35, // how far the hem swings with the hips: a polo's hem (js/anim/clothsway.js)
     aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3'], juggle: ['1', '1', '2', 'b+2'],
     stance: { hgPosL: [0.09, -0.19, 0.28], hgPosR: [0.12, -0.23, 0.2], spine: [0.18, 0.1, 0], rootRot: [0.05, -0.35, 0], neck: [0.12, 0.15, 0] },
     bob: 0.015,

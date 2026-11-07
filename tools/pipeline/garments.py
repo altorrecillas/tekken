@@ -472,6 +472,7 @@ def fabric_maps(ctx, covered, color, seed=0, knit=1.0, fold=1.0, rough=0.8, hem_
     vm_ = valid.astype(np.float32)
     edge = cv2.GaussianBlur(np.minimum(edge, 1.0) * vm_, (0, 0), 6) / np.maximum(cv2.GaussianBlur(vm_, (0, 0), 6), 1e-4)
     edge = np.where(valid, edge, 10.0)
+    A['edge'] = edge  # (for an outfit's own painting: stripes along a hem or a cuff)
     hem = smoothstep(0.26, 0.18, edge) * valid
     stitch = smoothstep(0.018, 0.0, np.abs(edge - 0.2)) * (0.5 + 0.5 * np.sign(np.sin(xx * 1.1 + yy * 1.1))) * valid
     col *= (1 - hem[..., None] * 0.08 - stitch[..., None] * 0.06)

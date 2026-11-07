@@ -10,7 +10,7 @@ const { Match } = await import(GAME + '/js/fight/match.js');
 const { AIController } = await import(GAME + '/js/fight/ai.js');
 const { POSE } = await import(GAME + '/js/anim/rig.js');
 const N = +(process.argv[2] || 6000);
-const pairs = (process.argv.slice(3).length ? process.argv.slice(3) : ['alejandro-rafa', 'camilo-zapponi', 'arnau-alejandro', 'rafa-camilo', 'zapponi-arnau', 'dani-camilo']).map(s => s.split('-'));
+const pairs = (process.argv.slice(3).length ? process.argv.slice(3) : ['alejandro-rafa', 'camilo-zapponi', 'aleix-alejandro', 'rafa-camilo', 'zapponi-aleix', 'dani-camilo']).map(s => s.split('-'));
 function load(id) {
   const meta = JSON.parse(fs.readFileSync(`${GAME}/assets/chars/${id}/mesh.json`));
   const buf = fs.readFileSync(`${GAME}/assets/chars/${id}/mesh.bin`);

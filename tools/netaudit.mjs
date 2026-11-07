@@ -14,7 +14,7 @@ await p.waitForFunction('window.__ready===true', null, { timeout: 600000, pollin
 phase = 'background';
 await p.waitForTimeout(25000); // background roster prefetch
 phase = 'fights';
-for (const [a, bb, st] of [['alejandro', 'arnau', 'street'], ['camilo', 'rafa', 'terrace'], ['zapponi', 'alejandro', 'street']]) {
+for (const [a, bb, st] of [['alejandro', 'aleix', 'street'], ['camilo', 'rafa', 'terrace'], ['zapponi', 'alejandro', 'street']]) {
   await p.evaluate(([a, bb, st]) => window.__game.startFight(a, bb, { training: true, stage: st }), [a, bb, st]);
   await p.waitForFunction(`JSON.parse(window.__debug()).state === 'fight'`, null, { timeout: 300000, polling: 500 });
   await p.waitForTimeout(3000);

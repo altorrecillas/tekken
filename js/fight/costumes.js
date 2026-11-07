@@ -1,19 +1,21 @@
-// Costumes: the fighters' clothes in other colours (js/materials.js applyCostume). The first is the outfit of the
-// photo; the second is chosen at the select screen (and given to the second player of a mirror match, so the two
+// Costumes: the fighters' clothes in other colours (js/materials.js applyCostume). The first is the main one (the outfit
+// of the photo, unless it says otherwise: Alejandro's is recoloured); the second is chosen at the select screen (and given to the second player of a mirror match, so the two
 // can be told apart); the third, the champion's, is unlocked by winning the arcade with that fighter.
 // Garments by name (the meshes of the built fighter): hue = degrees round the colour wheel (sat / val scale the
 // saturation and the value), dye = a new colour (sRGB) keeping the fabric's shading, base = the luminance (linear) of
 // the garment's original colour.
 export const COSTUMES = {
+  // (his main one the navy blue polo, the user's choice; the yellow one of the photo second)
   alejandro: [
-    { name: 'ORIGINAL' },
-    { name: 'AZUL MARINO', parts: { shirt: { hue: 182, sat: 0.9, val: 0.55 }, collar: { hue: 182, sat: 0.9, val: 0.55 }, shorts: { dye: [0.78, 0.72, 0.6], base: 0.13 } } },
+    { name: 'POLO AZUL', parts: { shirt: { hue: 182, sat: 0.9, val: 0.55 }, collar: { hue: 182, sat: 0.9, val: 0.55 }, shorts: { dye: [0.78, 0.72, 0.6], base: 0.13 } } },
+    { name: 'POLO AMARILLO' },
     { name: 'CAMPEÓN', champ: true, parts: { shirt: { dye: [0.08, 0.08, 0.09], base: 0.56 }, collar: { dye: [0.08, 0.08, 0.09], base: 0.56 }, shorts: { dye: [0.86, 0.66, 0.2], base: 0.13 } } },
   ],
-  arnau: [
-    { name: 'ORIGINAL' },
-    { name: 'GRANATE', parts: { jacket: { dye: [0.46, 0.07, 0.11], base: 0.0012 }, pants: { dye: [0.14, 0.15, 0.22], base: 0.019 } } },
-    { name: 'CAMPEÓN', champ: true, parts: { jacket: { dye: [0.86, 0.66, 0.2], base: 0.0012 }, pants: { dye: [0.08, 0.08, 0.09], base: 0.019 } } },
+  // (his navy polo of most of his photos; the black one with grey tipping of the others)
+  aleix: [
+    { name: 'POLO AZUL' },
+    { name: 'POLO NEGRO', parts: { shirt: { dye: [0.06, 0.06, 0.065], base: 0.012 }, collar: { dye: [0.06, 0.06, 0.065], base: 0.012 }, pants: { dye: [0.2, 0.2, 0.22], base: 0.009 } } },
+    { name: 'CAMPEÓN', champ: true, parts: { shirt: { dye: [0.86, 0.66, 0.2], base: 0.012 }, collar: { dye: [0.86, 0.66, 0.2], base: 0.012 }, pants: { dye: [0.08, 0.08, 0.09], base: 0.009 } } },
   ],
   camilo: [
     { name: 'ORIGINAL' },

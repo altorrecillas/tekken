@@ -159,7 +159,7 @@ try {
   check(await p.evaluate(() => window.__game.titleMenu === 'main' && window.__game.state === 'title'), '… and U, not used any more, does nothing');
 
   // ---- a training fight with the new keys: O is 2, the pad's LS is 3; Enter pauses; CONTROLES from the pause
-  await p.evaluate(() => { const g = window.__game; g.mode = 'training'; g.startFight('alejandro', 'arnau', { training: true }); });
+  await p.evaluate(() => { const g = window.__game; g.mode = 'training'; g.startFight('alejandro', 'aleix', { training: true }); });
   await waitFor(() => window.__game.state === 'fight' && window.__game.match?.phase === 'fight', null, 180000, 'training fight');
   await p.waitForTimeout(1000);
   // (the moves the fighter starts after a press, from standing still: a move starts in state 'move' at its frame 0

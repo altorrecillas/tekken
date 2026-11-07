@@ -25,7 +25,7 @@ const TRIALS = {
     ['RODILLA VOLADORA', 'La rodilla (adelante + 3) también lanza: 1, 2 en el aire y la patada alta para cerrar.', ['f+3', '1', '2', '4']],
     ['GIRATORIA', 'Su patada giratoria (atrás + 4): conéctala.', ['b+4']],
   ],
-  arnau: [
+  aleix: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
     ['TRIPLE', 'Dos jabs y el directo, cada uno en cuanto toca el anterior.', ['1', '1', '2']],
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],

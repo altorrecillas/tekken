@@ -18,7 +18,7 @@ GAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 # id: text spoken, model, speaker, length scale (pace), pitch (by resampling: the voice's size moves with it)
 QUOTES = {
     'alejandro': ('¿Eso era todo? Ni me he despeinado.', 'es_ES-sharvard-medium', 0, 0.95, 1.00),
-    'arnau': ('¡En mi consola esto era más difícil!', 'es_ES-davefx-medium', 0, 0.90, 0.86),
+    'aleix': ('Te lo dije, no me puedes ganar.', 'es_ES-davefx-medium', 0, 0.95, 0.95),
     'camilo': ('No molestes, estoy trabajando.', 'es_ES-davefx-medium', 0, 1.00, 1.05),
     'rafa': ('¿Ya? Iba a empezar a calentar.', 'es_ES-sharvard-medium', 0, 1.00, 0.95),
     'zapponi': ('¡Espectacular, vale!', 'es_ES-sharvard-medium', 0, 1.05, 0.90),
@@ -40,7 +40,7 @@ def robot_fx(src, dst):
 # the presentation's lines, said in the fighter's own voice above (while the camera is on him before the first round)
 INTROS = {
     'alejandro': 'Calienta bien, que esto va a ser rápido.',
-    'arnau': 'Partida nueva. Esta la gano yo.',
+    'aleix': 'No hay juego que se me resista.',
     'camilo': 'Tengo una reunión. Acabemos rápido.',
     'rafa': 'Tranquilo, que iré despacito.',
     'zapponi': '¡Esto va a ser espectacular, vale!',
@@ -60,7 +60,7 @@ FATALS = {
     'orion': 'Acceso denegado. Borrando usuario.',
 }
 # the announcer's call as the finishing move ends (spelt as it is said: «pu-ñe-TÁ-li-ti»)
-ANNOUNCER = {'punetality': 'Puñetáliti.', 'win_orion': '¡Gana Orión!'}
+ANNOUNCER = {'punetality': 'Puñetáliti.', 'win_orion': '¡Gana Orión!', 'win_aleix': '¡Gana Aléish!'}  # (Aleix said the Catalan way: «a-LEISH»)
 
 
 def volume(path):

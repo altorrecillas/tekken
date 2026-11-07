@@ -14,7 +14,7 @@ const { Match } = await import(GAME + '/js/fight/match.js');
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const FIGHTERS = (opt('fighters') || 'alejandro,arnau,camilo,rafa,zapponi,dani,noemi').split(',');
+const FIGHTERS = (opt('fighters') || 'alejandro,aleix,camilo,rafa,zapponi,dani,noemi').split(',');
 const TOL = +(opt('tol') || 0.5) / 1000;   // metres the skin may come through before it counts
 const TOPS = ['shirt', 'jacket', 'top', 'collar'];
 

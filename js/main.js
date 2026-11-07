@@ -39,7 +39,7 @@ import { Training } from './ui/training.js';
 import { ControlsUI, controlsHelp } from './ui/controls.js';
 const _fkv = new THREE.Vector3();
 
-const ROSTER = ['alejandro', 'orion', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'arnau'];
+const ROSTER = ['alejandro', 'orion', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'aleix'];
 // (the first one is the main stage: the title and the select screen are set in it, it is the stage picked by
 // default and the arcade's first fight; the arcade goes through them in this order)
 const STAGES = {
@@ -192,7 +192,19 @@ class Game {
     // rotated to portrait mid-fight (touch devices play in landscape): pause behind the rotate prompt
     matchMedia('(orientation: portrait)').addEventListener?.('change', (e) => { if (e.matches && document.body.classList.contains('touchui') && this.state === 'fight') this.pause(true); });
     // mobile browsers drop the GPU context under memory pressure or after long backgrounding
-    this.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.contextLost = true; $('#glLost')?.classList.add('on'); });
+    // (if the browser does not give it back within a few seconds, as some phones never do, a tap reloads the page: the
+    // arcade run is saved and CONTINUAR picks it up)
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault(); this.contextLost = true; this.saveArcade();
+      const el = $('#glLost'); if (!el) return;
+      el.innerHTML = 'RECUPERANDO LOS GRÁFICOS…';
+      el.classList.add('on');
+      clearTimeout(this._glT);
+      this._glT = setTimeout(() => {
+        el.innerHTML = '<div>EL MÓVIL HA REINICIADO LOS GRÁFICOS<small>Suele pasar cuando le falta memoria. Cierra otras pestañas o apps si puedes.</small><button type="button">TOCA PARA RECARGAR</button></div>';
+        el.querySelector('button').onclick = () => location.reload();
+      }, 5000);
+    });
     this.canvas.addEventListener('webglcontextrestored', () => location.reload());
   }
 
@@ -484,7 +496,9 @@ class Game {
     this.accessories.attach(ch, STYLES[id], this.chars[id].meta);
     ch.group.userData.fighter = true;
     ch.costumeIdx = costume | 0;
-    if (ch.costumeIdx) applyCostume(ch, costumesOf(id)[ch.costumeIdx]);
+    // (the first costume can be a recoloured one too: Alejandro's main one is his navy blue polo)
+    const cs = costumesOf(id)[ch.costumeIdx];
+    if (cs?.parts) applyCostume(ch, cs);
     // CABEZONES (EXTRAS, unlocked with the arcade): the head drawn bigger (only drawn: the fight measures the real one)
     if (this.progress?.d.bigHead) ch.bones.head?.scale.setScalar(1.6);
     return ch;
@@ -769,7 +783,7 @@ class Game {
     const ids = [ROSTER[this.sel.i[0]], vs ? ROSTER[this.sel.i[1]] : (this.previewIds?.[1] || ROSTER[(this.sel.i[0] + 1) % ROSTER.length])];
     const cos = this.selCostumes();
     if (this.previewIds && this.previewIds[0] === ids[0] && this.previewIds[1] === ids[1] && this.match) {
-      this.match.fighters.forEach((f, k) => { if ((f.ch.costumeIdx | 0) !== cos[k]) { f.ch.costumeIdx = cos[k]; applyCostume(f.ch, cos[k] ? costumesOf(ids[k])[cos[k]] : null); } });
+      this.match.fighters.forEach((f, k) => { if ((f.ch.costumeIdx | 0) !== cos[k]) { f.ch.costumeIdx = cos[k]; applyCostume(f.ch, costumesOf(ids[k])[cos[k]] || null); } });
       return;
     }
     // not downloaded yet: keep the current preview and come back when the mesh arrives
@@ -1999,11 +2013,13 @@ let game;
 try {
   const probe = document.createElement('canvas').getContext('webgl2');
   if (!probe) throw new Error('webgl2');
+  // (the probe's context let go at once: a context kept alive for nothing costs a phone memory)
+  probe.getExtension('WEBGL_lose_context')?.loseContext();
   game = new Game();
 } catch (err) {
   console.error(err);
   fatal(String(err?.message) === 'webgl2' || /WebGL/i.test(String(err?.message))
-    ? 'Tu navegador o tu dispositivo no admite WebGL 2, necesario para el juego. Prueba con Chrome, Edge, Firefox o Safari actualizados, y activa la aceleración por hardware.'
+    ? 'No se pueden usar los gráficos 3D (WebGL 2). Si el juego ya te funcionaba, el navegador los ha bloqueado un rato tras un fallo de gráficos: cierra el navegador del todo (también de las apps recientes) y vuelve a abrirlo. Si nunca te ha funcionado, prueba con Chrome, Edge, Firefox o Safari actualizados y con la aceleración por hardware activada.'
     : 'Error al iniciar: ' + (err?.message || err));
   throw err;
 }

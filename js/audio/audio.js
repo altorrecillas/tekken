@@ -5,7 +5,7 @@
 const ANN_TEXT = {
   round1: 'Ronda uno', round2: 'Ronda dos', round3: 'Ronda tres', round4: 'Ronda cuatro', round5: 'Ronda cinco',
   final: '¡Ronda final!', fight: '¡A luchar!', ko: 'K.O.', time: '¡Tiempo!', perfect: '¡Perfecto!', draw: '¡Empate!',
-  win_alejandro: '¡Gana Alejandro!', win_arnau: '¡Gana Arnau!', win_camilo: '¡Gana Camilo!', win_rafa: '¡Gana Rafa!', win_zapponi: '¡Gana Zaponi!',
+  win_alejandro: '¡Gana Alejandro!', win_aleix: '¡Gana Aleix!', win_camilo: '¡Gana Camilo!', win_rafa: '¡Gana Rafa!', win_zapponi: '¡Gana Zaponi!',
   win_dani: '¡Gana Dani!', win_noemi: '¡Gana Noemí!', win_orion: '¡Gana Orión!',
   punetality: '¡Puñetality!',
 };
@@ -51,7 +51,7 @@ const SPACES = {
 };
 
 // fighters' shouts: recorded voices (assets/voice/fx, see voices.json) and a pitch per fighter
-const FIGHTER_VOICE = { alejandro: ['vb', 1.0], arnau: ['h1', 1.05], camilo: ['h0', 1.0], rafa: ['h2', 0.93], zapponi: ['h3', 0.87],
+const FIGHTER_VOICE = { alejandro: ['vb', 1.0], aleix: ['h1', 1.0], camilo: ['h0', 1.0], rafa: ['h2', 0.93], zapponi: ['h3', 0.87],
   dani: ['vb', 0.9], noemi: ['f1', 0.97],
   // (Orión, a machine: a deep voice made robotic as it plays, js/audio/audio.js robotFx)
   orion: ['h3', 0.8, 'robot'] };

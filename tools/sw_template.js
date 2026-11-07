@@ -1,7 +1,7 @@
 // Puños de Barrio's service worker: the game kept on the phone. WRITTEN BY tools/swbuild.py from tools/sw_template.js
 // (edit the template, not sw.js). VERSION: the game's; SHELL: stored on install; HASH: every served file and a short
-// hash of it. A stored copy is used only while its hash is the current one: a file that changed in a new version is
-// fetched again (and only those). Same-origin GETs only: the online mode's signalling and anything else go to the network.
+// hash of it (what it stores). Every request goes to the server first and its answer is stored; the stored copy is
+// used when there is no connection. Same-origin GETs only: the online mode's signalling and anything else go to the network.
 const VERSION = /*VERSION*/;
 const SHELL = /*SHELL*/;
 const HASH = /*HASH*/;
@@ -54,6 +54,7 @@ self.addEventListener('install', (e) => {
     // (a few at a time: a phone's connection is not flooded)
     const list = SHELL.slice();
     await Promise.all(Array.from({ length: 6 }, async () => { while (list.length) { const p = list.shift(); try { await fresh(c, p); } catch (err) { /* fetched when needed */ } } }));
+    await self.skipWaiting();
   })());
 });
 self.addEventListener('activate', (e) => {
@@ -77,8 +78,14 @@ self.addEventListener('fetch', (e) => {
   if (!p) return;
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
-    try { return await ranged(req, await fresh(c, p)); } catch (err) {
-      // offline and never stored: an older copy is better than nothing; otherwise the network's own answer
+    // the server first, always (a file changed on it is never served from an old copy: the development server is the
+    // same site), its answer stored for later; the stored copy only when the network fails or does not answer in a
+    // few seconds (no connection): then the game plays from the phone
+    try {
+      const res = await Promise.race([fetch(SCOPE + p, { cache: 'no-cache' }), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 6000))]);
+      if (!res.ok) throw new Error(String(res.status));
+      return ranged(req, await put(c, p, res));
+    } catch (err) {
       const old = await c.match(SCOPE + p);
       if (old) return ranged(req, old);
       return fetch(req);

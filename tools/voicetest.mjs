@@ -25,7 +25,7 @@ const r = await p.evaluate(async () => {
   for (const [v, set] of Object.entries(A.voiceSets || {})) sets[v] = Object.fromEntries(Object.entries(set).map(([k, l]) => [k, l.length]));
   // play one of each kind for every fighter: no exceptions, a source is started each time
   let played = 0;
-  for (const id of ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'orion']) for (const k of ['attack', 'hurt', 'hurtBig', 'ko', 'win']) {
+  for (const id of ['alejandro', 'aleix', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'orion']) for (const k of ['attack', 'hurt', 'hurtBig', 'ko', 'win']) {
     A.voiceSrc = A.voiceSrc || {}; const before = A.voiceSrc[id];
     A.voice({ id, pos: { x: 0 } }, k);
     if (A.voiceSrc[id] && A.voiceSrc[id] !== before) played++;

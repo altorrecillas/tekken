@@ -16,7 +16,7 @@ const { Match } = await import(GAME + '/js/fight/match.js');
 const { AIController } = await import(process.env.AI || GAME + '/js/fight/ai.js');
 const { B1, B2, B3 } = await import(GAME + '/js/fight/input.js');
 const [proxy = 'novice', levelsArg = '1,2,3,4,5', nArg = '21'] = process.argv.slice(2);
-const IDS = ['alejandro', 'arnau', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'orion'];
+const IDS = ['alejandro', 'aleix', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'orion'];
 // react: frames before a move is seen; block: chance to guard a move seen in time; aggr: chance to attack in a
 // close-range decision; punish, juggle, brk (throw break), tech, rage: chances; think: frames between decisions
 const PROFILES = {

@@ -359,7 +359,7 @@ function makeFighterMaterialBase(def, base, loadTex, partName) {
       const n = def.shells || 6, t = ((def.layer ?? 0) + 1) / n;
       const thr = 0.12 + 0.6 * Math.pow(t, 1.25);
       const tile = getStrandTile();
-      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0, transparent: true, depthWrite: false });
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: def.rough ?? 0.6, metalness: 0, transparent: true, depthWrite: false });
       m.defines = { USE_UV: '' };
       const uni = {
         densMap: { value: loadTex(url(def.map), false) }, strandMap: { value: tile },

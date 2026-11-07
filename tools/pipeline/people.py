@@ -34,6 +34,38 @@ PEOPLE = {
         beard=0.45, beard_color=(52, 38, 28), scalp_density=1.0, scalp_color=(48, 32, 22), scalp_shadow=0.8,
         beard_strand_color=(58, 40, 28), beard_grey=0.0, beard_len=0.0015, beard_layers=5,
     ),
+    'aleix': dict(
+        display='ALEIX', photo='aleix_10.jpg', brow_boost=2.0, brow_width=1.2, brow_strokes=1.0, brow_color=(0.03, 0.022, 0.017),
+        # 43 years old, 1.72 m, an ordinary build (the face long, the nose long and straight, blue-grey eyes)
+        body=dict(gender=1, age=0.638, muscle=0.5, weight=0.52, height=0.48, proportions=0.6, caucasian=1, african=0, asian=0),
+        mods={'measure/measure-upperarm-length': 0.65},
+        # (after the photo fit: the lower face a little fuller and the jaw wider, the chin shorter, as his beard frames it)
+        # (and the upper lids a little heavier: his eyes look out from under them, not wide open)
+        post_mods={'cheek/l-cheek-volume': 0.2, 'cheek/r-cheek-volume': 0.2, 'chin/chin-height': -0.2,
+                   'eyes/l-eye-eyefold-down': 0.5, 'eyes/r-eye-eyefold-down': 0.5, 'eyes/l-eye-height2': -0.2, 'eyes/r-eye-height2': -0.2,
+                   'eyes/l-eye-scale': -0.25, 'eyes/r-eye-scale': -0.25, 'eyebrows/eyebrows-trans-forward': 0.3,
+                   'ears/l-ear-wing-decr': 0.6, 'ears/r-ear-wing-decr': 0.6,
+                   'mouth/mouth-scale-horiz': -0.3, 'mouth/mouth-angles': 0.25, 'mouth/mouth-trans': 0.25, 'mouth/mouth-upperlip-volume-decr': 0.1, 'mouth/mouth-lowerlip-volume-decr': 0.1,
+                   'nose/nose-scale-depth-incr': 0.5, 'nose/nose-point-width-incr': 0.2},
+        fit_lam=0.0015, delight=0.3, smooth_chin=12,
+        skin='middleage_lightskinned_male_diffuse', eyes='blue', eye_hue=208, eye_sat=0.55, eye_val=0.8, eye_sclera=0.88, hair=None, scalp=None, skin_tint=(5, 3), lum=4,
+        hair_color=(0.026, 0.018, 0.013), hair_grey=0.0, hair_grey_color=[0.16, 0.14, 0.12], hair_color_auto=False,
+        # dark brown, medium length: parted on his left and swept over the top to his right with some volume, a fringe
+        # falling over the right of his forehead, over the tops of the ears, down to the nape
+        hair_cards=dict(comb='sidepart', part_az=38, fringe=0.7, fringe_stop=0.45, top_az=60, side_back=1.6, sweep_back=1.2, part_side=(0.6, -0.4, -1.0), stop_jitter=(-0.08, 0.32), atlas='hair_cards_s.png', length=(0.62, 0.2, 0.28), side_el=42, width=0.13, n=6400, lift=0.15, gravity=0.28, baby=140,
+                        side_lift=0.26, layers=[(3600, 0.85, 0.02, 0.35, 1.0), (2800, 1.0, 0.045, 0.55, 1.0), (1400, 1.04, 0.07, 0.78, 0.9)],
+                        hairline=dict(front=12, temple=5, side=13, back=-44)),
+        hairline=dict(front=12, temple=5, side=13, back=-44),
+        # thin metal glasses, rimless at the bottom
+        glasses=dict(style='nylor', color=(0.17, 0.19, 0.26), rim=0.0013),
+        outfit='aleix', depth_scale=0.45, neutral_mouth=True, mouth_from_base=False, shoes=('shoes05', 'black'),
+        body_hair=dict(legs=0.6, arms=0.45), body_hair_color=(48, 38, 30),
+        scalp_density=1.0, scalp_color=(42, 32, 24), scalp_shadow=0.8,
+        # a short beard of a few days: darker on the moustache and the chin (a goatee shadow), lighter on the cheeks,
+        # brown with a little grey
+        beard=1.0, beard_extent=1.0, beard_cheek=-0.12, beard_fade=0.12, beard_rise=0.55, beard_color=(33, 26, 21), beard_shadow=1.6, beard_over_photo=0.15, beard_photo_chroma=0.9, goatee_dark=0.65, beard_shell_rough=0.85, beard_rough_gain=1.8, beard_goatee=1.0, beard_lip_clear=0.24,
+        beard_strand_color=(26, 20, 16), beard_grey=0.1, beard_grey_color=(150, 140, 130), beard_len=0.0055, beard_layers=10,
+    ),
     'camilo': dict(
         display='CAMILO', photo='camilo_foto2.jpg',
         # more muscular at the user's request (2026-09-26; was muscle 0.66, weight 0.4, no muscle modifiers)

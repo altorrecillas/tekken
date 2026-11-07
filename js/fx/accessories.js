@@ -11,6 +11,28 @@ function roundedRect(w, h, r) {
   s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
   return s;
 }
+// the top of a lens's frame only, down the sides to cut (a share of the height from the top): a nylor (half-rim) bar
+function browShape(w, h, r, t, top, cut) {
+  const s = new THREE.Shape();
+  const x0 = -w / 2, x1 = w / 2, y1 = h / 2, yc = h / 2 - h * cut;
+  const ix0 = x0 + t * 0.7, ix1 = x1 - t * 0.7, iy1 = y1 - top, ir = Math.max(0.001, r - t);
+  s.moveTo(x0, yc); s.lineTo(x0, y1 - r); s.quadraticCurveTo(x0, y1, x0 + r, y1);
+  s.lineTo(x1 - r, y1); s.quadraticCurveTo(x1, y1, x1, y1 - r); s.lineTo(x1, yc);
+  s.lineTo(ix1, yc + t * 0.4); s.lineTo(ix1, iy1 - ir); s.quadraticCurveTo(ix1, iy1, ix1 - ir, iy1);
+  s.lineTo(ix0 + ir, iy1); s.quadraticCurveTo(ix0, iy1, ix0, iy1 - ir); s.lineTo(ix0, yc + t * 0.4);
+  s.closePath();
+  return s;
+}
+// a lens's outline (the shape of roundedRect, wider at the top: the nylor lens is rounder below)
+function lensShape(w, h, r, rb) {
+  const s = new THREE.Shape();
+  const x = -w / 2, y = -h / 2;
+  s.moveTo(x + rb, y); s.lineTo(x + w - rb, y); s.quadraticCurveTo(x + w, y, x + w, y + rb);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + rb); s.quadraticCurveTo(x, y, x + rb, y);
+  return s;
+}
 function ringShape(w, h, r, t, top = t, bottom = t) {
   const s = roundedRect(w, h, r);
   const hole = roundedRect(w - 2 * t, h - top - bottom, Math.max(0.001, r - t));
@@ -22,7 +44,7 @@ function ringShape(w, h, r, t, top = t, bottom = t) {
 
 const PER = {
   alejandro: { watch: { side: 'L', color: 0x111111, face: 0x1a1a1a }, bracelets: [{ side: 'R', color: 0x1c2e6e }, { side: 'R', color: 0x6b3b1e, off: 0.012 }], chain: { color: 0xd4a23a } },
-  arnau: { watch: null },
+  aleix: { watch: null },
   // (his phone only comes out in his win pose: "no molestes, estoy trabajando")
   camilo: { watch: { side: 'L', color: 0x222222, face: 0x0d0d0d }, medal: true, phone: { side: 'R', from: 12 } },
   rafa: { watch: { side: 'L', color: 0x2458c9, face: 0x0d0d0d } },
@@ -37,6 +59,8 @@ export class Accessories {
     this.items = [];
     // lenses only add reflections (additive over black): no milky veil over the eyes
     this.lensMat = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    // a lens's polished edge (rimless glasses): a faint light line, more where it catches the light
+    this.edgeMat = new THREE.MeshPhysicalMaterial({ color: 0x9aa2a8, roughness: 0.15, metalness: 0, transparent: true, opacity: 0.35, depthWrite: false });
   }
   attach(ch, style, meta) {
     const R = (n) => ch.rest[n].head;
@@ -63,34 +87,48 @@ export class Accessories {
     const c = eL.clone().add(eR).multiplyScalar(0.5);
     const ipd = eL.distanceTo(eR);
     const style = g.style;
-    const lw = ipd * (style === 'thick' ? 0.86 : 0.8), lh = lw * (style === 'thick' ? 0.58 : 0.52);
-    const t = style === 'thick' ? 0.0045 : style === 'half' ? 0.0028 : 0.0014;
+    // (nylor: a fine metal bar over the top of each lens and down its sides, the bottom of the lens held by a nylon
+    // thread (only the lens's polished edge shows there); wide lenses set a little wider apart than the eyes)
+    const nylor = style === 'nylor';
+    const lw = ipd * (style === 'thick' ? 0.86 : nylor ? 0.92 : 0.8), lh = lw * (style === 'thick' ? 0.58 : nylor ? 0.48 : 0.52);
+    const t = style === 'thick' ? 0.0045 : style === 'half' ? 0.0028 : nylor ? (g.rim || 0.0011) : 0.0014;
     const depth = style === 'thick' ? 0.004 : 0.0022;
     // g.color is authored in sRGB
     const fc = new THREE.Color().setRGB(...g.color, THREE.SRGBColorSpace);
-    const frameMat = style === 'metal'
+    const frameMat = style === 'metal' || nylor
       ? new THREE.MeshPhysicalMaterial({ color: fc, metalness: 0.85, roughness: 0.3 })
       : new THREE.MeshPhysicalMaterial({ color: fc, roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.15, specularIntensity: 0.5 });
     const grp = new THREE.Group();
     const zFront = 0.024;
+    const half = nylor ? ipd * 0.54 : ipd / 2;
     for (const sgn of [1, -1]) {
-      const cx = sgn * ipd / 2;
+      const cx = sgn * half;
       // half-rim (browline): heavy top bar, the bottom of the lens is held by a nylon thread (practically invisible)
-      const top = style === 'half' ? t * 1.6 : t, bottom = style === 'half' ? t * 0.12 : t;
-      const fg = new THREE.ExtrudeGeometry(ringShape(lw, lh, lh * 0.28, t, top, bottom), { depth, bevelEnabled: style !== 'half', bevelSize: depth * 0.25, bevelThickness: depth * 0.25, bevelSegments: 2, curveSegments: 12 });
-      fg.translate(0, 0, -depth / 2);
+      const top = style === 'half' ? t * 1.6 : nylor ? t * 1.5 : t, bottom = style === 'half' || nylor ? t * 0.12 : t;
+      const shape = nylor ? browShape(lw, lh, lh * 0.2, t, top, 0.42) : ringShape(lw, lh, lh * 0.28, t, top, bottom);
+      const fg = new THREE.ExtrudeGeometry(shape, { depth: nylor ? 0.0012 : depth, bevelEnabled: style !== 'half' && !nylor, bevelSize: depth * 0.25, bevelThickness: depth * 0.25, bevelSegments: 2, curveSegments: 12 });
+      fg.translate(0, 0, nylor ? -0.0006 : -depth / 2);
       const frame = new THREE.Mesh(fg, frameMat);
       frame.position.set(cx, 0, zFront);
-      frame.rotation.y = sgn * 0.12; // slight wrap
+      frame.rotation.y = sgn * (nylor ? 0.32 : 0.12); // slight wrap (more for wide lenses: the far one would stand off the face)
       grp.add(frame);
-      const lens = new THREE.Mesh(new THREE.ShapeGeometry(roundedRect(lw - t, lh - t, lh * 0.25)), this.lensMat);
-      lens.position.set(cx, 0, zFront - 0.001); lens.rotation.y = sgn * 0.12;
+      if (nylor) {
+        // the lens's polished edge below the bar: a faint light line
+        const edge = new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape(lw - t * 0.6, lh - t * 0.6, lh * 0.3, 0.00045), { depth: 0.0008, bevelEnabled: false, curveSegments: 12 }), this.edgeMat);
+        edge.position.set(cx, -t * 0.1, zFront - 0.0009); edge.rotation.y = frame.rotation.y;
+        edge.renderOrder = 5;
+        grp.add(edge);
+      }
+      // (thin anti-reflective lenses: a fainter veil, the eyes clear behind them)
+      if (nylor && !this.arMat) { this.arMat = this.lensMat.clone(); this.arMat.envMapIntensity = 0.25; this.arMat.clearcoat = 0.6; }
+      const lens = new THREE.Mesh(new THREE.ShapeGeometry(nylor ? lensShape(lw - t, lh - t, lh * 0.2, lh * 0.38) : roundedRect(lw - t, lh - t, lh * 0.25)), nylor ? this.arMat : this.lensMat);
+      lens.position.set(cx, 0, zFront - 0.001); lens.rotation.y = sgn * (nylor ? 0.32 : 0.12);
       lens.renderOrder = 5;
       grp.add(lens);
       // temple arm towards the ear
       const armLen = 0.105;
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(t * 0.8, style === 'thick' ? 0.007 : 0.003, armLen), frameMat);
-      arm.position.set(sgn * (ipd / 2 + lw / 2 + 0.002), lh * 0.18, zFront - armLen / 2);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(nylor ? 0.0012 : t * 0.8, style === 'thick' ? 0.007 : nylor ? 0.0018 : 0.003, armLen), frameMat);
+      arm.position.set(sgn * (half + lw / 2 + 0.002), lh * 0.18 + (nylor ? lh * 0.18 : 0), zFront - armLen / 2);
       arm.rotation.y = -sgn * 0.08;
       grp.add(arm);
       // nose pad
@@ -98,13 +136,13 @@ export class Accessories {
       pad.position.set(sgn * 0.009, -lh * 0.15, zFront - 0.006);
       grp.add(pad);
     }
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(ipd - lw * 0.96, t * 0.9, depth), frameMat);
-    bridge.position.set(0, lh * 0.18, zFront + 0.002);
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(2 * half - lw * 0.96, t * 0.9, nylor ? 0.0012 : depth), frameMat);
+    bridge.position.set(0, nylor ? lh * 0.3 : lh * 0.18, zFront + (nylor ? 0.0012 : 0.002));
     grp.add(bridge);
     grp.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     const headB = ch.bones.head;
     // lens centre slightly below the pupils: the eyes sit in the upper half of the lens, the top rim under the brows
-    grp.position.copy(this.local(ch, 'head', c)).add(new THREE.Vector3(0, -0.0025, 0));
+    grp.position.copy(this.local(ch, 'head', c)).add(new THREE.Vector3(0, nylor ? -0.0025 : -0.0025, 0));
     headB.add(grp);
   }
 

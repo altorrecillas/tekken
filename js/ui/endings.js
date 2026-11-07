@@ -9,12 +9,12 @@ export const ENDINGS = {
       'Esa noche estrena un tigre dorado que ruge cada vez que cierra el puño. Cuentan que el tigre todavía busca rival.',
     ],
   },
-  arnau: {
-    title: 'GAME OVER PARA LOS DEMÁS',
+  aleix: {
+    title: 'PARTIDA PERFECTA',
     text: [
-      'Arnau sube el combate final a internet y en una hora acumula un millón de visitas.',
-      '—En mi consola esto era más difícil —escribe en los comentarios, y se va a cenar.',
-      'Los patrocinadores le regalan unas gafas nuevas, todavía más gordas. Ahora entrena por las noches... en modo pesadilla, claro.',
+      'Aleix guarda la partida, se estira y mira la clasificación: primero, con todos los récords a su nombre.',
+      '—Te lo dije, no me puedes ganar —les escribe a sus amigos en el grupo, con una captura de cada combate.',
+      'Esa noche se apunta a otro torneo. Dicen que no hay juego que se le resista, y él no piensa desmentirlo.',
     ],
   },
   camilo: {

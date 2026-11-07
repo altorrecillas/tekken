@@ -103,6 +103,11 @@ def grow_hair(V, N, tris, cover, frame, style, seed=1):
             # regional length: top / sides / back
             top, side, back = style['length']
             if a < 60: L = top * (1 - 0.3 * max(0, (a - 30) / 30))
+            # (side_el: from how high on the sides and the back the hair takes the top's length; a short back and sides
+            # under a longer top need it higher)
+            elif 'side_el' in style:
+                k_ = min(1.0, max(0, (el - style['side_el'] - (5 if a >= 120 else 0)) / 30))
+                L = (side if a < 120 else back) * (1 - k_) + top * k_
             elif a < 120: L = side + (top - side) * max(0, (el - 25) / 30)
             else: L = back + (top - back) * max(0, (el - 30) / 30)
             L = max(0.05, L * lscale * rng.uniform(0.8, 1.1))
@@ -115,6 +120,31 @@ def grow_hair(V, N, tris, cover, frame, style, seed=1):
                     g = np.array([0.25 * np.sign(r[0] - C[0] + 1e-6) + style.get('part', 0.0), style.get('quiff', 0.12), -1.0])
                 else:
                     g = r - (C + np.array([0, 1.3, 0.35]))
+            elif style['comb'] == 'sidepart':
+                # parted on his left (part_az, degrees round from the front, + his left): the top combed across to his
+                # right, the front of it falling forward in a fringe over the forehead's right side; below the part
+                # down to his left; the sides and the back hang down
+                pa = style.get('part_az', 38)
+                if el > style.get('top_el', 32) and a < style.get('top_az', 180):
+                    if az > pa:
+                        # (below the part: down to his left and back over the ear, not hanging over it)
+                        g = np.array(style.get('part_side', (1.0, -0.35, -0.45)), np.float64)
+                    else:
+                        # (the fringe from the front of his right side only; by the part the hair rises and goes across,
+                        # the volume a side part has, the forehead showing under it)
+                        front = max(0.0, 1 - abs(az + 25) / 38) * min(1.0, max(0.0, (75 - el) / 25))
+                        near = max(0.0, 1 - abs(az - pa) / 28)
+                        g = np.array([-1.0, -0.12, -0.3]) + np.array([0.2, -0.4, 1.15]) * front * style.get('fringe', 0.8) + np.array([0.0, 0.35, 0.15]) * near
+                        # (towards his right temple the hair goes back over the ear, not down over the temple)
+                        g = g + np.array([0.0, 0.0, -1.0]) * style.get('sweep_back', 0.0) * min(1.0, max(0.0, (a - 25) / 35)) * (1 - front)
+                    # (each strand its own way a little: combed hair is never laid in parallel lines)
+                    g = g + rng.normal(0, style.get('mess', 0.14), 3)
+                elif style.get('side_back'):
+                    # the sides and the back combed down and back, lying close (not radial: from the temples radial
+                    # growth hangs the hair forward over the temple and the cheekbone)
+                    g = np.array([0.0, -1.0, -style['side_back']]) + rng.normal(0, style.get('mess', 0.14), 3)
+                else:
+                    g = r - (C + np.array([0, 1.25, 0.1]))
             elif style['comb'] == 'side':
                 g = np.array([-1.0, -0.15, -0.35]) if el > 30 else r - (C + np.array([0, 1.2, 0]))
             else:  # curly / messy
@@ -125,7 +155,8 @@ def grow_hair(V, N, tris, cover, frame, style, seed=1):
             segs = 5
             pts = [r + nrm * off0 * 0.5]
             p = pts[0].copy()
-            my_stop = None if brow_y is None else brow_y + rng.uniform(-0.06, 0.16)
+            sj = style.get('stop_jitter', (-0.06, 0.16))
+            my_stop = None if brow_y is None else brow_y + rng.uniform(*sj)
             # hairline: every strand stops at its own height (a single clamp height reads as a bowl cut)
             face_stop = style['face_top'] + rng.uniform(0.0, style.get('face_jitter', 0.15)) if style.get('no_face', False) else None
             stopped = False

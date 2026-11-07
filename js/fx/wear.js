@@ -9,7 +9,7 @@
 // health, also throws sparks now and then from his joints.
 import * as THREE from 'three';
 
-const N = 12;          // marks kept per fighter
+const N = 8;           // marks kept per fighter (few: each is a uniform of every one of his shaders)
 const BONES = ['head', 'neck01', 'spine01', 'spine02', 'spine03', 'spine04', 'spine05', 'clavicle.L', 'clavicle.R', 'upperarm01.L', 'upperarm01.R',
   'upperarm02.L', 'upperarm02.R', 'lowerarm01.L', 'lowerarm01.R', 'wrist.L', 'wrist.R', 'upperleg01.L', 'upperleg01.R', 'upperleg02.L', 'upperleg02.R',
   'lowerleg01.L', 'lowerleg01.R', 'lowerleg02.L', 'lowerleg02.R', 'foot.L', 'foot.R'];

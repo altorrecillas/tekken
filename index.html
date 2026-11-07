@@ -413,6 +413,8 @@ button { touch-action: manipulation; }
 #rotate small { font-size: 16px; color: #aaa; max-width: 80vw; line-height: 1.35; }
 #glLost { position: fixed; inset: 0; z-index: 95; display: none; background: rgba(0,0,0,.88); align-items: center; justify-content: center; font-family: 'Teko'; font-size: 26px; letter-spacing: .2em; color: #ddd; text-align: center; padding: 20px; }
 #glLost.on { display: flex; }
+#glLost small { display: block; font-family: 'Rajdhani'; font-size: 16px; letter-spacing: .04em; color: #aaa; margin: 10px 0 18px; }
+#glLost button { font-family: 'Bebas'; font-size: 26px; letter-spacing: .1em; color: #111; background: var(--gold); border: 0; padding: 10px 26px 6px; cursor: pointer; }
 .fadeblack { position: fixed; inset: 0; background: #000; z-index: 60; pointer-events: none; opacity: 0; transition: opacity .35s; }
 .fadeblack.on { opacity: 1; }
 /* loading card between fights (when it takes a moment): the two fighters face to face over the stage they go to, VS,
@@ -823,8 +825,8 @@ button { touch-action: manipulation; }
 <!-- modulepreload:begin -->
 <link rel="modulepreload" href="vendor/three/build/three.core.js">
 <link rel="modulepreload" href="vendor/three/build/three.module.js">
-<link rel="modulepreload" href="js/fight/styles.js">
 <link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/fight/styles.js">
 <link rel="modulepreload" href="js/fight/fatality.js">
 <link rel="modulepreload" href="js/fight/moves.js">
 <link rel="modulepreload" href="js/audio/audio.js">
@@ -844,12 +846,12 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/fx/spikepit.js">
 <link rel="modulepreload" href="js/fx/halves.js">
 <link rel="modulepreload" href="js/materials.js">
+<link rel="modulepreload" href="js/fx/accessories.js">
 <link rel="modulepreload" href="js/fx/blood.js">
 <link rel="modulepreload" href="js/fx/fx.js">
 <link rel="modulepreload" href="js/net/netplay.js">
 <link rel="modulepreload" href="js/fx/bicycle.js">
 <link rel="modulepreload" href="vendor/qr/qrcode.js">
-<link rel="modulepreload" href="js/fx/accessories.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/GTAOPass.js">
 <link rel="modulepreload" href="js/engine/post.js">
 <link rel="modulepreload" href="js/fx/aloesword.js">
@@ -896,15 +898,15 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/fight/throws.js">
 <link rel="modulepreload" href="js/anim/hairsway.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/MaskPass.js">
+<link rel="modulepreload" href="js/fight/costumes.js">
 <link rel="modulepreload" href="js/fight/replay.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/RenderPass.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/Pass.js">
-<link rel="modulepreload" href="js/fight/costumes.js">
 <link rel="modulepreload" href="js/net/qr.js">
 <link rel="modulepreload" href="js/net/sdp.js">
 <link rel="modulepreload" href="js/fx/contact.js">
-<link rel="modulepreload" href="js/fight/stats.js">
 <link rel="modulepreload" href="js/ui/endings.js">
+<link rel="modulepreload" href="js/fight/stats.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
 <link rel="modulepreload" href="js/net/signal.js">
 <link rel="modulepreload" href="js/fx/oil.js">
