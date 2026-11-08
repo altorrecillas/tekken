@@ -406,6 +406,16 @@ Se revisaron todos los golpes de todos los luchadores: tiras de fotogramas de ca
   - El relieve de la cara se queda en WebP: en ETC1S sus detalles más finos (párpados, labios) se torcían hasta 17°, y se notaba en los primeros planos.
   - Si la gráfica no admite ningún formato comprimido, o una KTX2 no llega, se usa la imagen de siempre. `?ktx2=0` desactiva las KTX2, para comparar.
 
+### Puñetazo Superman (0.85)
+
+El Superman de Alejandro (f+2) se rehízo. Antes, al echar la pierna de atrás, la rodilla apuntaba hacia atrás y el talón subía hacia el glúteo, como la pata de un pájaro. Ahora es como el de verdad:
+- un amago de rodilla por delante;
+- la pierna sale hacia atrás casi estirada, con la rodilla mirando al suelo y la punta del pie estirada, en tijera con el brazo;
+- el cuerpo vuela tumbado sobre la línea del golpe y aterriza sobre el pie adelantado justo al conectar;
+- después la pierna baja por detrás y vuelve la guardia.
+
+Sin articulaciones forzadas ni tirones (auditoría). El puño sale más rápido (15 m/s, antes 11) y el alcance es el mismo.
+
 ### Revisión de las caras (0.81)
 
 Todas las caras se compararon con sus fotos de referencia. Cada render de frente se alineó por los ojos con la foto y se midieron sus proporciones con MediaPipe. Solo cambian las texturas de la cara, las gafas y el iris. El pelo, la ropa y la forma de la cabeza que ya estaban aprobados se quedan como estaban; la única excepción es la cara de Zapponi, algo más llena.

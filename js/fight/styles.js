@@ -119,27 +119,39 @@ export const STYLES = {
         hit: { f: [21, 24], limb: 'handL', r: 0.12, dmg: 22, lvl: 'high', react: 'hitHigh', blk: -10, kd: true, push: 0.5 },
         advance: [[0, 0], [8, 0.12], [22, 0.3], [50, 0.3]], sfx: 'heavy',
       },
-      // SUPERMAN: a feint of the rear knee, then that leg kicks back as he springs off the lead foot and flies in
-      // behind the rear straight, landing on the lead foot as it connects (the rear leg still out behind for the
-      // balance), then the rear foot comes down and the guard back
+      // SUPERMAN: a feint of the rear knee up in front, then that leg scissors back, almost straight, the knee to the
+      // floor and the toes pointed, as he springs off the lead foot and flies in behind the rear straight, the body
+      // laid forward along the line of the punch; he lands on the lead foot as it connects, the rear leg still out
+      // behind for the balance, then it comes down behind him and the guard comes back. (The first version kicked the
+      // leg back with the knee turned backwards: the heel came up to the seat, a bird's leg)
       superman: {
         name: 'Superman punch', total: 38, clip: C([
           [0, {}],
-          [5, { rootPos: [0, -0.13, -0.04], rootRot: [0.1, -0.52, 0], spine: [0.1, 0.1, 0], footR: [0.16, 0.26, 0.0], kneeR: [0.2, 0.4, 1], footRotR: [0.2, 0.5, 0] }, 'inout'],
-          [10, { rootPos: [0, -0.02, 0.06], rootRot: [0.2, -0.3, 0], spine: [0.1, 0.25, 0], neck: [0.12, 0.05, 0],
-            footR: [0.16, 0.34, -0.48], kneeR: [0.2, -0.3, -1], footRotR: [0.6, 0.4, 0], footL: [0.05, 0.1, 0.26], footRotL: [0.3, -0.35, 0],
-            handR: [-0.16, 0.24, 0.42], fistR: 1, twistR: 0.2 }, 'inout'],
-          [14, { rootPos: [0, -0.04, 0.12], rootRot: [0.24, 0.12, 0], spine: [0.12, 0.45, 0], neck: [0.02, -0.3, 0],
+          // the weight onto the lead leg, the rear knee starting up in front
+          [4, { rootPos: [0, -0.12, 0.0], rootRot: [0.1, -0.5, 0], spine: [0.1, 0.12, 0], footR: [0.16, 0.16, -0.06], kneeR: [0.15, 0.3, 1], footRotR: [0.3, 0.55, 0] }, 'inout'],
+          // the feint: the knee up in front, as for a knee strike
+          [8, { rootPos: [0, -0.08, 0.02], rootRot: [0.06, -0.45, 0], spine: [0.08, 0.15, 0], footR: [0.14, 0.34, 0.1], kneeR: [0.1, 0.6, 1], footRotR: [0.1, 0.4, 0] }, 'inout'],
+          // the spring: the leg swings down and back under the hip (the knee turning down as it goes), the lead foot
+          // pushes off and leaves the floor, the body tips forward, the rear fist cocked by the jaw
+          [12, { rootPos: [0, -0.03, 0.08], rootRot: [0.3, -0.25, 0], spine: [0.12, 0.25, 0], neck: [0.0, 0.0, 0],
+            footR: [0.12, 0.28, -0.5], kneeR: [0.1, -1, 0.25], footRotR: [1.0, 0.3, 0],
+            footL: [0.05, 0.12, 0.26], kneeL: [0.1, 0.4, 1], footRotL: [0.4, -0.35, 0],
+            handR: [-0.12, 0.26, 0.38], fistR: 1, twistR: 0.25, handL: [-0.2, 0.22, 0.4] }, 'inout'],
+          // the punch: laid out along it, the rear leg straight out behind, landing on the lead foot
+          [15, { rootPos: [0, -0.04, 0.1], rootRot: [0.4, 0.1, 0], spine: [0.12, 0.45, 0], neck: [-0.12, -0.3, 0],
             handR: [-0.06, 0.12, 1.0], aimR: 1, twistR: 0.84, fistR: 1, clavR: [0.05, 0.5], handL: [-0.25, 0.2, 0.35],
-            footR: [0.16, 0.3, -0.5], footL: [0.05, 0.071, 0.3], footRotL: [0, -0.35, 0] }, 'drive'],
-          [16, {}, 'lin'],
-          [23, { rootPos: [0, -0.1, 0.06], rootRot: [0.12, -0.2, 0], spine: [0.1, 0.25, 0], neck: [0.12, 0.1, 0], handR: [-0.14, 0.2, 0.62], twistR: 0.15, clavR: [0.0, 0.25],
-            footR: [0.2, 0.14, -0.3], kneeR: [0.4, 0, 1], footRotR: [0.3, 0.6, 0] }, 'ret'],
-          [31, { rootPos: [0, -0.085, 0.0], rootRot: [0.07, -0.42, 0], spine: [0.1, 0.12, 0], handR: GUARD_R, aimR: 0, handL: GUARD_L, footR: [0.2, 0.071, -0.2], footRotR: [0, 0.65, 0] }, 'inout'],
+            footR: [0.12, 0.3, -0.62], kneeR: [0.1, -1, 0.1], footRotR: [1.1, 0.3, 0],
+            footL: [0.05, 0.071, 0.27], kneeL: [0.25, 0, 1], footRotL: [0, -0.35, 0] }, 'drive'],
+          [17, {}, 'lin'],
+          // the fist back on its line; the rear foot coming down behind him, the knee turning forward again
+          [24, { rootPos: [0, -0.1, 0.07], rootRot: [0.15, -0.2, 0], spine: [0.1, 0.25, 0], neck: [0.12, 0.1, 0], handR: [-0.14, 0.2, 0.62], twistR: 0.15, clavR: [0.0, 0.25],
+            footR: [0.2, 0.13, -0.36], kneeR: [0.3, -0.5, 0.8], footRotR: [0.45, 0.6, 0] }, 'ret'],
+          [31, { rootPos: [0, -0.085, 0.02], rootRot: [0.07, -0.42, 0], spine: [0.1, 0.12, 0], neck: [0.16, 0.2, 0], handR: GUARD_R, aimR: 0, handL: GUARD_L,
+            footR: [0.2, 0.071, -0.22], kneeR: [0.4, 0, 1], footRotR: [0.1, 0.65, 0] }, 'inout'],
           [38, null, 'inout'],
         ]),
-        hit: { f: [14, 16], limb: 'handR', r: 0.11, dmg: 16, lvl: 'high', react: 'hitHigh', blk: -8, hitAdv: 4, push: 0.4, ch: { kd: true } },
-        advance: [[0, 0], [5, -0.02], [14, 0.42], [38, 0.4]], sfx: 'heavy',
+        hit: { f: [15, 17], limb: 'handR', r: 0.11, dmg: 16, lvl: 'high', react: 'hitHigh', blk: -8, hitAdv: 4, push: 0.4, ch: { kd: true } },
+        advance: [[0, 0], [8, 0.0], [15, 0.4], [38, 0.38]], sfx: 'heavy',
       },
       // SWITCH KICK: a quick switch of the feet (a hop: the lead foot back, the rear one forward), then the left leg,
       // now behind, swings round into the body as a roundhouse (the hips turning the other way to his right kick's),
