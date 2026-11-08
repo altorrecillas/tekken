@@ -95,7 +95,23 @@ export class FightCamera {
       tl.copy(fp).setY(hy - 0.38 + lt * 0.1);
       tp.copy(fp).addScaledVector(facing, 1.9 - lt * 0.35).addScaledVector(side, 0.9 - lt * 0.25).setY(1.0 + lt * 0.25);
       fov = 30; lam = lt < 0.05 ? 1000 : 3;
+    } else if (this.mode === 'ko' && this.impact && this.modeT < 0.62) {
+      // a critical finish: the impact up close, side on to the blow, the lens pushing in as it lands (at a crawl: the
+      // knockout's slow motion and a long hit-stop), then a cut to the knockout's wide shot
+      const I = this.impact, toV = new THREE.Vector3().subVectors(I.p, I.from).setY(0);
+      if (toV.lengthSq() < 1e-4) toV.set(1, 0, 0); toV.normalize();
+      const nI = new THREE.Vector3(-toV.z, 0, toV.x);
+      if (nI.dot(this.normal) < 0) nI.negate();
+      const k = this.modeT / 0.62;
+      tl.copy(I.p).addScaledVector(toV, 0.08); tl.y += 0.12;
+      tp.copy(I.p).addScaledVector(nI, 1.55 - 0.3 * k).addScaledVector(toV, -0.35).setY(I.p.y + 0.22 - 0.06 * k);
+      if (this.clampCam) this.clampCam(tp);
+      fov = 27 - 3 * k; lam = 30;
+      focusPt = this._focus.copy(I.p);
+      this._impactShot = true;
     } else if (this.mode === 'ko') {
+      // (out of the impact shot: a cut, not a glide across the stage)
+      if (this._impactShot) { this._impactShot = false; this.snap = true; }
       // three-quarter side shot: fallen fighter nearer the lens (lying along the axis, seen full length), winner
       // standing beyond, both large. A depth shot from behind the loser can't fit his head and the winner's at once
       const f = this.focus || b;

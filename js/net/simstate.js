@@ -63,7 +63,8 @@ class IO {
 const POSES = ['pose', 'prevPose', 'blendFrom', 'base', 'basePrev', 'offX', 'offV'];
 const NUMS = ['fatalFloor', 'yaw', 'prevYaw', 'inertH', 'sf', 'mf', 'cf', 'cfRate', 'blendT', 'blendDur', 'ubc', 'yawRate', 'stun', 'juggles',
   'comboHits', 'comboDmg', 'slide', 'pending', 'pendingT', 'downT', 'invuln', 'downHold', 'upHold', 'lastDy', 'sideDir', 'hp', 'maxHp',
-  'jumpFwd', 'advPrev', 'throwDmg', 'throwBreak', 'voiceT', 'shakeT', 'breath', 'hitFlash', 'counterFlash', 'spin', 'parryW', 'parryCD'];
+  'jumpFwd', 'advPrev', 'throwDmg', 'throwBreak', 'voiceT', 'shakeT', 'breath', 'hitFlash', 'counterFlash', 'spin', 'parryW', 'parryCD',
+  'wallHits', 'wallBounced', 'wallNx', 'wallNz', 'slamPow', 'chainAdv'];
 const BOOLS = ['snapPose', 'snapSmooth', 'moveHit', 'moveConnected', 'crouching', 'airborne', 'ko', 'rage', 'rageUsed'];
 // (ragdoll: the knocked-out body, which for the simulation is only a flag)
 const REFS = ['state', 'move', 'moveName', 'clip', 'clipName', 'guard', 'throwPartner', 'throwMove', 'stateHold', 'gripFn', 'ragdoll'];
@@ -145,7 +146,7 @@ function ioFighter(f, io) {
 }
 
 function ioMatch(m, io) {
-  for (const k of ['frame', 'pt', 'hitstop', 'timeScale', 'slowmo', 'timer', 'round', 'winner', 'koWinner', 'lastHeavyFrame', 'lastTechFrame', 'hpScale', 'fatalBy']) m[k] = io.numU(m[k]);
+  for (const k of ['frame', 'pt', 'hitstop', 'timeScale', 'slowmo', 'timer', 'round', 'winner', 'koWinner', 'lastHeavyFrame', 'lastTechFrame', 'hpScale', 'fatalBy', 'fightFrames']) m[k] = io.numU(m[k]);
   m.wins[0] = io.num(m.wins[0]); m.wins[1] = io.num(m.wins[1]);
   m.endSent = io.bool(m.endSent);
   m.phase = io.ref(m.phase); m.lastEvent = io.ref(m.lastEvent);

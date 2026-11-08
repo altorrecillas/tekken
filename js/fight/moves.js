@@ -163,6 +163,66 @@ export function buildClips(style) {
       handL: [0.03, -0.1, 0.52], handR: [0.0, -0.04, 0.46], fistL: 0.9, fistR: 0.9, jaw: 0.12, look: 0.5 }, 'inout'],
     [30, null, 'inout'],
   ]);
+  // a heavy blow to the head (a full-power straight, a hammer): the head snaps back and round, the body is knocked
+  // back a step onto the rear leg, the hands fly loose from the face and come back late, a shake of the head
+  clips.hitHighHeavy = C([
+    [0, {}],
+    [3, { rootPos: [0, -0.05, -0.16], rootRot: [-0.28, -0.42, 0.12], spine: [-0.45, -0.3, 0.18], neck: [-0.7, -0.5, 0.35],
+      handL: [0.28, -0.2, 0.25], handR: [0.32, -0.32, 0.12], aimL: 0, aimR: 0, fistL: 0.3, fistR: 0.3, jaw: 0.5, look: 0,
+      footL: [0.06, 0.071, 0.16], footRotL: [0, -0.2, 0], kneeR: [0.6, 0, 1] }, 'snap'],
+    [10, { rootPos: [0, -0.12, -0.2], rootRot: [-0.12, -0.4, 0.06], spine: [-0.18, -0.15, 0.08], neck: [-0.28, -0.25, 0.15],
+      handL: [0.24, -0.3, 0.3], handR: [0.3, -0.38, 0.18], jaw: 0.3 }, 'inout'],
+    // (a shake of the head, the eyes finding him again)
+    [17, { rootPos: [0, -0.1, -0.14], rootRot: [0.02, -0.45, 0], spine: [0.02, 0.05, 0], neck: [0.1, 0.25, -0.08], jaw: 0.15, look: 0.4 }, 'inout'],
+    [22, { neck: [0.14, 0.05, 0.06], handL: [0.12, 0.0, 0.45], handR: [0.08, 0.05, 0.32], fistL: 0.8, fistR: 0.8, look: 0.7 }, 'inout'],
+    [34, null, 'inout'],
+  ]);
+  // a heavy blow to the body: doubled up over it, a knee buckling, one forearm clutched across the stomach, then a
+  // slow straightening up, the guard coming back last
+  clips.hitMidHeavy = C([
+    [0, {}],
+    [3, { rootPos: [0, -0.2, -0.14], rootRot: [0.38, -0.32, 0.05], spine: [0.7, 0.08, 0.04], neck: [0.45, 0.05, 0],
+      handL: [0.02, -0.42, 0.4], handR: [-0.04, -0.4, 0.36], poleL: [0.2, -1, -0.3], poleR: [0.2, -1, -0.3], fistL: 0.5, fistR: 0.4,
+      twistL: -0.9, twistR: -1.0, jaw: 0.55, look: 0, aimL: 0, aimR: 0, kneeL: [0.25, 0, 1], footL: [0.06, 0.071, 0.2] }, 'snap'],
+    [11, { rootPos: [0, -0.26, -0.12], rootRot: [0.4, -0.3, 0.06], spine: [0.72, 0.04, 0.06], neck: [0.42, 0.1, 0], jaw: 0.45 }, 'inout'],
+    [22, { rootPos: [0, -0.16, -0.09], rootRot: [0.22, -0.35, 0], spine: [0.38, 0.08, 0], neck: [0.25, 0.12, 0],
+      handL: [0.03, -0.18, 0.5], handR: [0.0, -0.3, 0.4], fistL: 0.85, jaw: 0.2, look: 0.5 }, 'inout'],
+    [36, null, 'inout'],
+  ]);
+  // the round won but spent: the hands on the knees, bent over, breathing hard, the head up now and then
+  const TIRED = { rootPos: [0, -0.1, -0.11], rootRot: [0.58, -0.2, 0], spine: [0.45, 0.05, 0], neck: [-0.15, 0.1, 0],
+    handL: [0.1, -0.88, -0.06], handR: [-0.1, -0.9, -0.09], aimL: 1, aimR: 1, fistL: 0.25, fistR: 0.25, twistL: 0.9, twistR: 0.9,
+    poleL: [0.4, -0.2, -1], poleR: [0.4, -0.2, -1], footL: [0.17, 0.071, 0.12], footR: [0.17, 0.071, -0.06], footRotL: [0, 0.2, 0], footRotR: [0, 0.3, 0],
+    kneeL: [0.12, 0, 1], kneeR: [0.12, 0, 1], jaw: 0.35 };
+  clips.tired = C([
+    [0, TIRED],
+    [22, { ...TIRED, rootPos: [0, -0.115, -0.1], spine: [0.49, 0.05, 0], jaw: 0.25 }, 'sine'],
+    [44, { ...TIRED, neck: [-0.32, 0.05, 0], jaw: 0.45 }, 'sine'],
+    [66, TIRED, 'sine'],
+  ], { loop: true });
+  // slammed into a wall or a barrier (Match.wallImpact): square to it, the back flat on it, the head knocked back
+  // against it and the arms flung out along it; then the body sags, the head drops forward and he slides a little
+  // down it, open to the follow-ups (a wall combo) until he pushes himself off (the state's end blends to the guard)
+  const WALL_SAG = { rootPos: [0, -0.16, -0.17], rootRot: [-0.1, 0, 0.03], spine: [0.2, 0.04, 0.06], neck: [0.48, 0.14, 0.04],
+    handL: [0.4, -0.4, -0.45], handR: [0.44, -0.44, -0.45], poleL: [0.6, -0.3, -1], poleR: [0.6, -0.3, -1], fistL: 0.55, fistR: 0.5,
+    twistL: 0.4, twistR: 0.4, kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1], jaw: 0.45, look: 0 };
+  clips.wallSplat = C([
+    [0, {}],
+    [3, { rootPos: [0, -0.05, -0.2], rootRot: [-0.26, 0, 0], spine: [-0.3, 0, 0], neck: [-0.6, 0, 0],
+      handL: [0.82, 0.12, -0.32], handR: [0.84, 0.08, -0.34], aimL: 0, aimR: 0, twistL: 0.3, twistR: 0.3, fistL: 0.15, fistR: 0.15,
+      poleL: [0.6, -0.4, -1], poleR: [0.6, -0.4, -1], footL: [0.15, 0.071, 0.1], footR: [0.15, 0.071, 0.0], footRotL: [0, 0, 0], footRotR: [0, 0, 0],
+      jaw: 0.6, look: 0 }, 'snap'],
+    [12, { ...WALL_SAG, rootPos: [0, -0.12, -0.18], spine: [0.12, 0.02, 0.04], neck: [0.38, 0.1, 0.02], handL: [0.55, -0.25, -0.42], handR: [0.58, -0.3, -0.42] }, 'inout'],
+    [30, WALL_SAG, 'sine'],
+  ]);
+  // hit again while pinned: the head and the back jolt into the wall, the arms jump, then the sag again, lower
+  clips.wallHit = C([
+    [0, {}],
+    [2, { rootPos: [0, -0.1, -0.2], rootRot: [-0.22, 0, 0], spine: [-0.16, 0.08, 0], neck: [-0.42, 0.22, 0.1],
+      handL: [0.72, 0.0, -0.36], handR: [0.74, -0.04, -0.36], fistL: 0.2, fistR: 0.2, jaw: 0.55, look: 0 }, 'snap'],
+    [12, { ...WALL_SAG, rootPos: [0, -0.19, -0.17] }, 'inout'],
+    [24, { ...WALL_SAG, rootPos: [0, -0.22, -0.17], neck: [0.55, 0.2, 0.06] }, 'sine'],
+  ]);
   // a quick poke from the crouch (the crouch jab, into the stomach): a small dip on the lead leg, what every low hit
   // used to play
   clips.hitPoke = C([
@@ -680,7 +740,8 @@ export function buildMoves(style) {
     name: 'Straight', total: 30, clip: C(straightKeys),
     hit: { f: [11, 13], limb: 'handR', r: 0.1, dmg: 11, lvl: 'high', react: 'hitHigh', blk: -2, hitAdv: 6, push: 0.2 },
     advance: [[0, 0], [11, 0.12], [30, 0.1]], sfx: 'mid',
-    cancel: { from: 12, to: 24, next: { '4': style.onetwoFinish || null } },
+    // (2, 4 / 1, 2, 4: a fighter's high kick after the straight; 2, 3 / 1, 2, 3: the end of his own string)
+    cancel: { from: 12, to: 24, next: { '4': style.onetwoFinish || null, '3': style.stringFinish || null } },
   };
   M.onetwo = { ...M.straight, name: '1,2', total: 28, hit: { ...M.straight.hit, f: [9, 11], dmg: 10 },
     clip: C(straightKeys.map(([f, p, e]) => [Math.max(0, Math.round(f * 0.85)), p, e])) };

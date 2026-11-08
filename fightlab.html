@@ -136,6 +136,15 @@ if (q.get('thumb')) { const t = q.get('thumb').split(',').map(Number); Rig.THUMB
 // noguard=1: the second fighter never blocks (to see hits land)
 if (q.get('noguard')) m.fighters[1].updateGuard = function () { this.guard = 'none'; };
 if (q.get('dist')) { const d = +q.get('dist'); m.fighters[0].pos.x = -d / 2; m.fighters[1].pos.x = d / 2; for (const f of m.fighters) { f.prevPos.copy(f.pos); f.feet.reset(); } }
+// wall=<gap>: a solid barrier behind the second fighter, <gap> metres behind where he stands (Match.wallImpact: wall
+// splats, bounces, wall combos), drawn as a plain crowd barrier
+if (q.get('wall')) {
+  const X = m.fighters[1].pos.x + 0.3 + +q.get('wall');
+  game.stage = { arenaRadius: 20, clampWalk(p, r = 0) { if (p.x > X - r) { p.x = X - r; this.lastWall = 'barrier'; } return p; } };
+  const bm = new THREE.MeshStandardMaterial({ color: 0xb8bcc0, metalness: 0.7, roughness: 0.4 });
+  for (const y of [0.15, 1.05]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 4, 8), bm); r.rotation.x = Math.PI / 2; r.position.set(X + 0.2, y, 0); scene.add(r); }
+  for (let z = -2; z <= 2; z += 0.175) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.9, 6), bm); b.position.set(X + 0.2, 0.6, z); scene.add(b); }
+}
 const start = +(q.get('start') || 0);
 for (let i = 0; i < start; i++) { m.step(); m.events.length = 0; }
 // fixed camera for the whole strip (sliding shows against the grid)

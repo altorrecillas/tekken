@@ -6,6 +6,10 @@ import { THROWS } from './throws.js';
 import { newStats, newPlay, newBest, playScore, PF } from './stats.js';
 
 const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
+// (the parts of a body that a wall stops, Match.separate)
+const WALL_BONES = ['head', 'spine04', 'lowerleg01.L', 'lowerleg01.R', 'foot.L', 'foot.R'];
+// (blows struck with the body itself: the pushbox lets the bodies meet while they land, Match.separate)
+const BODY_BLOWS = new Set(['chest', 'shoulderL', 'shoulderR']);
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 
 const _l1 = new THREE.Vector3(), _l2 = new THREE.Vector3(), _l3 = new THREE.Vector3(), _l4 = new THREE.Vector3();
@@ -175,6 +179,9 @@ export class Match {
   }
   onLand(f, ko) {
     this.events.push({ t: 'land', f, ko });
+    // a big knockdown cracks the floor under him (js/fx/impacts.js; the stage's own floor colours it)
+    if (f.slamPow >= 20) { const b = f.boneWorld('spine03', _h1); this.events.push({ t: 'crack', f, power: Math.min(1.6, f.slamPow / 24), pos: new THREE.Vector3(b.x, 0, b.z) }); this.lastCrackFrame = this.frame; }
+    f.slamPow = 0;
     this.fx.dust(f.pos, ko ? 1.6 : 1.1);
     this.camera.shake(ko ? 0.5 : 0.28);
     this.sfx('bodyfall', f);
@@ -185,7 +192,10 @@ export class Match {
     this.round++;
     const [a, b] = this.fighters;
     for (const f of this.fighters) { f.reset(); f.hp = f.maxHp * (this.hpScale || 1); f.ko = false; }
-    a.pos.set(-1.25, 0, 0); b.pos.set(1.25, 0, 0);
+    // (SUPERVIVENCIA: the health left from the last fight, opts.hpStart [fraction, fraction], for the first round)
+    if (this.opts.hpStart && this.round === 1) this.fighters.forEach((f, i) => { f.hp = Math.max(1, Math.round(f.hp * Math.min(1, this.opts.hpStart[i] ?? 1))); });
+    // (startX: captures only, index.html?startx=: the fight started off-centre, next to a wall)
+    a.pos.set(-1.25 + (this.startX || 0), 0, 0); b.pos.set(1.25 + (this.startX || 0), 0, 0);
     a.yaw = Math.PI / 2; b.yaw = -Math.PI / 2;
     for (const f of this.fighters) { f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.snapPose = true; f.play('idle', 1); f.animate(); f.prevPose.set(f.pose); }
     this.timer = this.opts.time;
@@ -194,6 +204,7 @@ export class Match {
     this.hud.roundStart(this.round, this.wins, this.fighters);
     this.camera.setMode('fight', true);
     this.game.ragdolls?.clear?.();
+    this.game.impacts?.clear?.();
   }
 
   // the presentation: the camera on each fighter in turn, his name and title, and his line (styles.js introSay, said
@@ -282,6 +293,8 @@ export class Match {
         this.updateRage();
       }
       if (this.phase === 'fight' && !this.training) {
+        // (CONTRARRELOJ: the time spent fighting, the clock of the run)
+        this.fightFrames = (this.fightFrames || 0) + 1;
         if (this.frame % FPS === 0 && this.timer > 0) {
           this.timer--;
           if (this.timer <= 0) this.endRound(a.hp / a.maxHp === b.hp / b.maxHp ? -1 : (a.hp / a.maxHp > b.hp / b.maxHp ? 0 : 1), 'time');
@@ -293,6 +306,8 @@ export class Match {
       this.closePlays();
       if (this.phase === 'ko') {
         if (this.pt === 3) this.hud.announce('K.O.', 'ko');
+        // the one still standing, if the round cost him a lot: bent over, hands on his knees, getting his breath back
+        if (this.pt === 70) for (const f of this.fighters) if (!f.ko && !f.ragdoll && f.hp < f.maxHp * 0.4 && ['idle', 'walkF', 'walkB', 'crouch', 'guard'].includes(f.state)) { f.setState('tired'); f.play('tired', 14); }
         if (this.pt > 200) this.afterRound();
       }
       if (this.phase === 'end') {
@@ -479,7 +494,9 @@ export class Match {
     // chest to chest with the guards touching, never through each other; an attacker stepping into a strike may
     // close in further until the strike has landed (clinch-range moves: headbutt, belly bump, knee)
     const closing = (f) => f.state === 'move' && f.move?.hit && f.mf <= f.move.hit.f[1] + 4;
-    const minD = a.bodyR + b.bodyR + (closing(a) || closing(b) ? 0.2 : 0.4);
+    // (... and a blow struck with the body itself, the chest or the shoulder, comes right into him: bodies meet)
+    const ram = (f) => closing(f) && BODY_BLOWS.has(f.move.hit.limb);
+    const minD = a.bodyR + b.bodyR + (ram(a) || ram(b) ? 0.06 : closing(a) || closing(b) ? 0.2 : 0.4);
     const overlapY = Math.abs(dy) < 0.9;
     const ignore = a.state === 'thrown' || b.state === 'thrown' || a.state === 'down' || b.state === 'down' || a.ragdoll || b.ragdoll;
     if (dist < minD && overlapY && !ignore) {
@@ -528,12 +545,66 @@ export class Match {
     for (const f of this.fighters) {
       const r = Math.hypot(f.pos.x, f.pos.z);
       if (r > this.arenaR) { f.pos.x *= this.arenaR / r; f.pos.z *= this.arenaR / r; }
-      const x0 = f.pos.x, z0 = f.pos.z;
-      this.game.stage?.clampWalk?.(f.pos, 0.3);
-      // (knocked back into something of the stage: drawn only, a window that cracks... stage.react)
+      const x0 = f.pos.x, z0 = f.pos.z, st = this.game.stage;
+      if (!st?.clampWalk) continue;
+      st.lastWall = null;
+      st.clampWalk(f.pos, 0.3);
+      // (stopped by something solid of the stage, a barrier, a tree: the stage names it in lastWall. A stage's edge
+      // that is only the end of the walkable floor names nothing)
+      let wall = st.lastWall;
+      // ... and the body too, not only where he stands: a body thrown back flat, or bent back over a barrier, stays
+      // this side of it (the head, the chest, the knees and the feet, up to the barrier's own face: radius -0.1). It
+      // is what meets a wall first, too: the head of a body flying back
+      if (!f.ragdoll) {
+        let bx = 0, bz = 0;
+        for (const bn of WALL_BONES) {
+          const p = f.boneWorld(bn, _h2), px = p.x, pz = p.z;
+          st.lastWall = null; st.clampWalk(p, -0.1);
+          if (!st.lastWall) continue;
+          const cx = p.x - px, cz = p.z - pz;
+          if (cx * cx + cz * cz > bx * bx + bz * bz) { bx = cx; bz = cz; wall = st.lastWall; }
+        }
+        f.pos.x += bx; f.pos.z += bz;
+      }
       const dx = f.pos.x - x0, dz = f.pos.z - z0;
-      if (dx * dx + dz * dz > 0.0004 && (f.state === 'hit' || f.state === 'air' || f.state === 'land')) this.events.push({ t: 'wall', f, pos: f.pos.clone() });
+      if (wall && !f.ragdoll && dx * dx + dz * dz > 1e-8 && (this.phase === 'fight' || this.phase === 'ko')) this.wallImpact(f, dx, dz, wall);
     }
+  }
+
+  // knocked into a wall (n: out of it, into the arena). Standing, by a blow that drives him into it hard enough: a
+  // wall splat, pinned to it and open to a wall combo (Fighter 'wall'). In the air (juggled, knocked down, knocked
+  // out): a wall bounce, thrown back off it towards the attacker a little higher, which keeps a juggle going. Once per
+  // combo either way (wallBounced), so a combo can never be carried on along a wall for ever
+  wallImpact(f, dx, dz, kind) {
+    const l = Math.hypot(dx, dz), nx = dx / l, nz = dz / l, o = f.opp;
+    let ax = o.pos.x - f.pos.x, az = o.pos.z - f.pos.z;
+    const al = Math.hypot(ax, az) || 1; ax /= al; az /= al;
+    // (the knockback runs away from the opponent: its speed into the wall)
+    const vin = f.slide * (ax * nx + az * nz);
+    if (f.wallBounced) return;
+    let splat;
+    if (f.state === 'hit' && !f.ko && vin > 3.0) {
+      splat = true;
+      f.setState('wall'); f.play('wallSplat', 2);
+      f.stun = 34; f.slide = 0; f.wallHits = 0; f.move = null; f.crouching = false;
+      this.hitstop = Math.max(this.hitstop, 7);
+      this.camera.shake(0.38);
+      this.hud.popup(o.index, '¡CONTRA LA PARED!', 'info');
+    } else if (f.state === 'air' && vin > 1.4) {
+      splat = false;
+      f.slide = -Math.min(vin, 6) * 0.32;
+      f.vel.y = Math.max(f.vel.y, 2.6);
+      this.hitstop = Math.max(this.hitstop, 5);
+      this.camera.shake(0.32);
+      if (!f.ko) this.hud.popup(o.index, '¡REBOTE!', 'info');
+    } else return;
+    f.wallBounced = 1; f.wallNx = nx; f.wallNz = nz;
+    this.lastWallFrame = this.frame; // (captures: index.html?readyon=wall)
+    this.stats[o.index].walls++;
+    this.sfx('bodyfall', f);
+    // (where the back meets the wall: drawn only, js/fx/impacts.js and the stage's own answer, stage.react)
+    const b = f.boneWorld('spine04', _h1);
+    this.events.push({ t: 'wall', f, kind, splat, power: Math.min(1.5, vin / 5), pos: new THREE.Vector3(b.x - nx * 0.2, b.y, b.z - nz * 0.2), n: new THREE.Vector3(nx, 0, nz) });
   }
 
   onTech(f) {
@@ -558,7 +629,7 @@ export class Match {
     if ((def.state === 'down' || def.state === 'land') && h.lvl !== 'low') return;
     if (def.state === 'getup' || def.state === 'tech') return;
     const crouched = def.crouching || def.state === 'crouch' || (def.move && def.move.lowProfile && def.mf >= def.move.lowProfile[0] && def.mf <= def.move.lowProfile[1]);
-    if (h.lvl === 'high' && crouched && !['hit', 'air'].includes(def.state)) return;
+    if (h.lvl === 'high' && crouched && !['hit', 'air', 'wall'].includes(def.state)) return;
     if (h.lvl === 'low' && (def.state === 'jump' || (def.move && def.move.airborne && def.mf >= def.move.airborne[0] && def.mf <= def.move.airborne[1]))) return;
     let p = att.limbWorld(h.limb);
     const vols = def.hurtVolumes();
@@ -663,7 +734,8 @@ export class Match {
     }
     const ch = def.state === 'move' && def.move.hit && def.mf < def.move.hit.f[0];
     const inAir = def.state === 'air' || def.airborne;
-    const scale = inAir ? Math.max(0.35, Math.pow(0.8, def.juggles)) : (def.comboHits > 0 ? 0.9 : 1);
+    const onWall = def.state === 'wall';
+    const scale = (inAir ? Math.max(0.35, Math.pow(0.8, def.juggles)) : (def.comboHits > 0 ? 0.9 : 1)) * (onWall ? Math.max(0.5, Math.pow(0.85, def.wallHits)) : 1);
     let dmg = h.dmg * att.stats.power * (ch ? 1.25 : 1) * scale * (att.rage ? 1.1 : 1);
     dmg = Math.max(1, Math.round(dmg));
     def.hp = Math.max(0, def.hp - dmg);
@@ -695,6 +767,8 @@ export class Match {
     def.hitFlash = 1;
     def.impulse(blowDir, (heavy ? 0.9 : 0.5) * (ch ? 1.3 : 1), h.lvl !== 'low', h.lvl === 'high');
     const kd = h.kd || (ch && h.ch && h.ch.kd);
+    // (how hard he will meet the floor: a crack in it under a big knockdown, onLand; drawn only)
+    def.slamPow = ko || kd ? dmg * (ch ? 1.3 : 1) * (ko && heavy ? 1.4 : 1) : inAir ? Math.max(def.slamPow * 0.7, dmg) : 0;
     if (ko) {
       if (ch) this.stats[att.index].chKOs++;
       def.ko = true;
@@ -702,7 +776,10 @@ export class Match {
       def.vel.y = Math.max(def.vel.y, heavy ? 4.8 : 3.8);
       def.slide = 4.5 + (h.push || 0.3) * 4;
       def.juggles++;
-      this.onKO(att, def, p);
+      // (a critical finish: a counter hit, or the blow that wins the match. js/fight/camera.js shows its impact up
+      // close at a crawl before the knockout's wide shot)
+      const crit = ch || (heavy && this.wins[att.index] + 1 >= this.opts.rounds);
+      this.onKO(att, def, p, crit);
     } else if (inAir) {
       // (knocked up again and a little further: close enough for the next blow of the juggle)
       def.juggles++;
@@ -724,12 +801,20 @@ export class Match {
       // turn the way the blow was going (Fighter.think, 'air') instead of falling straight back
       if (h.spin) { def.play('spinOut', 2); def.spin = -2 * Math.PI * (h.swing || 1); } else def.play('air', 2);
       def.vel.y = 3.2; def.slide = 3.6 + (h.push || 0.3) * 3; def.juggles = 3;
+    } else if (onWall && def.wallHits < 4) {
+      // a wall combo: still pinned, jolted back into the wall; a little less time each blow, and after four he is
+      // knocked free (an ordinary hit)
+      def.wallHits++;
+      def.stun = Math.max(12, m.total - att.mf + 16 - 3 * def.wallHits);
+      def.setState('wall'); def.play('wallHit', 1); def.slide = 0;
     } else {
       const remaining = m.total - att.mf;
       def.stun = Math.max(10, remaining + (h.hitAdv ?? 4) + (ch ? 6 : 0));
       def.setState('hit');
       const zone = vol[3];
       let react = h.react || (zone === 'head' || zone === 'high' ? 'hitHigh' : zone === 'low' ? 'hitLow' : 'hitMid');
+      // (a heavy blow knocks him about more: a step back from a big one to the head, doubled up from one to the body)
+      if (!h.react && h.dmg >= 14 && !h.multi) react = react === 'hitHigh' ? 'hitHighHeavy' : react === 'hitMid' ? 'hitMidHeavy' : react;
       if (react === 'hitLow' && this.legStruck(def, p) === 'R') react = 'hitLowR';
       def.play(react, 2);
       def.slide = (h.push || 0.2) * 9 + 0.5;
@@ -941,7 +1026,7 @@ export class Match {
   }
 
   // -------------------------------------------------------------- KO / round end
-  onKO(att, def, p) {
+  onKO(att, def, p, crit = false) {
     const P = this.play[att.index], S = this.stats[att.index];
     S.kos++;
     if (att.hp >= att.maxHp) S.perfects++;
@@ -949,8 +1034,10 @@ export class Match {
     this.phase = 'ko'; this.pt = 0;
     this.slowmo = 1.6;
     this.koWinner = att.index;
-    this.camera.setMode('ko', false, def);
+    this.camera.impact = crit && p ? { p: p.clone(), from: att.pos.clone() } : null;
+    this.camera.setMode('ko', !!this.camera.impact, def);
     this.camera.koWinner = att;
+    if (crit) { this.slowmo = 2.1; this.hitstop = Math.max(this.hitstop, 14); this.events.push({ t: 'crit', att, def, p }); }
     this.audio?.announce('ko');
     this.fx.koFlash();
     this.game.onKO?.(att, def, p);

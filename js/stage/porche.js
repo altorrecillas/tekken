@@ -178,7 +178,8 @@ export class PorcheStage {
     this.shadowSize = { low: 1024, medium: 1024, high: 2048, ultra: 2048 }[quality] || 2048;
     this.group = new THREE.Group(); this.group.name = 'stage-porche';
     scene.add(this.group);
-    this.arenaRadius = 6.0;
+    // (7 m: the two plane trees in front of the arcade are in reach, solid to be slammed against)
+    this.arenaRadius = 7.0;
     this.t = 0;
     this.animated = [];
     this.koView = new THREE.Vector3(0, 0, -1); // KO shots look at the photo facade
@@ -195,8 +196,8 @@ export class PorcheStage {
   clampWalk(p, r = 0) {
     if (p.z < FZ + 1.0 + r) p.z = FZ + 1.0 + r;
     for (const [tx, tz] of this.trunks) {
-      const dx = p.x - tx, dz = p.z - tz, d = Math.hypot(dx, dz), R = 0.32 + r;
-      if (d < R) { if (d < 1e-4) p.x = tx + R; else { p.x = tx + dx / d * R; p.z = tz + dz / d * R; } }
+      const dx = p.x - tx, dz = p.z - tz, d = Math.hypot(dx, dz), R = 0.22 + r;
+      if (d < R) { if (d < 1e-4) p.x = tx + R; else { p.x = tx + dx / d * R; p.z = tz + dz / d * R; } this.lastWall = 'tree'; }
     }
     return p;
   }

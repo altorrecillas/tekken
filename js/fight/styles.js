@@ -44,7 +44,7 @@ export const STYLES = {
     introSay: 'Calienta bien, que esto va a ser rápido.', introLen: 133, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
     hairSway: 0.8, // how far the hair swings with the head: the topknot and its tail (js/anim/hairsway.js)
-    aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3'], juggle: ['1', '2', '4'],
+    aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3', 'f+2', 'b+3'], juggle: ['1', '2', '4'],
     // a natural kickboxer's guard: standing up straight (the default one, js/anim/poses.js STANCE, leant him forward
     // from the hips, the head pushed out and the chin tucked), the knees just soft, the fists at the chin and close
     // to him (the default held the rear one 10 cm under the head: from the side where that hand is nearer the camera
@@ -55,7 +55,11 @@ export const STYLES = {
       hgPosL: [0.07, -0.13, 0.3], hgPosR: [0.1, -0.18, 0.12] }, // (the rear fist 23 cm out: closer, it was in his chest)
     bob: 0.022,
     onetwoFinish: 'roundhouse',
-    commands: [['b+4', 'spinKick'], ['f+3', 'knee'], ['1+2', 'tattooCombo']],
+    commands: [['b+4', 'spinKick'], ['f+3', 'knee'], ['1+2', 'tattooCombo'], ['f+2', 'superman'], ['b+3', 'switchKick']],
+    stringFinish: 'switchKick', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'df+1', d: 'df+2' }, K: { n: 'b+4', f: 'f+3', b: 'b+3', d: 'd+4' } },
     moves: (C) => ({
       // spinning back kick: the body spins clockwise on the ball of the lead foot (the support knee turning with it),
       // the rear knee chambers in front of the pelvis, then the leg drives straight back at the target, heel
@@ -114,6 +118,56 @@ export const STYLES = {
         ]),
         hit: { f: [21, 24], limb: 'handL', r: 0.12, dmg: 22, lvl: 'high', react: 'hitHigh', blk: -10, kd: true, push: 0.5 },
         advance: [[0, 0], [8, 0.12], [22, 0.3], [50, 0.3]], sfx: 'heavy',
+      },
+      // SUPERMAN: a feint of the rear knee, then that leg kicks back as he springs off the lead foot and flies in
+      // behind the rear straight, landing on the lead foot as it connects (the rear leg still out behind for the
+      // balance), then the rear foot comes down and the guard back
+      superman: {
+        name: 'Superman punch', total: 38, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.13, -0.04], rootRot: [0.1, -0.52, 0], spine: [0.1, 0.1, 0], footR: [0.16, 0.26, 0.0], kneeR: [0.2, 0.4, 1], footRotR: [0.2, 0.5, 0] }, 'inout'],
+          [10, { rootPos: [0, -0.02, 0.06], rootRot: [0.2, -0.3, 0], spine: [0.1, 0.25, 0], neck: [0.12, 0.05, 0],
+            footR: [0.16, 0.34, -0.48], kneeR: [0.2, -0.3, -1], footRotR: [0.6, 0.4, 0], footL: [0.05, 0.1, 0.26], footRotL: [0.3, -0.35, 0],
+            handR: [-0.16, 0.24, 0.42], fistR: 1, twistR: 0.2 }, 'inout'],
+          [14, { rootPos: [0, -0.04, 0.12], rootRot: [0.24, 0.12, 0], spine: [0.12, 0.45, 0], neck: [0.02, -0.3, 0],
+            handR: [-0.06, 0.12, 1.0], aimR: 1, twistR: 0.84, fistR: 1, clavR: [0.05, 0.5], handL: [-0.25, 0.2, 0.35],
+            footR: [0.16, 0.3, -0.5], footL: [0.05, 0.071, 0.3], footRotL: [0, -0.35, 0] }, 'drive'],
+          [16, {}, 'lin'],
+          [23, { rootPos: [0, -0.1, 0.06], rootRot: [0.12, -0.2, 0], spine: [0.1, 0.25, 0], neck: [0.12, 0.1, 0], handR: [-0.14, 0.2, 0.62], twistR: 0.15, clavR: [0.0, 0.25],
+            footR: [0.2, 0.14, -0.3], kneeR: [0.4, 0, 1], footRotR: [0.3, 0.6, 0] }, 'ret'],
+          [31, { rootPos: [0, -0.085, 0.0], rootRot: [0.07, -0.42, 0], spine: [0.1, 0.12, 0], handR: GUARD_R, aimR: 0, handL: GUARD_L, footR: [0.2, 0.071, -0.2], footRotR: [0, 0.65, 0] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [14, 16], limb: 'handR', r: 0.11, dmg: 16, lvl: 'high', react: 'hitHigh', blk: -8, hitAdv: 4, push: 0.4, ch: { kd: true } },
+        advance: [[0, 0], [5, -0.02], [14, 0.42], [38, 0.4]], sfx: 'heavy',
+      },
+      // SWITCH KICK: a quick switch of the feet (a hop: the lead foot back, the rear one forward), then the left leg,
+      // now behind, swings round into the body as a roundhouse (the hips turning the other way to his right kick's),
+      // the left arm swinging down and back; it lands in front again, in his own stance, and the right foot steps back.
+      // The end of his 1, 2, 3
+      switchKick: {
+        name: 'Switch kick', total: 44, clip: C([
+          [0, {}],
+          [3, { rootPos: [0, -0.04, -0.03], footL: [0.12, 0.13, 0.04], footR: [0.12, 0.13, 0.0], footRotL: [0, 0.1, 0], footRotR: [0, 0.2, 0] }, 'inout'],
+          [6, { rootPos: [0, -0.085, -0.02], rootRot: [0.06, 0.3, 0], spine: [0.1, -0.1, 0], neck: [0.16, -0.15, 0],
+            footL: [0.2, 0.071, -0.18], footRotL: [0, 0.6, 0], footR: [0.06, 0.071, 0.2], footRotR: [0, -0.3, 0] }, 'inout'],
+          [10, { rootPos: [0, -0.06, 0.02], rootRot: [-0.1, -0.5, 0.28], spine: [0.06, 0.32, 0], neck: [0.22, 0.42, -0.08],
+            footL: [0.3, 0.42, 0.18], kneeL: [0.25, 0.15, 1], footRotL: [-0.2, 0.3, 0.6], toeL: -0.3, footRotR: [0.18, 0.8, 0],
+            handL: [0.14, -0.88, 0.1], poleL: [0.2, 0, -1], twistL: -0.2 }, 'inout'],
+          [15, { rootPos: [0, -0.05, -0.02], rootRot: [-0.26, -1.15, 0.48], spine: [0.1, 0.52, -0.1], neck: [0.48, 0.72, -0.18],
+            footL: [0.0, 0.9, 0.94], kneeL: [0.35, 1, 0.15], footRotL: [-0.25, 0.1, 1.1], toeL: -0.4, footRotR: [0.25, 1.15, 0],
+            handL: [0.16, -0.8, -0.4], hgPosR: [0.16, -0.16, 0.18] }, 'drive'],
+          [18, {}, 'lin'],
+          [26, { rootPos: [0, -0.06, 0.0], rootRot: [-0.1, -0.55, 0.14], spine: [0.08, 0.28, 0.05], neck: [0.3, 0.38, -0.06],
+            footL: [0.3, 0.4, 0.2], kneeL: [0.25, 0.15, 1], footRotL: [-0.1, 0.3, 0.4], toeL: -0.1, footRotR: [0.1, 0.7, 0],
+            handL: [0.22, -0.5, 0.06], poleL: [0.25, -1, -0.25] }, 'inout'],
+          [33, { rootPos: [0, -0.085, 0.04], rootRot: [0.05, -0.3, 0], spine: [0.1, 0.1, 0], neck: [0.16, 0.15, 0],
+            footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1], footRotL: [0, -0.35, 0], toeL: 0, footRotR: [0.1, 0.3, 0],
+            handL: GUARD_L, aimL: 0, twistL: -0.4 }, 'inout'],
+          [44, null, 'inout'],
+        ]),
+        hit: { f: [15, 17], limb: 'footL', r: 0.12, dmg: 15, lvl: 'mid', react: 'hitMid', swing: -1, blk: -7, hitAdv: 2, push: 0.6 },
+        advance: [[0, 0], [6, -0.04], [15, 0.1], [44, 0.08]], sfx: 'kick',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): a runner. He stretches a quad, starts his watch, and sets off round the loser,
@@ -232,10 +286,14 @@ export const STYLES = {
     stats: { health: 188, walk: 1.2, weight: 1.12, power: 1.12, speed: 1.04 },
     hairSway: 0.6, // how far the hair swings with the head: a side fringe (js/anim/hairsway.js)
     clothSway: 0.35, // how far the hem swings with the hips: a polo's hem (js/anim/clothsway.js)
-    aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3'], juggle: ['1', '1', '2', 'b+2'],
+    aiMoves: ['1', '2', '1+2', 'df+4', 'b+2', 'd+3', 'df+2', '3', '4', 'd+4', '1+3', 'f+1', 'b+3'], juggle: ['1', '1', '2', 'b+2'],
     stance: { hgPosL: [0.09, -0.19, 0.28], hgPosR: [0.12, -0.23, 0.2], spine: [0.18, 0.1, 0], rootRot: [0.05, -0.35, 0], neck: [0.12, 0.15, 0] },
     bob: 0.015,
-    commands: [['1+2', 'headbutt'], ['df+4', 'slide'], ['b+2', 'hammer']],
+    commands: [['1+2', 'headbutt'], ['df+4', 'slide'], ['b+2', 'hammer'], ['f+1', 'shoulder'], ['b+3', 'axeKick']],
+    stringFinish: 'axeKick', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+1', b: 'b+2', d: 'df+2' }, K: { n: 'b+3', f: 'df+4', b: '4', d: 'd+4' } },
     moves: (C) => ({
       headbutt: {
         name: 'Headbutt', total: 40, clip: C([
@@ -281,6 +339,46 @@ export const STYLES = {
         ]),
         hit: { f: [17, 20], limb: 'handR', r: 0.13, dmg: 18, lvl: 'mid', react: 'hitMid', blk: -9, hitAdv: 7, push: 0.3 },
         advance: [[0, 0], [18, 0.24], [44, 0.24]], sfx: 'heavy', // longer step: the upright finish reaches less
+      },
+      // CARGA DE HOMBRO: the lead shoulder turned to him and the arms tucked in, he drives in off the rear foot and
+      // rams it into the chest (a big push: near a wall it pins him to it)
+      shoulder: {
+        name: 'Carga de hombro', total: 36, clip: C([
+          [0, {}],
+          [6, { rootPos: [0, -0.15, -0.06], rootRot: [0.2, -0.9, 0], spine: [0.18, 0.25, 0], neck: [0.1, 0.55, 0],
+            hgL: 1, hgPosL: [0.1, -0.24, 0.2], hgR: 1, hgPosR: [0.08, -0.2, 0.14], footRotR: [0.2, 0.65, 0] }, 'inout'],
+          [12, { rootPos: [0, -0.12, 0.16], rootRot: [0.3, -1.1, 0], spine: [0.24, 0.3, 0.05], neck: [0.04, 0.75, 0],
+            hgPosL: [0.14, -0.28, 0.16], footL: [0.05, 0.071, 0.4], kneeL: [0.3, 0, 1], footR: [0.2, 0.071, -0.12], footRotR: [0.45, 0.65, 0] }, 'drive'],
+          [15, {}, 'lin'],
+          [24, { rootPos: [0, -0.1, 0.06], rootRot: [0.12, -0.62, 0], spine: [0.12, 0.16, 0], neck: [0.12, 0.3, 0], hgPosL: [0.08, -0.16, 0.26], hgPosR: [0.1, -0.18, 0.14],
+            footL: [0.05, 0.071, 0.3], footRotR: [0.1, 0.65, 0] }, 'inout'],
+          [36, null, 'inout'],
+        ]),
+        hit: { f: [11, 14], limb: 'shoulderL', r: 0.16, dmg: 15, lvl: 'mid', react: 'hitMid', blk: -6, hitAdv: 4, push: 1.05 },
+        advance: [[0, 0], [6, -0.03], [12, 0.56], [36, 0.56]], sfx: 'heavy',
+      },
+      // PATADA HACHA: the lead leg swung straight up past his head, then chopped down heel first onto the head or the
+      // collarbone; it lands in front. The end of his 1, 2, 3
+      axeKick: {
+        name: 'Patada hacha', total: 40, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.08, -0.06], rootRot: [-0.12, -0.38, 0], spine: [0.12, 0.1, 0], footL: [0.14, 0.32, 0.28], kneeL: [0.2, 0.5, 1], footRotL: [-0.3, -0.3, 0],
+            hgPosL: [0.2, -0.1, 0.24] }, 'inout'],
+          // the leg swung up outside and over, straight, the hips tipped well back under it and the chest kept up
+          [11, { rootPos: [0, -0.04, -0.08], rootRot: [-0.74, -0.3, 0], spine: [0.32, 0.1, 0], neck: [0.52, 0.12, 0],
+            footL: [0.34, 1.36, 0.46], kneeL: [0.4, 0.6, 0.5], footRotL: [-0.8, -0.25, 0], toeL: -0.2, hgPosL: [0.28, -0.04, 0.2] }, 'inout'],
+          // (down round the arc of the straight leg, not across its chord: midway the knee folded to 110 degrees)
+          [13, { rootRot: [-0.56, -0.33, 0], footL: [0.2, 1.32, 0.74], kneeL: [0.25, 0.7, 0.55], footRotL: [-0.8, -0.25, 0] }, 'inout'],
+          // and chopped down: the heel onto the head or the collarbone, the hips rolling forward behind it
+          [16, { rootPos: [0, -0.08, 0.04], rootRot: [-0.3, -0.38, 0], spine: [0.18, 0.1, 0], neck: [0.3, 0.15, 0],
+            footL: [0.06, 1.0, 0.9], kneeL: [0.1, 0.8, 0.6], footRotL: [-0.6, -0.25, 0], toeL: -0.1, hgPosL: [0.2, -0.1, 0.24] }, 'drive'],
+          [20, { footL: [0.05, 0.5, 0.78], kneeL: [0.1, 0.5, 1], rootRot: [-0.05, -0.4, 0], footRotL: [-0.2, -0.3, 0] }, 'lin'],
+          [27, { rootPos: [0, -0.11, 0.06], rootRot: [0.12, -0.45, 0], spine: [0.12, 0.12, 0], neck: [0.16, 0.2, 0],
+            footL: [0.05, 0.071, 0.38], kneeL: [0.25, 0, 1], footRotL: [0, -0.35, 0], toeL: 0, hgPosL: [0.12, -0.12, 0.28] }, 'inout'],
+          [40, null, 'inout'],
+        ]),
+        hit: { f: [13, 16], limb: 'footL', r: 0.13, dmg: 18, lvl: 'mid', blk: -12, hitAdv: 4, push: 0.25, ch: { kd: true } },
+        advance: [[0, 0], [11, 0.02], [16, 0.12], [40, 0.12]], sfx: 'kick',
       },
     }),
     // "¡en mi consola esto era más difícil!": thumbs mashing an invisible gamepad, eyes down on it; he looks up to say
@@ -373,10 +471,14 @@ export const STYLES = {
     introSay: 'Tengo una reunión. Acabemos rápido.', introLen: 141, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 174, walk: 1.4, weight: 0.95, power: 1.02, speed: 1.07 },
     hairSway: 0.45, // how far the hair swings with the head: short, combed back (js/anim/hairsway.js)
-    aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
+    aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1', 'b+3', 'f+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
     stance: { rootPos: [0, -0.06, -0.02], hgPosL: [0.06, -0.13, 0.33], hgPosR: [0.12, -0.16, 0.2] },
     bob: 0.03,
-    commands: [['f,f+4', 'sprintKick'], ['3+4', 'flyKick'], ['b+1', 'backfist']],
+    commands: [['f,f+4', 'sprintKick'], ['3+4', 'flyKick'], ['b+1', 'backfist'], ['b+3', 'hurdle'], ['f+1', 'finishLean']],
+    stringFinish: 'finishLean', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: 'b+1', f: 'f+1', b: 'b+1', d: 'df+2' }, K: { n: '3+4', f: 'f,f+4', b: 'b+3', d: 'd+4' } },
     moves: (C) => ({
       // (the leg drives out almost straight into the stomach: it used to stop short, the shin hanging from a raised knee;
       // the run-up carries the body a little less far, so the reach is the same; the lead hand guards, the kicking side's
@@ -443,6 +545,49 @@ export const STYLES = {
         ]),
         hit: { f: [11, 13], limb: 'handL', r: 0.11, dmg: 12, lvl: 'high', react: 'hitHighSide', swing: 1, blk: 2, hitAdv: 8, push: 0.2 },
         advance: [[0, 0], [11, 0.08], [30, 0.08]], sfx: 'light',
+      },
+      // PATADA DE VALLISTA: the hurdler's lead leg: the knee driven up and the leg out straight at his stomach,
+      // the heel first, the body leaning in over it and the arms swapped as in the stride (the right one reaching
+      // forward, the left swung back); a long reach
+      hurdle: {
+        name: 'Patada de vallista', total: 38, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.1, 0.0], rootRot: [0.14, -0.42, 0], spine: [0.12, 0.08, 0], footL: [0.06, 0.3, 0.3], kneeL: [0.1, 0.6, 1], footRotL: [-0.3, -0.3, 0],
+            handR: [0.0, 0.08, 0.5], aimR: 0, handL: [0.2, -0.28, 0.1], aimL: 0, fistL: 0.6, fistR: 0.6 }, 'inout'],
+          [11, { rootPos: [0, -0.03, 0.12], rootRot: [0.06, -0.36, 0], spine: [0.15, 0.05, 0], neck: [0.04, 0.1, 0],
+            footL: [0.04, 0.62, 1.04], kneeL: [0.1, 0.8, 0.6], footRotL: [-1.15, -0.2, 0], toeL: -0.4, footR: [0.2, 0.071, -0.24], footRotR: [0.42, 0.65, 0],
+            handR: [0.05, 0.12, 0.95], aimR: 1, handL: [0.24, -0.5, -0.4], poleL: [0.3, -0.3, -1], fistL: 0.4, fistR: 0.4 }, 'drive'],
+          [14, {}, 'lin'],
+          [19, { handR: [0.1, 0.0, 0.6], aimR: 0, handL: [0.25, -0.35, 0.05], aimL: 0, footL: [0.05, 0.4, 0.6], kneeL: [0.1, 0.6, 1] }, 'inout'],
+          [25, { rootPos: [0, -0.07, 0.08], rootRot: [0.1, -0.45, 0], spine: [0.12, 0.1, 0], neck: [0.12, 0.18, 0],
+            footL: [0.05, 0.3, 0.44], kneeL: [0.1, 0.5, 1], footRotL: [0, -0.35, 0], toeL: 0, footRotR: [0.1, 0.65, 0],
+            handR: GUARD_R, handL: GUARD_L, fistL: 1, fistR: 1 }, 'inout'],
+          [31, { footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1], rootPos: [0, -0.085, 0.04] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [11, 14], limb: 'footL', r: 0.13, dmg: 15, lvl: 'mid', react: 'hitMid', blk: -8, hitAdv: 2, push: 0.9 },
+        advance: [[0, 0], [11, 0.32], [38, 0.3]], sfx: 'kick',
+      },
+      // LLEGADA A META: the dip at the finish line: a step in and the chest thrown forward at the tape, the arms
+      // flung back and the head up, straight into him. The end of his 1, 2, 3
+      finishLean: {
+        name: 'Llegada a meta', total: 38, clip: C([
+          [0, {}],
+          [6, { rootPos: [0, -0.12, 0.02], rootRot: [0.2, -0.22, 0], spine: [0.14, 0.05, 0], neck: [0.05, 0.1, 0],
+            handL: [0.15, -0.1, 0.42], handR: [0.18, -0.36, -0.08], aimL: 0, aimR: 0, fistL: 0.5, fistR: 0.5,
+            footR: [0.15, 0.13, -0.02], kneeR: [0.2, 0.3, 1], footRotR: [0.2, 0.4, 0] }, 'inout'],
+          [12, { rootPos: [0, -0.08, 0.15], rootRot: [0.56, -0.06, 0], spine: [0.32, 0.0, 0], neck: [-0.42, 0.0, 0],
+            handL: [0.42, -0.45, -0.48], handR: [0.42, -0.45, -0.48], poleL: [0.4, -0.2, -1], poleR: [0.4, -0.2, -1], fistL: 0.4, fistR: 0.4,
+            footR: [0.13, 0.071, 0.1], kneeR: [0.35, 0, 1], footRotR: [0.1, 0.1, 0], footL: [0.06, 0.071, 0.26], footRotL: [0.35, -0.2, 0] }, 'drive'],
+          [15, {}, 'lin'],
+          [21, { rootPos: [0, -0.11, 0.1], rootRot: [0.3, -0.18, 0], spine: [0.2, 0.05, 0], neck: [-0.1, 0.05, 0],
+            handL: [0.32, -0.62, 0.08], handR: [0.32, -0.62, 0.02], poleL: [0.4, -0.6, -0.6], poleR: [0.4, -0.6, -0.6] }, 'inout'],
+          [28, { rootPos: [0, -0.1, 0.08], rootRot: [0.16, -0.32, 0], spine: [0.12, 0.1, 0], neck: [0.12, 0.15, 0],
+            handL: GUARD_L, handR: GUARD_R, fistL: 1, fistR: 1, poleL: [0.3, -1, -0.15], poleR: [0.25, -1, -0.25], footR: [0.18, 0.071, -0.04], footRotL: [0, -0.3, 0] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [10, 14], limb: 'chest', r: 0.36, dmg: 13, lvl: 'mid', react: 'hitMid', blk: -6, hitAdv: 4, push: 1.1 },
+        advance: [[0, 0], [12, 0.44], [38, 0.44]], sfx: 'heavy',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): he cracks his neck, takes a pair of 20 kg dumbbells from behind his back, does
@@ -558,11 +703,15 @@ export const STYLES = {
     introSay: 'Tranquilo, que iré despacito.', introLen: 112, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 188, walk: 1.05, weight: 1.3, power: 1.08, speed: 0.99 },
     hairSway: 0.4, // how far the hair swings with the head: short curls (js/anim/hairsway.js)
-    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', '1+2'],
+    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4', 'b+1', 'b+4'], juggle: ['1', '2', '1+2'],
     stance: { rootPos: [0, -0.06, -0.03], rootRot: [0.04, -0.4, 0], hgPosL: [0.1, -0.21, 0.3], hgPosR: [0.13, -0.19, 0.14], footL: [0.1, 0.071, 0.24], footR: [0.24, 0.071, -0.2] },
     bob: 0.012,
     throw2: 'bearHug',
-    commands: [['1+2', 'bellyBump'], ['f+2', 'smash']],
+    commands: [['1+2', 'bellyBump'], ['f+2', 'smash'], ['b+1', 'earClap'], ['b+4', 'stomp']],
+    stringFinish: 'stomp', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'b+1', d: 'df+2' }, K: { n: 'b+4', f: 'uf+4', b: '4', d: 'd+4' } },
     moves: (C) => ({
       bellyBump: {
         name: 'Belly bump', total: 44, clip: C([
@@ -600,6 +749,39 @@ export const STYLES = {
         ]),
         hit: { f: [11, 13], limb: 'handL', r: 0.18, dmg: 0, lvl: 'throw', blk: -8 },
         advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 38, throwType: 'hug',
+      },
+      // PALMADA DE OREJAS: both arms flung out wide, open hands, then clapped in on the ears from both sides: he is
+      // left ringing (a long stun)
+      earClap: {
+        name: 'Palmada de orejas', total: 38, clip: C([
+          [0, {}],
+          [7, { rootPos: [0, -0.1, -0.05], rootRot: [0.0, -0.22, 0], spine: [-0.04, 0.02, 0], neck: [0.1, 0.05, 0],
+            handL: [0.82, 0.24, 0.12], handR: [0.82, 0.24, 0.12], aimL: 0, aimR: 0, fistL: 0, fistR: 0, twistL: 0, twistR: 0, poleL: [0.6, 0.2, -1], poleR: [0.6, 0.2, -1] }, 'inout'],
+          [13, { rootPos: [0, -0.12, 0.08], rootRot: [0.12, -0.12, 0], spine: [0.12, 0.0, 0], neck: [0.08, 0.05, 0],
+            handL: [-0.05, 0.3, 0.86], handR: [-0.05, 0.3, 0.86], aimL: 1, aimR: 1, poleL: [0.6, -0.5, -0.5], poleR: [0.6, -0.5, -0.5] }, 'drive'],
+          [16, {}, 'lin'],
+          [26, { rootPos: [0, -0.09, 0.03], rootRot: [0.06, -0.38, 0], spine: [0.1, 0.1, 0], neck: [0.14, 0.18, 0],
+            handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, fistL: 1, fistR: 1, twistL: -0.4, twistR: -0.55, poleL: [0.3, -1, -0.15], poleR: [0.25, -1, -0.25] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [13, 15], limb: 'handL', r: 0.14, dmg: 16, lvl: 'high', react: 'hitHighHeavy', blk: -10, hitAdv: 12, push: 0.12 },
+        advance: [[0, 0], [13, 0.14], [38, 0.12]], sfx: 'slap',
+      },
+      // PISOTÓN: the rear knee up, then the heel stamped down on his foot and shin (a low), his weight on it; the foot
+      // stays forward and the other comes up behind. The end of his 1, 2, 3
+      stomp: {
+        name: 'Pisotón', total: 34, clip: C([
+          [0, {}],
+          [6, { rootPos: [0, -0.06, -0.02], rootRot: [0.0, -0.22, 0], spine: [0.05, 0.02, 0], neck: [0.18, 0.05, 0],
+            footR: [0.12, 0.45, 0.1], kneeR: [0.1, 0.6, 1], footRotR: [-0.1, 0.4, 0] }, 'inout'],
+          [12, { rootPos: [0, -0.16, 0.1], rootRot: [0.16, 0.0, 0], spine: [0.16, -0.08, 0], neck: [0.3, -0.05, 0],
+            footR: [0.08, 0.12, 0.6], kneeR: [0.15, 0.3, 1], footRotR: [0.25, 0.3, 0] }, 'drive'],
+          [14, {}, 'lin'],
+          [22, { rootPos: [0, -0.13, 0.1], rootRot: [0.1, -0.1, 0], spine: [0.12, 0.0, 0], neck: [0.18, 0.05, 0], footR: [0.1, 0.071, 0.46], kneeR: [0.3, 0, 1], footRotR: [0, 0.2, 0] }, 'inout'],
+          [34, null, 'inout'],
+        ]),
+        hit: { f: [11, 13], limb: 'footR', r: 0.12, dmg: 13, lvl: 'low', react: 'hitLow', blk: -12, hitAdv: 2, push: 0.2 },
+        advance: [[0, 0], [12, 0.14], [34, 0.12]], sfx: 'kick',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): a heavyweight's. He rolls his shoulders, slaps his belly twice and stamps: the
@@ -838,12 +1020,16 @@ export const STYLES = {
     introSay: '¡Esto va a ser espectacular, vale!', introLen: 132, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 196, walk: 1.15, weight: 1.35, power: 1.14, speed: 1.04 },
     hairSway: 0.7, // how far the hair swings with the head: curls of a medium length (js/anim/hairsway.js)
-    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', 'f+2'],
+    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4', 'b+2', 'f+3'], juggle: ['1', '2', 'f+2'],
     stance: { rootPos: [0, -0.1, -0.02], rootRot: [0.12, -0.3, 0], spine: [0.18, 0.1, 0], hgPosL: [0.15, -0.26, 0.4], hgPosR: [0.13, -0.26, 0.3], fistL: 0.92, fistR: 0.92,
       footL: [0.12, 0.071, 0.22], footR: [0.26, 0.071, -0.2] },
     bob: 0.012,
     throw2: 'suplex',
-    commands: [['1+2', 'lariat'], ['f+1+2', 'axe'], ['f+2', 'axe']],
+    commands: [['1+2', 'lariat'], ['f+1+2', 'axe'], ['f+2', 'axe'], ['b+2', 'chop'], ['f+3', 'bigBoot']],
+    stringFinish: 'bigBoot', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'b+2', d: 'df+2' }, K: { n: 'f+3', f: 'uf+4', b: '4', d: 'd+4' } },
     moves: (C) => ({
       lariat: {
         name: 'Lariat', total: 52, clip: C([
@@ -878,6 +1064,39 @@ export const STYLES = {
         ]),
         hit: { f: [11, 13], limb: 'handL', r: 0.18, dmg: 0, lvl: 'throw', blk: -8 },
         advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 42, throwType: 'suplex',
+      },
+      // CHOP: the wrestler's knife-edge chop: the open right hand wound up high and back, the body turned away, then
+      // swung flat across into the chest
+      chop: {
+        name: 'Chop', total: 36, clip: C([
+          [0, {}],
+          [4, { rootPos: [0, -0.09, -0.02], rootRot: [0.03, -0.7, 0], spine: [0.05, -0.05, 0], handR: [0.46, 0.18, 0.08], aimR: 0, fistR: 0.4, twistR: -0.1, poleR: [0.3, -1, -0.4] }, 'inout'],
+          [8, { rootPos: [0, -0.1, -0.04], rootRot: [0.0, -0.95, 0], spine: [0.0, -0.22, 0], neck: [0.12, 0.6, 0],
+            handR: [0.62, 0.52, -0.3], fistR: 0, twistR: 0.3, poleR: [0.3, -1, -0.6], handL: [0.05, 0.1, 0.55], aimL: 0 }, 'inout'],
+          [13, { rootPos: [0, -0.11, 0.08], rootRot: [0.12, 0.1, 0], spine: [0.1, 0.42, 0.05], neck: [0.1, -0.25, 0],
+            handR: [-0.08, 0.0, 0.92], aimR: 1, twistR: 0.9, fistR: 0, clavR: [0.05, 0.4], handL: [-0.2, 0.12, 0.35] }, 'drive'],
+          [16, { handR: [-0.32, -0.04, 0.78], spine: [0.1, 0.5, 0.05] }, 'lin'],
+          [26, { rootPos: [0, -0.09, 0.03], rootRot: [0.06, -0.4, 0], spine: [0.1, 0.12, 0], neck: [0.16, 0.2, 0],
+            handR: GUARD_R, aimR: 0, fistR: 1, twistR: -0.55, clavR: [-0.05, 0.12], handL: GUARD_L }, 'inout'],
+          [36, null, 'inout'],
+        ]),
+        hit: { f: [13, 15], limb: 'handR', r: 0.13, dmg: 14, lvl: 'mid', react: 'hitMid', swing: 1, blk: -6, hitAdv: 4, push: 0.5 },
+        advance: [[0, 0], [13, 0.12], [36, 0.1]], sfx: 'slap',
+      },
+      // BIG BOOT: the lead leg up straight and the sole of the boot into his upper chest and chin, leaning back behind
+      // it (any higher and the hip goes past its limit): a knockdown. The end of his 1, 2, 3
+      bigBoot: {
+        name: 'Big boot', total: 38, clip: C([
+          [0, {}],
+          [6, { footL: [0.06, 0.42, 0.3], kneeL: [0.1, 0.7, 1], footRotL: [-0.4, -0.3, 0], rootPos: [0, -0.06, -0.06], rootRot: [-0.1, -0.4, 0], spine: [0.08, 0.1, 0] }, 'inout'],
+          [12, { footL: [0.03, 1.06, 0.92], kneeL: [0.1, 0.9, 0.4], footRotL: [-1.45, -0.2, 0], toeL: -0.2, rootRot: [-0.5, -0.38, 0], spine: [0.18, 0.1, 0],
+            rootPos: [0, -0.04, 0.0], neck: [0.46, 0.15, 0], handL: [0.28, -0.12, 0.35], aimL: 0 }, 'drive'],
+          [15, {}, 'lin'],
+          [25, { footL: [0.05, 0.4, 0.42], kneeL: [0.1, 0.5, 1], footRotL: [0, -0.35, 0], toeL: 0, rootRot: [0.0, -0.45, 0], rootPos: [0, -0.07, 0.02], spine: [0.1, 0.12, 0], neck: [0.16, 0.2, 0], handL: GUARD_L }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [12, 15], limb: 'footL', r: 0.14, dmg: 18, lvl: 'high', blk: -12, kd: true, push: 0.8 },
+        advance: [[0, 0], [12, 0.18], [38, 0.16]], sfx: 'kick',
       },
     }),
     // "¡espectacular, vale!": a wide stance, chest out, both thumbs up at the loser and pumped on each word, a big nod
@@ -920,12 +1139,16 @@ export const STYLES = {
     introSay: 'Necesito la clave.', introLen: 70, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 204, walk: 1.06, weight: 1.45, power: 1.16, speed: 0.98 },
     hairSway: 0, // (no hair: a chrome head)
-    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4'], juggle: ['1', '2', 'f+2'],
+    aiMoves: ['1', '2', '1+2', 'f+2', 'df+1', 'd+3', 'df+2', '3', '2+4', 'd+4', 'b+2', 'f+3'], juggle: ['1', '2', 'f+2'],
     stance: { rootPos: [0, -0.1, -0.02], rootRot: [0.12, -0.3, 0], spine: [0.18, 0.1, 0], hgPosL: [0.15, -0.26, 0.4], hgPosR: [0.13, -0.26, 0.3], fistL: 0.92, fistR: 0.92,
       footL: [0.12, 0.071, 0.22], footR: [0.26, 0.071, -0.2] },
     bob: 0.004, // (a machine: barely moves at rest)
     throw2: 'suplex',
-    commands: [['1+2', 'lariat'], ['f+1+2', 'axe'], ['f+2', 'axe']],
+    commands: [['1+2', 'lariat'], ['f+1+2', 'axe'], ['f+2', 'axe'], ['b+2', 'piston'], ['f+3', 'sideKick']],
+    stringFinish: 'sideKick', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'b+2', d: 'df+2' }, K: { n: 'f+3', f: 'uf+4', b: '4', d: 'd+4' } },
     moves: (C) => ({
       lariat: {
         name: 'Lariat', total: 52, clip: C([
@@ -960,6 +1183,41 @@ export const STYLES = {
         ]),
         hit: { f: [11, 13], limb: 'handL', r: 0.18, dmg: 0, lvl: 'throw', blk: -8 },
         advance: [[0, 0], [12, 0.12], [36, 0.12]], sfx: 'grab', throwDmg: 42, throwType: 'suplex',
+      },
+      // PALMA HIDRÁULICA: both hands drawn back to the chest like pistons loading, then driven out together into his
+      // chest, held a beat at full stroke and drawn back on a straight line: a huge push (near a wall, it pins him)
+      piston: {
+        name: 'Palma hidráulica', total: 34, clip: C([
+          [0, {}],
+          [8, { rootPos: [0, -0.12, -0.06], rootRot: [0.05, -0.26, 0], spine: [0.08, 0.06, 0], neck: [0.12, 0.12, 0],
+            hgL: 1, hgPosL: [0.1, -0.32, 0.14], hgR: 1, hgPosR: [0.1, -0.32, 0.1], fistL: 0, fistR: 0, twistL: 0.75, twistR: 0.75, wristL: [0.8, 0], wristR: [0.8, 0] }, 'inout'],
+          [12, { rootPos: [0, -0.1, 0.12], rootRot: [0.12, -0.16, 0], spine: [0.15, 0.02, 0], neck: [0.05, 0.05, 0],
+            hgPosL: [0.07, -0.34, 0.64], hgPosR: [0.07, -0.34, 0.62], clavL: [0.05, 0.42], clavR: [0.05, 0.42] }, 'drive'],
+          [16, {}, 'lin'],
+          [24, { rootPos: [0, -0.1, 0.02], rootRot: [0.06, -0.36, 0], spine: [0.1, 0.1, 0], hgPosL: [0.08, -0.2, 0.3], hgPosR: [0.1, -0.2, 0.16], clavL: [0, 0.1], clavR: [0, 0.1], wristL: [0.12, 0], wristR: [0.12, 0] }, 'lin'],
+          [34, null, 'inout'],
+        ]),
+        hit: { f: [12, 15], limb: 'handL', r: 0.16, dmg: 15, lvl: 'mid', blk: -7, hitAdv: 2, push: 1.2 },
+        advance: [[0, 0], [8, -0.03], [12, 0.18], [34, 0.16]], sfx: 'heavy',
+      },
+      // PATADA HIDRÁULICA: a side kick: the hips turned side-on, the lead knee chambered across, then the heel driven
+      // out at his chest on a straight line, the body leant away behind it, held, and drawn back the same way. The
+      // end of his 1, 2, 3
+      sideKick: {
+        name: 'Patada hidráulica', total: 40, clip: C([
+          [0, {}],
+          [7, { rootPos: [0, -0.08, -0.04], rootRot: [0.0, -1.15, 0.08], spine: [0.04, 0.3, 0], neck: [0.12, 0.85, 0],
+            footL: [0.0, 0.5, 0.16], kneeL: [-0.3, 0.6, 0.7], footRotL: [0, -1.3, -0.3], footRotR: [0.2, -0.8, 0] }, 'inout'],
+          [13, { rootPos: [0, -0.06, -0.02], rootRot: [-0.08, -1.42, 0.42], spine: [0.06, 0.34, -0.22], neck: [0.12, 1.0, -0.2],
+            footL: [-0.02, 0.92, 0.94], kneeL: [0, 1, 0.3], footRotL: [-0.2, -1.45, -1.1], footRotR: [0.25, -1.0, 0],
+            handR: [0.28, -0.6, -0.3], poleR: [0.2, 0, -1] }, 'drive'],
+          [17, {}, 'lin'],
+          [25, { rootPos: [0, -0.08, -0.04], rootRot: [0.0, -1.1, 0.08], spine: [0.04, 0.28, 0], neck: [0.12, 0.8, 0],
+            footL: [0.0, 0.48, 0.2], kneeL: [-0.3, 0.6, 0.7], footRotL: [0, -1.3, -0.3], footRotR: [0.15, -0.7, 0], handR: GUARD_R, poleR: [0.25, -1, -0.25] }, 'lin'],
+          [40, null, 'inout'],
+        ]),
+        hit: { f: [13, 16], limb: 'footL', r: 0.14, dmg: 16, lvl: 'mid', react: 'hitMid', blk: -9, hitAdv: 2, push: 1.0 },
+        advance: [[0, 0], [13, 0.12], [40, 0.1]], sfx: 'kick',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): he scans the loser with a red fan of light from his eyes, says "acceso
@@ -1125,12 +1383,16 @@ export const STYLES = {
     introSay: 'Ponte los guantes, chaval.', introLen: 88, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 176, walk: 1.3, weight: 0.92, power: 1.0, speed: 1.1 },
     hairSway: 0, // how far the hair swings with the head: bald (js/anim/hairsway.js)
-    aiMoves: ['1', '1', '2', 'b+1', '1+2', 'd+2', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '1+2', 'b+1'],
+    aiMoves: ['1', '1', '2', 'b+1', '1+2', 'd+2', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3', 'f+2', 'b+2'], juggle: ['1', '1+2', 'b+1'],
     // old-school boxer: more upright and bladed, chin tucked, both fists high by the face
     // (the rear fist at the chin, not on the cheekbone: up there, as the head turned with a blow it covered his eyes)
     stance: { rootPos: [0, -0.07, -0.02], rootRot: [0.07, -0.5, 0], spine: [0.14, 0.12, 0], neck: [0.2, 0.22, 0], hgPosL: [0.07, -0.07, 0.26], hgPosR: [0.1, -0.15, 0.13] },
     bob: 0.026,
-    commands: [['b+1', 'liverShot'], ['d+2', 'gazelle'], ['1+2', 'slap']],
+    commands: [['b+1', 'liverShot'], ['d+2', 'gazelle'], ['1+2', 'slap'], ['f+2', 'overhand'], ['b+2', 'bolo']],
+    stringFinish: 'bolo', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'b+1', d: 'd+2' }, K: { n: '4', f: 'uf+4', b: '3', d: 'd+4' } },
     moves: (C) => ({
       // lead hook to the liver: the knees dip and the weight shifts onto the lead leg while the elbow opens out to the
       // side, then the hips and shoulders snap round and the bent arm hooks the fist in under the opponent's ribs;
@@ -1190,6 +1452,42 @@ export const STYLES = {
         hit: { f: [11, 13], limb: 'handR', r: 0.12, dmg: 13, lvl: 'high', react: 'hitHighSide', swing: 1, spin: 1, blk: -3, hitAdv: 10, push: 0.3, ch: { kd: true } },
         advance: [[0, 0], [12, 0.14], [34, 0.12]], sfx: 'slap',
       },
+      // OVERHAND: a dip to his left, the right fist cocked by the ear, then looped over the top of the guard and down
+      // onto the head, the thumb turned down, the body rolling through behind it
+      overhand: {
+        name: 'Overhand', total: 34, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.13, -0.03], rootRot: [0.12, -0.6, 0.12], spine: [0.12, -0.08, 0.1], neck: [0.1, 0.3, -0.08],
+            handR: [0.12, 0.34, 0.28], aimR: 0, fistR: 1, twistR: 0.3 }, 'inout'],
+          [9, { rootPos: [0, -0.12, 0.04], rootRot: [0.16, -0.25, 0.04], spine: [0.14, 0.15, 0], handR: [0.22, 0.42, 0.72], aimR: 1, twistR: 0.8 }, 'inout'],
+          [12, { rootPos: [0, -0.15, 0.1], rootRot: [0.26, 0.16, -0.12], spine: [0.2, 0.4, -0.14], neck: [0.0, -0.28, 0],
+            handR: [0.04, 0.16, 1.0], aimR: 1, twistR: 1.2, clavR: [0.1, 0.5], handL: [-0.2, 0.15, 0.35] }, 'drive'],
+          [15, {}, 'lin'],
+          [22, { rootPos: [0, -0.1, 0.04], rootRot: [0.1, -0.2, 0], spine: [0.1, 0.25, 0], neck: [0.12, 0.1, 0], handR: [-0.14, 0.2, 0.62], twistR: 0.15, clavR: [0.0, 0.25] }, 'ret'],
+          [34, null, 'inout'],
+        ]),
+        hit: { f: [12, 14], limb: 'handR', r: 0.11, dmg: 17, lvl: 'high', react: 'hitHigh', swing: 1, blk: -9, hitAdv: 4, push: 0.35, ch: { kd: true } },
+        advance: [[0, 0], [12, 0.16], [34, 0.14]], sfx: 'heavy',
+      },
+      // BOLO PUNCH: the old-school showman's wind-up: the right arm circled down and back like a bowler's, then
+      // brought up from below into the body in a long shovel hook. The end of his 1, 2, 3
+      bolo: {
+        name: 'Bolo punch', total: 38, clip: C([
+          [0, {}],
+          [4, { rootPos: [0, -0.1, -0.03], rootRot: [0.05, -0.62, 0], spine: [0.1, -0.05, 0], handR: [0.3, 0.02, 0.22], aimR: 0, fistR: 1, twistR: -0.4 }, 'inout'],
+          [8, { rootPos: [0, -0.12, -0.04], rootRot: [0.05, -0.78, 0], spine: [0.1, -0.2, 0], neck: [0.1, 0.48, 0],
+            handR: [0.55, -0.18, -0.3], twistR: -0.2, poleR: [0.25, -1, -0.25] }, 'inout'],
+          [12, { handR: [0.36, -0.55, 0.12], rootRot: [0.1, -0.5, 0], rootPos: [0, -0.16, 0.0] }, 'inout'],
+          [16, { rootPos: [0, -0.18, 0.1], rootRot: [0.2, 0.1, 0], spine: [0.2, 0.4, 0], neck: [0.15, -0.2, 0],
+            handR: [-0.05, -0.18, 0.9], aimR: 1, twistR: -0.6, clavR: [0.05, 0.4], handL: [-0.2, 0.15, 0.35] }, 'drive'],
+          [19, {}, 'lin'],
+          [24, { rootPos: [0, -0.13, 0.07], rootRot: [0.12, -0.15, 0], spine: [0.14, 0.25, 0], handR: [-0.1, 0.05, 0.64], aimR: 0, twistR: -0.2, clavR: [0.0, 0.25] }, 'ret'],
+          [30, { rootPos: [0, -0.1, 0.04], rootRot: [0.08, -0.35, 0], spine: [0.1, 0.15, 0], neck: [0.14, 0.15, 0], handR: GUARD_R, twistR: -0.55, clavR: [-0.05, 0.12], handL: GUARD_L }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [16, 18], limb: 'handR', r: 0.11, dmg: 15, lvl: 'mid', blk: -10, hitAdv: 4, push: 0.4 },
+        advance: [[0, 0], [16, 0.16], [38, 0.14]], sfx: 'heavy',
+      },
     }),
     // "más sabe el zorro por viejo que por zorro": a finger tapping his temple, then both arms up in a V as if
     // crossing a finish line
@@ -1237,14 +1535,18 @@ export const STYLES = {
     stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
     hairSway: 0.9, // how far the hair swings with the head: a bob (js/anim/hairsway.js)
     clothSway: 1, // how far the hem swings with the hips: the long, light doctor's coat (js/anim/clothsway.js)
-    aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '2', 'b+1'],
+    aiMoves: ['1', '2', 'b+1', '1+2', 'f+4', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3', 'f+1', 'b+3'], juggle: ['1', '2', 'b+1'],
     // a calm, upright guard, hands loosely closed at chest height, wider than a boxer's: her face stays in view (the
     // first guard held the open hands at her chin and the rear one by her temple, covering her face from the camera)
     stance: { rootPos: [0, -0.065, -0.02], rootRot: [0.05, -0.42, 0], spine: [0.1, 0.1, 0], neck: [0.14, 0.18, 0], fistL: 0.7, fistR: 0.7,
       hgPosL: [0.1, -0.34, 0.3], hgPosR: [0.15, -0.35, 0.17] },
     bob: 0.02,
     rageFinisher: 'defib',
-    commands: [['b+1', 'triage'], ['f+4', 'pushKick'], ['1+2', 'defib']],
+    commands: [['b+1', 'triage'], ['f+4', 'pushKick'], ['1+2', 'defib'], ['f+1', 'palm'], ['b+3', 'kneeKick']],
+    stringFinish: 'kneeKick', // (the end of her own 1, 2, 3: js/fight/moves.js straight's cancel)
+    // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
+    // forward (f), back (b) or down (d), as the command it stands for
+    touchSP: { P: { n: '1+2', f: 'f+1', b: 'b+1', d: 'df+2' }, K: { n: 'f+4', f: 'f+4', b: 'b+3', d: 'd+4' } },
     moves: (C) => ({
       // TRIAJE: the lead palm drives straight into the sternum with the hips behind it and shoves the opponent away.
       // A palm strike: the hand turned palm down and bent back at the wrist, fingers up, so the heel of the palm leads
@@ -1302,6 +1604,37 @@ export const STYLES = {
         ]),
         hit: { f: [30, 34], limb: 'handL', r: 0.15, dmg: 21, lvl: 'mid', react: 'air', blk: -16, launch: 5.6, push: 0.15, fx: 'electric' },
         advance: [[0, 0], [25, -0.04], [31, 0.24], [56, 0.24]], sfx: 'heavy',
+      },
+      // PALMA AL MENTÓN: a step in and the lead arm driven out straight, the heel of the open palm up under the chin
+      // (the wrist bent back, the fingers up)
+      palm: {
+        name: 'Palma al mentón', total: 28, clip: C([
+          [0, {}],
+          [4, { rootPos: [0, -0.1, -0.02], handL: [0.0, 0.1, 0.5], aimL: 0, fistL: 0, wristL: [0.8, 0], twistL: 0.75 }, 'inout'],
+          [9, { handL: [0.02, 0.2, 1.0], aimL: 1, wristL: [0.9, 0], twistL: 0.75, fistL: 0, clavL: [0.05, 0.45], rootRot: [0.12, -0.62, 0], rootPos: [0, -0.09, 0.1], spine: [0.12, -0.02, 0] }, 'drive'],
+          [11, {}, 'lin'],
+          [17, { handL: [0.0, 0.16, 0.7], twistL: 0.3, clavL: [0.0, 0.22], rootRot: [0.08, -0.52, 0], rootPos: [0, -0.08, 0.04], spine: [0.11, 0.06, 0] }, 'ret'],
+          [28, null, 'inout'],
+        ]),
+        hit: { f: [9, 11], limb: 'handL', r: 0.11, dmg: 12, lvl: 'high', react: 'hitHigh', blk: -2, hitAdv: 6, push: 0.35, ch: { kd: true } },
+        advance: [[0, 0], [9, 0.26], [28, 0.22]], sfx: 'slap',
+      },
+      // PATADA A LA RODILLA: a stop kick: the hips turned side-on and the heel driven down and out into his knee (a
+      // low), then straight back. The end of her 1, 2, 3
+      kneeKick: {
+        name: 'Patada a la rodilla', total: 30, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.1, -0.04], rootRot: [0.0, -1.0, 0.05], spine: [0.06, 0.25, 0], neck: [0.2, 0.7, 0],
+            footL: [0.0, 0.3, 0.16], kneeL: [-0.2, 0.5, 0.8], footRotL: [0, -1.1, -0.2], footRotR: [0.15, -0.6, 0] }, 'inout'],
+          [10, { rootPos: [0, -0.1, 0.0], rootRot: [-0.05, -1.2, 0.28], spine: [0.1, 0.26, -0.15], neck: [0.26, 0.72, -0.1],
+            footL: [0.0, 0.3, 0.84], kneeL: [0, 1, 0.3], footRotL: [0, -1.3, -0.8], footRotR: [0.2, -0.62, 0] }, 'drive'],
+          [13, {}, 'lin'],
+          [20, { rootPos: [0, -0.1, -0.03], rootRot: [0.0, -0.9, 0.05], spine: [0.06, 0.22, 0], neck: [0.2, 0.6, 0],
+            footL: [0.0, 0.28, 0.2], kneeL: [-0.2, 0.5, 0.8], footRotL: [0, -1.0, -0.2], footRotR: [0.1, -0.4, 0] }, 'inout'],
+          [30, null, 'inout'],
+        ]),
+        hit: { f: [10, 12], limb: 'footL', r: 0.12, dmg: 12, lvl: 'low', react: 'hitLow', blk: -10, hitAdv: 2, push: 0.3, ch: { kd: true } },
+        advance: [[0, 0], [10, 0.1], [30, 0.08]], sfx: 'kick',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): she draws a sword of aloe vera from behind her back, tells the loser it will

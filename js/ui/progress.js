@@ -20,6 +20,9 @@ export const ACHIEVEMENTS = [
   { id: 'throwKO', name: 'AL SUELO', desc: 'Remata una ronda con un agarre.' },
   { id: 'parry', name: '¡PARADA!', desc: 'Para un golpe pulsando BLOQUEO justo antes de que te dé.' },
   { id: 'parry20', name: 'MURO', desc: 'Para 20 golpes en total.', count: (p) => [Math.min(20, p.n.parries || 0), 20] },
+  { id: 'survival5', name: 'SUPERVIVIENTE', desc: 'Gana 5 combates seguidos en SUPERVIVENCIA.' },
+  { id: 'timeattack', name: 'CONTRA EL RELOJ', desc: 'Completa el CONTRARRELOJ.' },
+  { id: 'wall', name: 'ESTAMPADO', desc: 'Estampa al rival contra una pared o una valla.' },
   { id: 'comeback', name: 'REMONTADA', desc: 'Gana una ronda con un 10 % de vida o menos.' },
   { id: 'timeout', name: 'AL LÍMITE', desc: 'Gana una ronda por tiempo.' },
   { id: 'hits500', name: 'MANO DURA', desc: 'Conecta 500 golpes en total.', count: (p) => [Math.min(500, p.n.hits), 500] },
@@ -85,6 +88,7 @@ export class Progress {
       }
       if (S.perfects > 0) this.unlock('perfect');
       if (S.parries > 0) this.unlock('parry');
+      if (S.walls > 0) this.unlock('wall');
       if (S.combo >= 5) this.unlock('combo5');
       if (S.combo >= 7) this.unlock('combo7');
       if (S.rageKOs > 0) this.unlock('rageKO');

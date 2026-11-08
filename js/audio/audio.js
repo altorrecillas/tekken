@@ -467,6 +467,25 @@ export class Audio {
       this.tone(t, 0.15, { f0: 160, f1: 70, gain: 0.35, out, rev: 0.2 });
       for (let k = 0; k < 9; k++) this.noise(t + 0.03 + Math.random() * 0.25, 0.02, { type: 'bandpass', f0: 3500 + Math.random() * 4500, q: 4, gain: 0.08 + Math.random() * 0.1, out, rev: 0.3 });
       for (let k = 0; k < 5; k++) { const f = 3000 + Math.random() * 3000; this.tone(t + 0.3 + Math.random() * 0.5, 0.12, { type: 'sine', f0: f, f1: f * 0.98, gain: 0.03, attack: 0.002, out, rev: 0.35 }); }
+    } else if (name === 'crack') {
+      // the floor giving under a body: a deep boom, the crunch of it breaking, grit pattering back down
+      this.tone(t, 0.55, { f0: 70, f1: 28, gain: 0.75, out, dist: true, rev: 0.45 });
+      this.noise(t, 0.3, { type: 'lowpass', f0: 1800, f1: 260, gain: 0.55, attack: 0.002, out, rev: 0.35 });
+      for (let k = 0; k < 6; k++) this.noise(t + 0.01 + k * 0.018 + Math.random() * 0.01, 0.04, { type: 'bandpass', f0: 900 + Math.random() * 1400, q: 1.2, gain: 0.3, out, rev: 0.2 });
+      for (let k = 0; k < 10; k++) this.noise(t + 0.25 + Math.random() * 0.6, 0.02, { type: 'bandpass', f0: 2500 + Math.random() * 3000, q: 3, gain: 0.05 + Math.random() * 0.06, out, rev: 0.25 });
+    } else if (name === 'wallMetal') {
+      // a body into a crowd barrier: the thump, the steel frame clanging and rattling on its feet
+      if (this.takes) this.take('thudH', t, { out, gain: 0.8, rate: 0.95, rev: 0.3 }); else this.tone(t, 0.25, { f0: 85, f1: 40, gain: 0.7, out, dist: true, rev: 0.3 });
+      for (const [f, g] of [[420, 0.14], [935, 0.1], [1610, 0.07], [2480, 0.05]]) this.tone(t + 0.005, 0.45, { type: 'triangle', f0: f, f1: f * 0.985, gain: g, attack: 0.002, out, rev: 0.4 });
+      for (let k = 0; k < 7; k++) this.noise(t + 0.06 + k * 0.045 + Math.random() * 0.02, 0.03, { type: 'bandpass', f0: 1800 + Math.random() * 1600, q: 2.5, gain: 0.12 * (1 - k / 8), out, rev: 0.25 });
+    } else if (name === 'wallTree') {
+      // into a tree trunk: a dull wooden knock, the bark cracking, the canopy shaking
+      this.tone(t, 0.3, { f0: 120, f1: 55, gain: 0.65, out, dist: true, rev: 0.3 });
+      this.noise(t, 0.12, { type: 'bandpass', f0: 700, f1: 300, q: 1.4, gain: 0.45, out, rev: 0.25 });
+      this.noise(t + 0.05, 1.4, { type: 'highpass', f0: 2500, gain: 0.12, attack: 0.15, out, rev: 0.3 });
+    } else if (name === 'wallHard') {
+      this.tone(t, 0.4, { f0: 75, f1: 32, gain: 0.75, out, dist: true, rev: 0.4 });
+      this.noise(t, 0.25, { type: 'lowpass', f0: 1400, f1: 300, gain: 0.5, out, rev: 0.3 });
     } else if (name === 'grab') {
       this.noise(t, 0.2, { f0: 2000, q: 0.6, gain: 0.25, attack: 0.02, out });
       if (rec) this.take('swishL', t, { out, gain: 0.3, rate: 0.62 });

@@ -44,6 +44,8 @@ const SHZ = SZ - 2.3;                     // the shell picture (arch, roof light
 const SHW = 14.6, SHH = SHW * 1254 / 1907;
 const TX = 8.35;                          // banner towers at the platform's front corners
 const FENCE_H = 2.3;
+// the crowd barrier in front of the stage (the pit's): its face at z = PIT_Z, from x = -PIT_X to PIT_X
+const PIT_Z = -5.4, PIT_X = 9;
 const SIDE = 26, BACK = 21;               // the reed fence around the square: x = +-SIDE, z = BACK behind the camera
 // photo coordinates (1600 px preview of the shell crop) -> shell texture uv
 const shU = (x) => (x - 395) / 745, shV = (y) => 1 - y / 490;
@@ -141,7 +143,8 @@ export class FestivalStage {
     this.shadowSize = { low: 1024, medium: 1024, high: 2048, ultra: 2048 }[quality] || 2048;
     this.group = new THREE.Group(); this.group.name = 'stage-festival';
     scene.add(this.group);
-    this.arenaRadius = 6.5;
+    // (7.5 m: the pit barrier in front of the stage is in reach, a wall to be slammed against)
+    this.arenaRadius = 7.5;
     this.t = 0; this.beat = 0;
     this.animated = [];
     this.koView = new THREE.Vector3(0, 0, -1); // KO shots look at the stage
@@ -152,7 +155,7 @@ export class FestivalStage {
     this.steel = new THREE.MeshStandardMaterial({ map: steelTex(), color: 0xe6e8ea, metalness: 0.75, roughness: 0.38 });
     this.black = new THREE.MeshStandardMaterial({ map: blackTex(), roughness: 0.92 });
     this.buildSky(); this.buildLights(); this.buildGround(); this.buildPlatform(); this.buildShell(); this.buildBooth();
-    this.buildRailings(); this.buildTowers(); this.buildLampPost(); this.buildFences(); this.buildPhotoTrees(); this.buildPines();
+    this.buildRailings(); this.buildPitBarrier(); this.buildTowers(); this.buildLampPost(); this.buildFences(); this.buildPhotoTrees(); this.buildPines();
     this.buildLightTowers(); this.buildFOH(); this.buildBar(); this.buildFoodTruck(); this.buildFestoons(); this.buildBeams();
     this.buildCrowd();
     scene.fog = new THREE.FogExp2(new THREE.Color(0.86, 0.8, 0.72), 0.0065);
@@ -168,6 +171,9 @@ export class FestivalStage {
       const dx = p.x - tx, dz = p.z - tz, d = Math.hypot(dx, dz), R = R0 + r;
       if (d < R) { if (d < 1e-4) p.x = tx + R; else { p.x = tx + dx / d * R; p.z = tz + dz / d * R; } }
     }
+    // the pit barrier: solid, a fighter knocked into it is slammed against it (lastWall, Match.wallImpact)
+    const bz = PIT_Z + 0.2 + r;
+    if (p.z < bz && Math.abs(p.x) < PIT_X + r) { p.z = bz; this.lastWall = 'barrier'; }
     return p;
   }
   // cinematic cameras stay on the square
@@ -307,6 +313,28 @@ export class FestivalStage {
     run(-8.2, -1.95); run(2.15, 8.2);
     run(-8.25, SZ - 3.0, SZ - 0.12, true); run(8.25, SZ - 3.0, SZ - 0.12, true);
     const m = new THREE.Mesh(bake(geos), this.steel); m.castShadow = true; this.group.add(m);
+  }
+
+  // the crowd barrier that keeps the square off the stage, the pit behind it: aluminium units with a padded top, a
+  // foot plate on the square's side and braces on the stage's, end to end
+  buildPitBarrier() {
+    const al = [], pad = [], r = 0.022;
+    al.push(new THREE.BoxGeometry(0.98, 0.98, 0.028).translate(0, 0.62, 0));
+    for (const x of [-0.49, 0.49]) al.push(new THREE.CylinderGeometry(0.026, 0.026, 1.12, 8).translate(x, 0.58, -0.01));
+    al.push(new THREE.BoxGeometry(1.0, 0.018, 0.8).translate(0, 0.009, 0.42));
+    for (const x of [-0.36, 0.36]) {
+      const a = new THREE.Vector3(x, 1.08, -0.03), b = new THREE.Vector3(x, 0.02, -0.58), d = b.clone().sub(a);
+      const g = new THREE.CylinderGeometry(r, r, d.length(), 8);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()));
+      al.push(g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2));
+      al.push(new THREE.BoxGeometry(0.08, 0.02, 0.5).translate(x, 0.01, -0.33));
+    }
+    const top = new THREE.CylinderGeometry(0.05, 0.05, 1.0, 12); top.rotateZ(Math.PI / 2); pad.push(top.translate(0, 1.13, 0));
+    const gA = bake(al), gP = bake(pad);
+    const n = PIT_X * 2, o = new THREE.Object3D();
+    const mA = new THREE.InstancedMesh(gA, this.steel, n), mP = new THREE.InstancedMesh(gP, this.black, n);
+    for (let i = 0; i < n; i++) { o.position.set(-PIT_X + 0.5 + i, 0, PIT_Z); o.updateMatrix(); mA.setMatrixAt(i, o.matrix); mP.setMatrixAt(i, o.matrix); }
+    for (const m of [mA, mP]) { m.castShadow = true; m.receiveShadow = true; this.group.add(m); }
   }
 
   // the two towers at the platform's corners: a truss column with a printed mesh banner on the front, a second one
@@ -575,7 +603,7 @@ export class FestivalStage {
 
   // festival-goers along the fences, at the bar, the food truck and the mixing tent; they dance to the beat
   buildCrowd() {
-    const atlas = tex('crowd_atlas.png', { srgb: true });
+    const atlas = tex('crowd_atlas.webp', { srgb: true });
     const COLS = 16, ROWS = 4;
     const geo = new THREE.PlaneGeometry(0.9, 1.8); geo.translate(0, 0.9, 0);
     const spots = [];

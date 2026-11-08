@@ -23,6 +23,9 @@ def convert(src, key=None):
     im = Image.open(src)
     if im.mode not in ('RGB', 'L') and not (src.endswith('.png') and im.mode == 'RGBA'):
         im = im.convert('RGB')
+    if im.mode == 'RGBA':
+        im.save(dst, 'WEBP', quality=88, alpha_quality=90, method=6)
+        return dst, True
     if key in SHRINK and max(im.size) > SHRINK[key]:
         k = SHRINK[key] / max(im.size)
         im = im.resize((round(im.size[0] * k), round(im.size[1] * k)), Image.LANCZOS)
@@ -38,7 +41,9 @@ def fighter(d):
     for p in m['parts']:
         for k, v in list(p['mat'].items()):
             # (and a fighter's own iris, eye.png: Aleix's blue-grey ones, its alpha kept)
-            if not isinstance(v, str) or '/' in v or not (v.endswith('.jpg') or v == 'eye.png') or v.startswith('head'):
+            # (the face's colour stays JPEG: the likeness is judged on it, close up; its relief and roughness maps go to
+            # WebP like the rest, 17 % and 75 % smaller)
+            if not isinstance(v, str) or '/' in v or not (v.endswith('.jpg') or v == 'eye.png') or v == 'head.jpg':
                 continue
             src = os.path.join(d, v)
             if not os.path.exists(src):
@@ -60,7 +65,8 @@ def fighter(d):
 
 def stages():
     before = after = 0
-    for src in sorted(glob.glob(os.path.join(GAME, 'assets/stage/*.jpg'))):
+    # (and the crowd's atlas, a PNG with alpha: 1.7 MB -> 0.3 MB)
+    for src in sorted(glob.glob(os.path.join(GAME, 'assets/stage/*.jpg'))) + [os.path.join(GAME, 'assets/stage/crowd_atlas.png')]:
         dst, _ = convert(src)
         before += os.path.getsize(src); after += os.path.getsize(dst)
     print(f'stages     maps {before // 1024:6d} KB -> {after // 1024:6d} KB')

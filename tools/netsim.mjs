@@ -42,7 +42,8 @@ function load(id) {
 }
 const mat = () => new THREE.MeshBasicMaterial();
 const noop = new Proxy({}, { get: () => () => {} });
-const stages = { arenaRadius: 6.2, clampWalk(p, r = 0) { const lim = 6.15 - r; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; return p; } };
+// (the street's: the crowd barriers are solid walls, lastWall, so the wall splats and bounces are replayed too)
+const stages = { arenaRadius: 8, clampWalk(p, r = 0) { const lim = 6.15 - r; if (p.x > lim) { p.x = lim; this.lastWall = 'barrier'; } else if (p.x < -lim) { p.x = -lim; this.lastWall = 'barrier'; } return p; } };
 
 // the same presentation stand-in the online session gives the match: effects do nothing, a knockout spawns the
 // ragdoll (a flag for the simulation), a new round clears them all

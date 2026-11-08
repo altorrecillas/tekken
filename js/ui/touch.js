@@ -6,6 +6,11 @@
 //    is available in the options.
 //  - attacks: the four limb buttons in the Tekken arcade layout (1 2 / 3 4) tilted to the right thumb's arc.
 //    The gaps between neighbours are chord zones (1+2, 3+4, 1+3, 2+4) and a thumb can slide across buttons.
+//  - ★ PUÑO and ★ PATADA, a third column (as Street Fighter 6's modern controls: one special button plus a direction):
+//    each throws one of the fighter's specials picked by the stick (at rest, forward, back or down: his style's
+//    touchSP), typing its command for him over a few frames (a macro: the fight reads it as his own input, recorded
+//    and sent online like any other). The button shows the name of the blow the stick picks right now. Optional
+//    (OPCIONES: 4 or 6 buttons).
 //  - RAGE ART button (1+2+3+4) that only shows while rage is available; pause button under the timer.
 //  - BLOQUEO (a shield, left of the cluster, under the thumb's inner reach): held, the guard; pressed just before a
 //    blow lands, a parry (js/fight/match.js applyParry).
@@ -17,9 +22,40 @@ import { haptic, setHaptics, viewSize } from '../engine/device.js';
 const SECT = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
 const BTN = [B1, B2, B3, B4];
 const PAIRS = [[0, 1], [2, 3], [0, 2], [1, 3]]; // chords: 1+2, 3+4, 1+3, 2+4
+// the ★ buttons' own bits in a pointer's mask (never sent to the fight: they start a macro)
+const SP_P = 1 << 10, SP_K = 1 << 11, SPB = [SP_P, SP_K];
+const DIRB = { 1: B1, 2: B2, 3: B3, 4: B4 };
+// short names for the ★ buttons' live label (the move list keeps the full ones)
+const SHORT = {
+  'Tattoo rush': 'COMBO TATUADO', 'Superman punch': 'SUPERMAN', 'Body blow': 'AL CUERPO', 'Uppercut': 'GANCHO', 'Spinning back kick': 'GIRATORIA',
+  'Flying knee': 'RODILLAZO', 'Switch kick': 'CAMBIO', 'Sweep': 'BARRIDO', 'Headbutt': 'CABEZAZO', 'Carga de hombro': 'HOMBRO', 'Hammer fist': 'MARTILLO',
+  'Patada hacha': 'HACHA', 'Slide tackle': 'PLANCHA', 'High kick': 'PATADA ALTA', 'Back fist': 'REVÉS', 'Llegada a meta': 'META', 'Flying kick': 'VOLADORA',
+  'Sprint kick': 'CARRERA', 'Patada de vallista': 'VALLISTA', 'Belly bump': 'PANZAZO', 'Overhand smash': 'MAZAZO', 'Palmada de orejas': 'OREJAS',
+  'Pisotón': 'PISOTÓN', 'Jump kick': 'SALTO', 'Lariat': 'LARIAT', 'Double axe handle': 'HACHAZO', 'Chop': 'CHOP', 'Big boot': 'BIG BOOT',
+  'Palma hidráulica': 'PISTÓN', 'Patada hidráulica': 'LATERAL', 'Slap': 'GUANTAZO', 'Overhand': 'OVERHAND', 'Liver hook': 'HÍGADO', 'Gazelle punch': 'GACELA',
+  'Front kick': 'FRONTAL', 'Desfibrilador': 'DESFIBRILADOR', 'Palma al mentón': 'PALMA', 'Triaje': 'TRIAJE', 'Empujón': 'EMPUJÓN', 'Patada a la rodilla': 'RODILLA',
+};
+export const shortName = (n) => SHORT[n] || String(n).toUpperCase();
+// the frames that type a command ("f+2", "df+2", "1+2", "f,f+4", "uf+4") for the fighter: [fwd, up, buttons, frames]
+// (fwd: +1 towards the opponent). A first frame with no button lets go of anything still held from the last one;
+// the stick's direction leads the press (a crouch command crouches first), as a player's thumb does
+export function macroFor(cmd) {
+  const out = [];
+  let c = cmd;
+  if (c.startsWith('f,f')) { out.push([1, 0, 0, 2], [0, 0, 0, 2]); c = 'f' + c.slice(3); }
+  let fwd = 0, up = 0, btn = 0;
+  for (const t of c.split('+')) {
+    if (t === 'f') fwd = 1; else if (t === 'b') fwd = -1; else if (t === 'd') up = -1; else if (t === 'u') up = 1;
+    else if (t === 'df') { fwd = 1; up = -1; } else if (t === 'db') { fwd = -1; up = -1; } else if (t === 'uf') { fwd = 1; up = 1; } else if (t === 'ub') { fwd = -1; up = 1; }
+    else if (DIRB[t]) btn |= DIRB[t];
+  }
+  out.push([fwd, up, 0, up < 0 ? 2 : 1]);
+  out.push([fwd, up, btn, 4]);
+  return out;
+}
 const TAU = Math.PI * 2;
 
-export const TOUCH_DEFAULTS = { size: 1, opacity: 0.85, stick: 'float', haptics: true, show: 'auto' };
+export const TOUCH_DEFAULTS = { size: 1, opacity: 0.85, stick: 'float', haptics: true, show: 'auto', specials: true };
 
 export function loadTouchPrefs() {
   try { return { ...TOUCH_DEFAULTS, ...JSON.parse(localStorage.getItem('pdb_touch') || '{}') }; } catch (e) { return { ...TOUCH_DEFAULTS }; }
@@ -36,6 +72,9 @@ export class TouchController {
     this.enabled = false;
     this.ptr = new Map(); // pointerId -> { kind, mask }
     this.stick = { id: null, ox: 0, oy: 0, sector: -1 };
+    // ★ buttons: what they throw (set by the game: sp(group, cls) -> { cmd, name, fwd } of the player's fighter) and
+    // the macro being typed: [{ dx, dy, held, n }]
+    this.sp = null; this.macro = null; this.spCls = [null, null]; this.spHeld = 0;
     this.build();
     addEventListener('resize', () => this.layout());
     addEventListener('orientationchange', () => setTimeout(() => this.layout(), 350));
@@ -49,6 +88,8 @@ export class TouchController {
       <div class="tstick"><div class="ring">${SECT.map((_, i) => `<i class="d d${i}"></i>`).join('')}</div><div class="knob"></div></div>
       <div class="tbtns">
         ${['1', '2', '3', '4'].map((n, i) => `<div class="tb b${n} ${i < 2 ? 'pu' : 'ki'}"><b>${n}</b><small>${i < 2 ? 'PUÑO' : 'PATADA'}</small></div>`).join('')}
+        <div class="tb sp pu"><b>★</b><small>PUÑO</small><em></em></div>
+        <div class="tb sp ki"><b>★</b><small>PATADA</small><em></em></div>
         ${PAIRS.map(([a, b]) => `<i class="tch c${a + 1}${b + 1}"></i>`).join('')}
       </div>
       <div class="trage"><b>RAGE</b><small>ART</small></div>
@@ -56,7 +97,8 @@ export class TouchController {
       <button class="tpause" id="touchPause" aria-label="Pausa"><i></i><i></i></button>`;
     this.el = {
       zone: r.querySelector('.tzone'), stick: r.querySelector('.tstick'), knob: r.querySelector('.knob'),
-      dirs: [...r.querySelectorAll('.ring .d')], btns: r.querySelector('.tbtns'), tb: [...r.querySelectorAll('.tb')],
+      dirs: [...r.querySelectorAll('.ring .d')], btns: r.querySelector('.tbtns'), tb: [...r.querySelectorAll('.tb:not(.sp)')],
+      sp: [...r.querySelectorAll('.tb.sp')], spLab: [...r.querySelectorAll('.tb.sp em')],
       chords: [...r.querySelectorAll('.tch')], rage: r.querySelector('.trage'), pause: r.querySelector('.tpause'), blk: r.querySelector('.tblk'),
     };
     const onDown = (kind) => (e) => {
@@ -100,6 +142,7 @@ export class TouchController {
 
   applyPrefs() {
     this.root.style.setProperty('--tk-alpha', this.opt.opacity);
+    this.root.classList.toggle('sp6', this.opt.specials !== false);
     this.root.classList.toggle('fixed', this.opt.stick === 'fixed');
     setHaptics(this.opt.haptics);
     this.layout();
@@ -110,26 +153,37 @@ export class TouchController {
     const { w: W, h: H } = viewSize();
     this.W = W; this.H = H;
     const s = this.safe();
-    const rb = Math.max(27, Math.min(46, Math.min(W, H) * 0.086)) * this.opt.size; // button radius
+    const six = this.opt.specials !== false;
+    // (six buttons: a little smaller, so that the three columns stay within the thumb's sweep)
+    const rb = Math.max(26, Math.min(44, Math.min(W, H) * (six ? 0.08 : 0.086))) * this.opt.size; // button radius
     const R = rb * 1.85; // stick radius
     this.rb = rb; this.R = R;
     const st = this.root.style;
     st.setProperty('--rb', `${rb}px`); st.setProperty('--R', `${R}px`);
     // cluster: bottom right, inside the safe area
     const m = Math.min(W, H) * 0.045;
-    this.cx = W - s.r - m - rb * 2.3; this.cy = H - s.b - m - rb * 2.2;
-    const sp = rb * 2.16, tilt = -0.28; // spacing; rows rise to the right (thumb arc)
-    const base = [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]];
+    // spacing; the rows rise to the right (the thumb's arc), a little less across three columns
+    const sp = rb * (six ? 2.1 : 2.16), tilt = six ? -0.2 : -0.28;
+    // 1 2 / 3 4, and with the ★ buttons a third column on the right: ★ PUÑO over ★ PATADA (the right edge is
+    // where the thumb rests: the specials are under it without stretching, the limbs a short reach inwards)
+    const base = six ? [[-1, -0.5], [0, -0.5], [-1, 0.5], [0, 0.5], [1, -0.5], [1, 0.5]] : [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]];
     this.bpos = base.map(([x, y]) => {
       const X = x * sp, Y = y * sp;
       return [X * Math.cos(tilt) - Y * Math.sin(tilt), X * Math.sin(tilt) + Y * Math.cos(tilt)];
     });
+    // the cluster in the bottom right corner, every button inside the safe area: placed by its real (tilted)
+    // extent (the three columns tilted put the lower left button below the screen's edge when placed by its centre)
+    if (six) {
+      const ex = Math.max(...this.bpos.map((q) => q[0])) + rb, ey = Math.max(...this.bpos.map((q) => q[1])) + rb;
+      this.cx = W - s.r - m - ex; this.cy = H - s.b - m * 0.7 - ey;
+    } else { this.cx = W - s.r - m - rb * 2.3; this.cy = H - s.b - m - rb * 2.2; }
     // the cluster's capture area is a generous box around the buttons
     const pad = rb * 1.05, xs = this.bpos.map(p => p[0]), ys = this.bpos.map(p => p[1]);
     const bx0 = Math.min(...xs) - rb - pad, bx1 = Math.max(...xs) + rb + pad, by0 = Math.min(...ys) - rb - pad, by1 = Math.max(...ys) + rb + pad;
     Object.assign(this.el.btns.style, { left: `${this.cx + bx0}px`, top: `${this.cy + by0}px`, width: `${bx1 - bx0}px`, height: `${by1 - by0}px` });
     this.box = { x0: this.cx + bx0, y0: this.cy + by0 };
     this.el.tb.forEach((b, i) => { b.style.left = `${this.bpos[i][0] - bx0 - rb}px`; b.style.top = `${this.bpos[i][1] - by0 - rb}px`; });
+    this.el.sp.forEach((b, k) => { const q = this.bpos[4 + k]; b.hidden = !q; if (q) { b.style.left = `${q[0] - bx0 - rb}px`; b.style.top = `${q[1] - by0 - rb}px`; } });
     this.el.chords.forEach((c, k) => {
       const [a, b] = PAIRS[k]; const x = (this.bpos[a][0] + this.bpos[b][0]) / 2, y = (this.bpos[a][1] + this.bpos[b][1]) / 2;
       c.style.left = `${x - bx0}px`; c.style.top = `${y - by0}px`;
@@ -207,6 +261,36 @@ export class TouchController {
     S.sector = sec;
     if (sec >= 0) { this.el.dirs[sec].classList.add('on'); [this.dx, this.dy] = SECT[sec]; }
     else { this.dx = 0; this.dy = 0; }
+    this.refreshSP();
+  }
+
+  // ------------------------------------------------------------------ ★ buttons
+  // the stick as the fighter reads it: at rest, forward, back, down (any of the three downs) or up
+  spClass() {
+    const f = this.sp?.('P', 'n')?.fwd ?? 1;
+    const fwd = this.dx * f;
+    return this.dy < 0 ? 'd' : this.dy > 0 ? 'u' : fwd > 0 ? 'f' : fwd < 0 ? 'b' : 'n';
+  }
+  // the names on the ★ buttons follow the stick (and the side the fighter is on); written only when they change
+  refreshSP() {
+    if (!this.sp || this.opt.specials === false) return;
+    const cls = this.spClass();
+    ['P', 'K'].forEach((g, k) => {
+      const info = this.sp(g, cls), name = info ? shortName(info.name) : '';
+      if (name === this.spCls[k]) return;
+      this.spCls[k] = name;
+      const el = this.el.spLab[k];
+      el.textContent = name;
+      el.classList.toggle('long', name.length > 8);
+      // (a short flash as the blow it throws changes)
+      this.el.sp[k].classList.remove('swap'); void this.el.sp[k].offsetWidth; this.el.sp[k].classList.add('swap');
+    });
+  }
+  special(k) {
+    const info = this.sp?.(k ? 'K' : 'P', this.spClass());
+    if (!info) return;
+    haptic(18);
+    this.macro = macroFor(info.cmd).map(([fwd, up, btn, n]) => ({ dx: fwd * info.fwd, dy: up, held: btn, n }));
   }
 
   // ------------------------------------------------------------------ buttons
@@ -222,18 +306,22 @@ export class TouchController {
     if (!mask) {
       let best = -1, bd = 1e9;
       this.bpos.forEach(([bx, by], i) => { const d = Math.hypot(x - bx, y - by); if (d < bd) { bd = d; best = i; } });
-      if (bd < rb * 1.45) mask = BTN[best];
+      if (bd < rb * 1.45) mask = best < 4 ? BTN[best] : SPB[best - 4];
     }
     p.mask = mask;
     this.recomputeButtons();
   }
   recomputeButtons() {
-    let held = 0;
-    for (const p of this.ptr.values()) if (p.kind === 'btns') held |= p.mask;
-    const fresh = held & ~this.held;
+    let all = 0;
+    for (const p of this.ptr.values()) if (p.kind === 'btns') all |= p.mask;
+    const held = all & (B1 | B2 | B3 | B4), sp = all & (SP_P | SP_K);
+    const fresh = held & ~this.held, spFresh = sp & ~this.spHeld;
     if (fresh) haptic(10);
-    this.held = held;
+    this.held = held; this.spHeld = sp;
+    // a ★ pressed: its special, for the stick as it is now
+    if (spFresh) this.special(spFresh & SP_P ? 0 : 1);
     this.el.tb.forEach((b, i) => b.classList.toggle('down', !!(held & BTN[i])));
+    this.el.sp.forEach((b, k) => b.classList.toggle('down', !!(sp & SPB[k])));
     this.el.chords.forEach((c, k) => { const [a, b] = PAIRS[k]; c.classList.toggle('on', (held & BTN[a]) && (held & BTN[b]) ? true : false); });
   }
 
@@ -245,14 +333,15 @@ export class TouchController {
   }
   disable() {
     this.enabled = false;
-    this.ptr.clear(); this.stickUp(); this.recomputeButtons(); this.rageT = 0; this.el.blk.classList.remove('down');
+    this.ptr.clear(); this.stickUp(); this.recomputeButtons(); this.rageT = 0; this.macro = null; this.el.blk.classList.remove('down');
     this.setVisible(false);
   }
   // shown only while fighting; dimmed during cinematics (a tap still skips the intro)
   setVisible(on, cine = false) {
     this.root.classList.toggle('on', on && this.enabled);
     this.root.classList.toggle('cine', !!cine);
-    if (!on) { this.ptr.clear(); this.stickUp(); this.recomputeButtons(); }
+    if (!on) { this.ptr.clear(); this.stickUp(); this.recomputeButtons(); this.macro = null; }
+    else { this.spCls = [null, null]; this.refreshSP(); }
   }
   // a tap on the screen outside the controls (cinematics): one button press for the match to consume
   tap() { this.tapT = 2; }
@@ -262,12 +351,20 @@ export class TouchController {
     this.el.rage.classList.toggle('ready', ready);
   }
   poll() {
-    let held = this.held;
+    let held = this.held, dx = this.dx, dy = this.dy;
     if (this.rageT > 0) { held |= B1 | B2 | B3 | B4; this.rageT--; }
     if (this.tapT > 0) { held |= B1; this.tapT--; }
     for (const p of this.ptr.values()) if (p.kind === 'block') held |= BLOCK;
+    // a ★ special being typed: its direction instead of the stick's, its buttons on top of the thumb's
+    const M = this.macro;
+    if (M) {
+      const q = M[0];
+      dx = q.dx; dy = q.dy; held = (held & ~(B1 | B2 | B3 | B4)) | q.held;
+      if (--q.n <= 0) M.shift();
+      if (!M.length) this.macro = null;
+    }
     const pressed = held & ~this.prev;
     this.prev = held;
-    return { dx: this.dx, dy: this.dy, held, pressed };
+    return { dx, dy, held, pressed };
   }
 }

@@ -4,7 +4,7 @@
 // them with the rest of the state).
 
 // per fighter
-export const STAT_KEYS = ['hits', 'dmg', 'combo', 'comboDmg', 'counters', 'launches', 'throws', 'escapes', 'blocks', 'parries', 'rageArts', 'kos', 'perfects',
+export const STAT_KEYS = ['hits', 'dmg', 'combo', 'comboDmg', 'counters', 'launches', 'throws', 'escapes', 'blocks', 'parries', 'walls', 'rageArts', 'kos', 'perfects',
   // how the rounds were won (achievements, js/ui/progress.js): knockouts by a counter hit, a Rage Art or a throw, rounds won
   // on 10% of health or less, rounds won on time
   'chKOs', 'rageKOs', 'throwKOs', 'comebacks', 'timeWins'];

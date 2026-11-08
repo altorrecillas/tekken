@@ -12,13 +12,57 @@ export function texturesReady() { return Promise.all([...pending]); }
 // (how many textures are still on their way: the loading card's bar counts them down)
 export function texturesPending() { return pending.size; }
 
+// GPU-compressed textures (KTX2, tools/ktx2assets.py): a fighter's pictures unpacked to full size took ~180 MB of
+// the graphics card's memory; compressed (the browser transcodes them to what the GPU has: ASTC or ETC on phones, BC
+// on computers) they take 4 to 8 times less, which is what keeps a phone with little memory from losing WebGL.
+// assets/ktx2.json lists the textures that have one. Used only where the GPU takes some compressed format and once
+// initKTX2 has run (main.js, before the first fighter is built); otherwise, or if one fails, the picture as before
+let ktx2 = null, ktxMap = null, textureCap = () => 0;
+// (cap: the device's texture size limit, js/engine/device.js textureCap)
+export async function initKTX2(renderer, cap = () => 0) {
+  textureCap = cap;
+  try {
+    const { KTX2Loader } = await import('three/addons/loaders/KTX2Loader.js');
+    const L = new KTX2Loader().setTranscoderPath('vendor/three/jsm/libs/basis/').detectSupport(renderer);
+    const c = L.workerConfig || {};
+    if (!(c.astcSupported || c.etc2Supported || c.etc1Supported || c.dxtSupported || c.bptcSupported || c.pvrtcSupported)) return false;
+    const r = await fetch('assets/ktx2.json');
+    if (!r.ok) return false;
+    ktxMap = await r.json(); ktx2 = L;
+    return true;
+  } catch (e) { console.warn('KTX2 off:', e.message); return false; }
+}
+// (the game's paths go through ../shared/: the index has them resolved)
+const normPath = (u) => { const out = []; for (const seg of u.split('/')) { if (seg === '..') out.pop(); else if (seg !== '.' && seg) out.push(seg); } return out.join('/'); };
+// a compressed texture into the one the materials already hold: its mip levels, format and size (a phone's texture
+// cap drops the top levels instead of resizing the picture: compressed, twice the cap costs less than the cap did)
+function bindCompressed(t, c) {
+  let mips = c.mipmaps, w = c.image.width, h = c.image.height;
+  const cap = textureCap() * 2;
+  while (cap && Math.max(w, h) > cap && mips.length > 1) { mips = mips.slice(1); w = mips[0].width; h = mips[0].height; }
+  t.isCompressedTexture = true; // (WebGLTextures uploads it level by level, as compressed data)
+  t.mipmaps = mips; t.image = { width: w, height: h };
+  t.format = c.format; t.type = c.type; t.colorSpace = c.colorSpace;
+  t.minFilter = mips.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter; t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false; t.flipY = false; t.premultiplyAlpha = c.premultiplyAlpha;
+  t.needsUpdate = true;
+}
+
 function loadTex(url, srgb = true) {
   const key = url + (srgb ? '|s' : '|l');
   if (!texCache.has(key)) {
     let done;
     const pr = new Promise(r => (done = r));
     pending.add(pr);
-    const t = texLoader.load(url, () => { pending.delete(pr); done(); }, undefined, () => { pending.delete(pr); done(); });
+    const fin = () => { pending.delete(pr); done(); };
+    const kurl = ktx2 && ktxMap[normPath(url)];
+    let t;
+    if (kurl) {
+      // (encoded upside down: tools/ktx2assets.py; the picture, if the KTX2 fails, the usual way up)
+      t = new THREE.Texture();
+      const picture = () => new THREE.ImageLoader().load(url, (img) => { t.image = img; t.needsUpdate = true; fin(); }, undefined, fin);
+      ktx2.load(kurl, (c) => { bindCompressed(t, c); fin(); }, undefined, picture);
+    } else t = texLoader.load(url, fin, undefined, fin);
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
     t.flipY = true;
@@ -92,7 +136,28 @@ function attr(bin, d, name) {
   return out;
 }
 
-export const LOD = { hair: 1.0 };
+export const LOD = { hair: 1.0, far: 1.0 };
+
+// How much of a fighter's hair and beard is drawn, from the camera's distance to his head: all of it in a close-up
+// (the presentation, a win, a PUÑETALITY), less of it at the fight's distance, where the outer layer of cards and
+// the finest beard shells can't be told apart on a phone's screen. The hair cards are stored inner layers first
+// (js/../tools/pipeline/hairgen.py), so drawing the first part keeps the full shape; every other beard shell is left
+// out. k: 1 all, down to LOD.far (each quality's floor); LOD.hair caps it (low, medium)
+export function detailFor(ch, dist) {
+  const near = 1.3, far = 3.6;
+  const t = Math.min(1, Math.max(0, (dist - near) / (far - near)));
+  const k = Math.min(LOD.hair, 1 - (1 - LOD.far) * t);
+  const D = ch.detail || (ch.detail = { k: -1 });
+  if (Math.abs(k - D.k) < 0.04 && !(k === 1 && D.k !== 1)) return;
+  D.k = k;
+  for (const m of Object.values(ch.meshes)) {
+    const full = m.userData.lodCount;
+    if (full) m.geometry.setDrawRange(0, Math.max(3, Math.floor(full * k / 3) * 3));
+    // (the beard's shells: the odd ones go as it gets further)
+    const sh = m.userData.shell;
+    if (sh != null) m.visible = k > 0.8 || sh % 2 === 0 || sh === m.userData.shells - 1;
+  }
+}
 
 export function buildCharacter(data, makeMaterial) {
   const { meta, bin, base } = data;
@@ -140,6 +205,7 @@ export function buildCharacter(data, makeMaterial) {
     if (p.tangent) g.setAttribute('tangent', new THREE.BufferAttribute(attr(bin, p.tangent, 'tangent'), 4));
     addSkinCor(g, meta.bones); // the hands turn about their joints (js/anim/corskin.js)
     g.computeBoundingSphere();
+    const lodCount = p.mat.lod ? g.index.count : 0;
     if (p.mat.lod && LOD.hair < 1) {
       const n = g.index.count;
       g.setDrawRange(0, Math.floor(n * LOD.hair / 3) * 3);
@@ -150,6 +216,7 @@ export function buildCharacter(data, makeMaterial) {
       for (let layer = 0; layer < n; layer++) {
         const sm = new THREE.SkinnedMesh(g, makeMaterial({ ...p.mat, layer }, base, loadTex, p.name));
         sm.name = `${p.name}_${layer}`; sm.renderOrder = 2 + layer;
+        sm.userData.shell = layer; sm.userData.shells = n;
         sm.castShadow = false; sm.receiveShadow = true; sm.frustumCulled = false; sm.userData.noAO = true;
         sm.bind(skeleton, new THREE.Matrix4());
         group.add(sm);
@@ -159,6 +226,7 @@ export function buildCharacter(data, makeMaterial) {
     }
     const mat = makeMaterial(p.mat, base, loadTex, p.name);
     const m = new THREE.SkinnedMesh(g, mat);
+    if (lodCount) m.userData.lodCount = lodCount;
     m.name = p.name;
     m.castShadow = true;
     m.receiveShadow = true;

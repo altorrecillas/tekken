@@ -149,10 +149,10 @@ try {
   check(!!saved && same(m.k.p1.b1, ['KeyI', 'KeyY']) && same(m.k.p1.b2, ['KeyO', null]) && m.k.p1.left[0] === 'Numpad4' && same(m.k.p2.b1, ['KeyA', 'Digit7']) && same(m.k.p2.b2, ['Numpad5', null]) && same(m.pad.b3, [0, 10]),
     'everything is still there after reloading the page');
 
-  // ---- the menus follow the keys: S down, A (now the second player's 1) accepts, K (the first player's 4) goes back, U (no longer anything) does nothing
+  // ---- the menus follow the keys: S down (to DESAFÍOS), A (now the second player's 1) accepts, K (the first player's 4) goes back, U (no longer anything) does nothing
   await p.evaluate(() => { window.__game.menu.idx = 0; window.__game.refreshMenu(); });
   await key('s'); await key('a');
-  check(await p.evaluate(() => window.__game.titleMenu === 'vs'), 'the title menu: S down and A (now a 1) accepts VERSUS');
+  check(await p.evaluate(() => window.__game.titleMenu === 'chal'), 'the title menu: S down and A (now a 1) accepts DESAFÍOS');
   await key('k');
   check(await p.evaluate(() => window.__game.titleMenu === 'main'), '… K (a 4) goes back');
   await key('u');

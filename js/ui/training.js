@@ -24,6 +24,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['RODILLA VOLADORA', 'La rodilla (adelante + 3) también lanza: 1, 2 en el aire y la patada alta para cerrar.', ['f+3', '1', '2', '4']],
     ['GIRATORIA', 'Su patada giratoria (atrás + 4): conéctala.', ['b+4']],
+    ['CADENA PROPIA: PATADA CAMBIADA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la patada cambiando de guardia.', ['1', '2', '3']],
   ],
   aleix: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -31,6 +32,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
     ['CABEZAZO', 'Su golpe estrella (1 + 2): conéctalo.', ['1+2']],
+    ['CADENA PROPIA: PATADA HACHA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la patada hacha.', ['1', '2', '3']],
   ],
   camilo: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -38,6 +40,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
     ['A LA CARRERA', 'Su patada a la carrera (adelante, adelante + 4): conéctala.', ['f,f+4']],
+    ['CADENA PROPIA: LLEGADA A META', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la llegada a meta.', ['1', '2', '3']],
   ],
   rafa: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -45,6 +48,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
     ['GOLPE DE VETERANO', 'Su golpe estrella (1 + 2): conéctalo.', ['1+2']],
+    ['CADENA PROPIA: PISOTÓN', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en el pisotón.', ['1', '2', '3']],
   ],
   zapponi: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -52,6 +56,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
     ['LARIAT', 'Su lariat (1 + 2): conéctalo.', ['1+2']],
+    ['CADENA PROPIA: BIG BOOT', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en el big boot.', ['1', '2', '3']],
   ],
   orion: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -59,6 +64,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
     ['LARIAT', 'Su lariat (1 + 2): conéctalo.', ['1+2']],
+    ['CADENA PROPIA: PATADA HIDRÁULICA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la patada hidráulica.', ['1', '2', '3']],
   ],
   dani: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -66,6 +72,7 @@ const TRIALS = {
     ['COMBO AÉREO', 'Gancho (abajo-adelante + 2), 1, 2 en el aire y barrido (abajo + 4) para cerrar.', ['df+2', '1', '2', 'd+4']],
     ['VIEJA ESCUELA', 'Gancho bajo, 1, 2 y la patada alta (4) antes de que toque el suelo.', ['d+2', '1', '2', '4']],
     ['GUANTAZO', 'Su guantazo (atrás + 1): conéctalo.', ['b+1']],
+    ['CADENA PROPIA: BOLO PUNCH', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en el bolo punch.', ['1', '2', '3']],
   ],
   noemi: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -73,6 +80,7 @@ const TRIALS = {
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['REANIMACIÓN', 'El desfibrilador (1 + 2) lo lanza por los aires: el directo (2) antes de que caiga y el barrido (abajo + 4) al tocar el suelo.', ['1+2', '2', 'd+4']],
     ['ALTA MÉDICA', 'El gancho (abajo-adelante + 2) lo levanta, el desfibrilador (1 + 2) lo carga en el aire y el directo (2) remata.', ['df+2', '1+2', '2']],
+    ['CADENA PROPIA: A LA RODILLA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la patada a la rodilla.', ['1', '2', '3']],
   ],
 };
 
@@ -81,7 +89,8 @@ const TRIALS = {
 export function trialsFor(style, id) {
   const cmds = commandList(style);
   const moveOf = (c) => (cmds.find(([k]) => k === c) || [])[1];
-  const counts = (c) => (c === '1' ? ['jab', 'jab2'] : c === '2' ? ['straight', 'onetwo'] : c === '4' ? ['roundhouse', style.onetwoFinish].filter(Boolean) : [moveOf(c)].filter(Boolean));
+  const counts = (c) => (c === '1' ? ['jab', 'jab2'] : c === '2' ? ['straight', 'onetwo'] : c === '4' ? ['roundhouse', style.onetwoFinish].filter(Boolean)
+    : c === '3' ? ['frontKick', style.stringFinish].filter(Boolean) : [moveOf(c)].filter(Boolean));
   const list = TRIALS[id] || [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],

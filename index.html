@@ -220,6 +220,25 @@ button { touch-action: manipulation; }
 .portrait { background-position: 50% 47% !important; background-size: 160% !important; }
 #timer { position: absolute; top: max(1.2vh, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font-family: 'Teko'; font-weight: 600; font-size: 64px; line-height: 1; color: #fff4d6; text-shadow: 0 4px 0 #000, 0 0 18px rgba(255,170,60,.5); min-width: 90px; text-align: center; }
 #timer.low { color: #ff6a55; }
+/* DESAFÍOS: the run's clock or its wins, under the round timer */
+#chalHud { position: absolute; top: calc(max(1.2vh, env(safe-area-inset-top)) + 66px); left: 50%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center;
+  font-family: 'Teko'; font-weight: 600; font-size: 26px; line-height: 1; color: #ffe2a0; text-shadow: 0 2px 0 #000, 0 0 10px rgba(0,0,0,.6); white-space: nowrap; pointer-events: none; }
+#chalHud.on { display: flex; }
+#chalHud small { font-size: 15px; font-weight: 500; letter-spacing: .12em; color: #d8cfbd; }
+/* RÉCORDS (js/ui/records.js) */
+.records { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; text-align: left; margin-top: 6px; }
+.records .rec h4 { margin-top: 4px; }
+.records table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.records td { padding: 4px 6px; border-bottom: 1px solid #2c2836; }
+.records td.pos { color: #8f8799; width: 1.6em; }
+.records td.val { font-family: 'Teko'; font-size: 22px; color: #ffd27a; text-align: right; white-space: nowrap; }
+.records td.val small { font-family: inherit; font-size: 14px; color: #bfb6a4; }
+.records td.dif, .records td.day { color: #8f8799; font-size: 13px; white-space: nowrap; }
+.records tr.new td { background: rgba(255,177,59,.16); }
+.records tr.new td.who { color: #fff; }
+.records .none { color: #999; font-size: 14px; }
+#overlay .panel:has(.records) { min-width: min(94vw, 860px); background: rgba(14,14,22,.97); }
+@media (max-width: 700px) { .records { grid-template-columns: 1fr; } }
 .combo { position: absolute; top: 24%; font-family: 'Bebas'; opacity: 0; transition: opacity .2s; }
 .combo.c1 { left: 3%; } .combo.c2 { right: 3%; text-align: right; }
 .combo .hits { font-size: 60px; line-height: .9; color: var(--gold); text-shadow: 0 4px 0 #000, 0 0 20px rgba(255,160,0,.6); }
@@ -392,6 +411,19 @@ button { touch-action: manipulation; }
 #touch .tb b { font-size: calc(var(--rb) * .95); line-height: .88; font-weight: 400; text-shadow: 0 2px 0 rgba(0,0,0,.6); }
 #touch .tb small { font-family: 'Teko'; font-size: calc(var(--rb) * .3); letter-spacing: .14em; opacity: .85; }
 #touch .tb.down { transform: scale(.9); filter: brightness(1.7); border-color: var(--gold); box-shadow: 0 0 18px rgba(255,200,80,.85), inset 0 2px 8px rgba(0,0,0,.4); }
+/* ★ PUÑO / ★ PATADA: a gold ring, the star, the side (PUÑO / PATADA) and the name of the special the stick picks now */
+#touch .tb[hidden] { display: none; }
+#touch .tb.sp { border-color: rgba(255,214,110,.9); line-height: 1; gap: 1px;
+  background: radial-gradient(circle at 35% 28%, rgba(255,240,200,.38), rgba(255,200,80,.08) 60%), var(--tbg);
+  box-shadow: 0 4px 12px rgba(0,0,0,.45), 0 0 10px rgba(255,190,60,.35), inset 0 -4px 10px rgba(0,0,0,.35); }
+#touch .tb.sp b { font-size: calc(var(--rb) * .62); line-height: 1; color: #ffd76a; text-shadow: 0 0 8px rgba(255,180,40,.8), 0 2px 0 rgba(0,0,0,.6); }
+#touch .tb.sp small { font-size: calc(var(--rb) * .24); letter-spacing: .16em; line-height: 1; opacity: .8; }
+#touch .tb.sp em { font-style: normal; font-family: 'Teko'; font-weight: 600; font-size: calc(var(--rb) * .33); line-height: 1.25; padding-top: .1em; margin-top: -.15em; letter-spacing: .04em; color: #fff;
+  max-width: calc(var(--rb) * 1.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.8); }
+#touch .tb.sp em.long { font-size: calc(var(--rb) * .27); }
+#touch .tb.sp.swap { animation: tkSwap .28s ease-out; }
+@keyframes tkSwap { 0% { box-shadow: 0 0 22px rgba(255,215,90,.95), inset 0 -4px 10px rgba(0,0,0,.35); } 100% { box-shadow: 0 4px 12px rgba(0,0,0,.45), 0 0 10px rgba(255,190,60,.35), inset 0 -4px 10px rgba(0,0,0,.35); } }
+#touch .tb.sp.down { transform: scale(.9); filter: brightness(1.6); box-shadow: 0 0 24px rgba(255,200,60,.95), inset 0 2px 8px rgba(0,0,0,.4); }
 #touch .tch { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: rgba(255,255,255,.4); pointer-events: none; opacity: var(--tk-alpha); transition: transform .05s; }
 #touch .tch.on { background: var(--gold); box-shadow: 0 0 10px var(--gold2); transform: scale(1.6); }
 #touch .trage { display: none; border-radius: 50%; align-items: center; justify-content: center; flex-direction: column; font-family: 'Bebas'; color: #fff; line-height: .9;
@@ -754,6 +786,8 @@ button { touch-action: manipulation; }
   .p1 .portrait { left: -8px; } .p2 .portrait { right: -8px; }
   .plate { margin-top: 3px; gap: 6px; } .plate .nm { font-size: 17px; } .plate .wins i { width: 10px; height: 10px; border-width: 1.5px; }
   #timer { font-size: 38px; top: max(4px, env(safe-area-inset-top)); min-width: 60px; }
+  #chalHud { top: calc(max(4px, env(safe-area-inset-top)) + 38px); font-size: 20px; }
+  #chalHud small { font-size: 12px; }
   .combo { top: 21%; } .combo .hits { font-size: 34px; } .combo .dmg { font-size: 15px; }
   .popup { font-size: 24px; top: 30%; }
   #introNames { bottom: 11%; } #introNames .nm { font-size: min(10vw, 66px); } #introNames .ttl { font-size: 16px; } #introNames .ln { font-size: 15px; margin-top: 4px; }
@@ -835,19 +869,19 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="vendor/three/build/three.core.js">
 <link rel="modulepreload" href="vendor/three/build/three.module.js">
 <link rel="modulepreload" href="js/fight/styles.js">
-<link rel="modulepreload" href="js/fight/fatality.js">
 <link rel="modulepreload" href="js/main.js">
+<link rel="modulepreload" href="js/fight/fatality.js">
 <link rel="modulepreload" href="js/fight/moves.js">
 <link rel="modulepreload" href="js/audio/audio.js">
+<link rel="modulepreload" href="js/fight/match.js">
 <link rel="modulepreload" href="js/stage/core.js">
 <link rel="modulepreload" href="js/ui/online.js">
-<link rel="modulepreload" href="js/fight/match.js">
 <link rel="modulepreload" href="js/stage/neon.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/SMAAPass.js">
-<link rel="modulepreload" href="js/anim/rig.js">
-<link rel="modulepreload" href="js/stage/terrace.js">
 <link rel="modulepreload" href="js/fight/fighter.js">
+<link rel="modulepreload" href="js/anim/rig.js">
 <link rel="modulepreload" href="js/stage/festival.js">
+<link rel="modulepreload" href="js/stage/terrace.js">
 <link rel="modulepreload" href="js/fx/splitbody.js">
 <link rel="modulepreload" href="js/stage/street.js">
 <link rel="modulepreload" href="vendor/three/jsm/utils/BufferGeometryUtils.js">
@@ -862,10 +896,11 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/net/netplay.js">
 <link rel="modulepreload" href="js/fx/bicycle.js">
 <link rel="modulepreload" href="vendor/qr/qrcode.js">
+<link rel="modulepreload" href="js/ui/touch.js">
+<link rel="modulepreload" href="js/ui/training.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/GTAOPass.js">
 <link rel="modulepreload" href="js/engine/post.js">
 <link rel="modulepreload" href="js/fx/aloesword.js">
-<link rel="modulepreload" href="js/ui/training.js">
 <link rel="modulepreload" href="js/net/rollback.js">
 <link rel="modulepreload" href="js/fx/gibs.js">
 <link rel="modulepreload" href="js/fx/eyebeam.js">
@@ -873,25 +908,25 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/UnrealBloomPass.js">
 <link rel="modulepreload" href="vendor/three/jsm/math/SimplexNoise.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/SMAAShader.js">
-<link rel="modulepreload" href="js/ui/touch.js">
+<link rel="modulepreload" href="js/fx/impacts.js">
 <link rel="modulepreload" href="js/net/simstate.js">
 <link rel="modulepreload" href="js/fx/tornado.js">
 <link rel="modulepreload" href="js/fx/tennis.js">
+<link rel="modulepreload" href="js/fight/ai.js">
+<link rel="modulepreload" href="js/charloader.js">
 <link rel="modulepreload" href="js/fight/input.js">
 <link rel="modulepreload" href="js/fight/camera.js">
 <link rel="modulepreload" href="js/anim/body.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/GTAOShader.js">
-<link rel="modulepreload" href="js/fight/ai.js">
 <link rel="modulepreload" href="js/fx/dumbbells.js">
 <link rel="modulepreload" href="vendor/three/jsm/objects/Reflector.js">
 <link rel="modulepreload" href="js/fight/ragdoll.js">
-<link rel="modulepreload" href="js/charloader.js">
 <link rel="modulepreload" href="js/fx/wear.js">
 <link rel="modulepreload" href="vendor/three/jsm/lights/SunLightShadow.js">
 <link rel="modulepreload" href="js/anim/clothsway.js">
 <link rel="modulepreload" href="js/fx/burn.js">
-<link rel="modulepreload" href="vendor/three/jsm/postprocessing/EffectComposer.js">
 <link rel="modulepreload" href="js/ui/progress.js">
+<link rel="modulepreload" href="vendor/three/jsm/postprocessing/EffectComposer.js">
 <link rel="modulepreload" href="js/fx/evaporate.js">
 <link rel="modulepreload" href="js/anim/feet.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/PoissonDenoiseShader.js">
@@ -900,8 +935,8 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/anim/corskin.js">
 <link rel="modulepreload" href="js/anim/clip.js">
 <link rel="modulepreload" href="js/fx/headcrush.js">
-<link rel="modulepreload" href="js/ui/hud.js">
 <link rel="modulepreload" href="js/engine/device.js">
+<link rel="modulepreload" href="js/ui/hud.js">
 <link rel="modulepreload" href="js/fight/padpath.js">
 <link rel="modulepreload" href="vendor/three/jsm/shaders/BokehShader.js">
 <link rel="modulepreload" href="js/net/lan.js">
@@ -921,6 +956,7 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/ui/endings.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
 <link rel="modulepreload" href="js/net/signal.js">
+<link rel="modulepreload" href="js/ui/records.js">
 <link rel="modulepreload" href="js/fx/oil.js">
 <link rel="modulepreload" href="js/anim/poses.js">
 <link rel="modulepreload" href="vendor/three/jsm/lights/SunLight.js">
@@ -950,6 +986,7 @@ button { touch-action: manipulation; }
   <div class="menu main">
     <button data-act="continue" hidden>CONTINUAR<span class="cont"></span></button>
     <button data-act="arcade">MODO ARCADE</button>
+    <button data-act="chalmenu">DESAFÍOS<span class="more">▸</span></button>
     <button data-act="vsmenu">VERSUS<span class="more">▸</span></button>
     <button data-act="training">ENTRENAMIENTO</button>
     <button data-act="difficulty">DIFICULTAD: <span class="diffv">NORMAL</span></button>
@@ -960,6 +997,13 @@ button { touch-action: manipulation; }
     <div class="menuttl">VERSUS</div>
     <button data-act="versus">2 JUGADORES<span class="cont">MISMA PANTALLA</span></button>
     <button data-act="online">ONLINE<span class="badge">WIFI</span><span class="cont">DOS MÓVILES</span></button>
+    <button data-act="back">◀ VOLVER</button>
+  </div>
+  <div class="menu chal" hidden>
+    <div class="menuttl">DESAFÍOS</div>
+    <button data-act="survival">SUPERVIVENCIA<span class="cont">LA VIDA NO SE RECUPERA</span></button>
+    <button data-act="timeattack">CONTRARRELOJ<span class="cont">LOS 7 RIVALES CONTRA EL CRONO</span></button>
+    <button data-act="records">RÉCORDS<span class="cont"></span></button>
     <button data-act="back">◀ VOLVER</button>
   </div>
   <div class="menu extras" hidden>
@@ -1005,6 +1049,7 @@ button { touch-action: manipulation; }
   <div id="netHud"></div>
   <div id="replayTag"><i></i>REPETICIÓN<small>toca la pantalla o pulsa una tecla para salir</small></div>
   <div id="timer">60</div>
+  <div id="chalHud"></div>
   <div class="combo c1"><div class="hits"></div><div class="dmg"></div></div>
   <div class="combo c2"><div class="hits"></div><div class="dmg"></div></div>
   <div id="announce"></div>

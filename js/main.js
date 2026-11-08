@@ -1,7 +1,7 @@
 // Puños de Barrio — main game shell.
 import * as THREE from 'three';
-import { DEVICE, defaultQuality, budget, setTextureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
-import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, texturesPending, LOD } from './charloader.js';
+import { DEVICE, defaultQuality, budget, setTextureCap, textureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
+import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, texturesPending, LOD, detailFor, initKTX2 } from './charloader.js';
 import { makeFighterMaterial, makeFighterKey, applyCostume, FIGHTER_KEY } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
 import { StreetStage } from './stage/street.js';
@@ -12,6 +12,7 @@ import { CoreStage } from './stage/core.js';
 import { PostFX } from './engine/post.js';
 import { setupOffline } from './engine/offline.js';
 import { FX, setFxViewHeight } from './fx/fx.js';
+import { ImpactFX } from './fx/impacts.js';
 import { Wear } from './fx/wear.js';
 import { HUD } from './ui/hud.js';
 import { Audio } from './audio/audio.js';
@@ -34,35 +35,36 @@ import { FightRecorder, logCtrl, quietFacade } from './fight/replay.js';
 import { STAT_ROWS, playLabel, playWorthShowing } from './fight/stats.js';
 import { costumesOf, costumeChoices, mirrorCostume } from './fight/costumes.js';
 import { Progress } from './ui/progress.js';
+import { Records, clock } from './ui/records.js';
 import { ENDINGS } from './ui/endings.js';
 import { Training } from './ui/training.js';
 import { ControlsUI, controlsHelp } from './ui/controls.js';
-const _fkv = new THREE.Vector3();
+const _fkv = new THREE.Vector3(), _detV = new THREE.Vector3();
 
 const ROSTER = ['alejandro', 'orion', 'camilo', 'rafa', 'zapponi', 'dani', 'noemi', 'aleix'];
 // (the first one is the main stage: the title and the select screen are set in it, it is the stage picked by
 // default and the arcade's first fight; the arcade goes through them in this order)
 const STAGES = {
   // a real street of the neighbourhood (the user's photo): graffiti shutters and a covered car park, overcast day
-  porche: { cls: PorcheStage, name: 'LA PORTERÍA', sub: 'EL LUGAR DONDE SE VIENE A TRABAJAR', dust: [0.5, 0.5, 0.52], dustLight: 0.55, amb: 'porche', music: 'porche',
+  porche: { cls: PorcheStage, name: 'LA PORTERÍA', sub: 'EL LUGAR DONDE SE VIENE A TRABAJAR', dust: [0.5, 0.5, 0.52], dustLight: 0.55, crack: 0x0d0c0b, debris: 0x4e4d4b, amb: 'porche', music: 'porche',
     desc: 'El lugar donde se viene a trabajar: las persianas llenas de grafitis frente al aparcamiento cubierto, un día gris en la calle de siempre.', tags: ['DÍA', 'NUBLADO', 'FUNK URBANO'], acc: '#ffb347',
     grade: { sat: 1.04, slope: [1.0, 1.0, 1.02] } },
-  terrace: { cls: TerraceStage, name: 'AZOTEA AL ATARDECER', sub: 'VERANO EN EL BARRIO', dust: [0.78, 0.55, 0.42], dustLight: 0.85, amb: 'terrace', music: 'terrace',
+  terrace: { cls: TerraceStage, name: 'AZOTEA AL ATARDECER', sub: 'VERANO EN EL BARRIO', dust: [0.78, 0.55, 0.42], dustLight: 0.85, crack: 0x2a160d, debris: 0xa0603e, amb: 'terrace', music: 'terrace',
     desc: 'La terraza con piscina mientras cae el sol sobre el Mediterráneo. El verano del barrio, en lo más alto.', tags: ['ATARDECER', 'VERANO', 'DISCO LATINA'], acc: '#ff7a45',
     grade: { sat: 1.1, slope: [1.02, 1.0, 0.96] } },
-  street: { cls: StreetStage, name: 'LA META 10K', sub: 'CARRERA POPULAR DEL BARRIO', dust: [0.55, 0.55, 0.56], dustLight: 0.6, amb: 'street', music: 'street',
+  street: { cls: StreetStage, name: 'LA META 10K', sub: 'CARRERA POPULAR DEL BARRIO', dust: [0.55, 0.55, 0.56], dustLight: 0.6, crack: 0x0b0b0c, debris: 0x4a4a4c, amb: 'street', music: 'street',
     desc: 'La línea de meta de la carrera popular, con el público animando desde las vallas.', tags: ['MAÑANA', 'SOL', 'ROCK'], acc: '#5cc8ff',
     grade: { sat: 1.12, slope: [1.0, 1.0, 1.02] } },
   // the open-air stage of the neighbourhood's festival at golden hour (the user's photo)
-  festival: { cls: FestivalStage, name: 'EL FESTIVAL', sub: 'FIESTAS DEL BARRIO', surface: 'wood', dust: [0.66, 0.6, 0.52], dustLight: 0.8, amb: 'festival', music: 'festival',
+  festival: { cls: FestivalStage, name: 'EL FESTIVAL', sub: 'FIESTAS DEL BARRIO', surface: 'wood', dust: [0.66, 0.6, 0.52], dustLight: 0.8, crack: 0x100d0a, debris: 0x6d675e, amb: 'festival', music: 'festival',
     desc: 'El escenario de las fiestas a la hora dorada: el DJ, las luces y el barrio entero bailando.', tags: ['HORA DORADA', 'FIESTA', 'CLUB'], acc: '#ffd34d',
     grade: { sat: 1.08, slope: [1.02, 1.0, 0.97] } },
   // the neighbourhood in 2099: a cyberpunk street at night in the rain, neon signs mirrored in the wet asphalt (made by code)
-  neon: { cls: NeonStage, name: 'DISTRITO NEÓN', sub: 'EL BARRIO EN 2099', surface: 'wet', dust: [0.35, 0.38, 0.45], dustLight: 0.35, amb: 'neon', music: 'neon',
+  neon: { cls: NeonStage, name: 'DISTRITO NEÓN', sub: 'EL BARRIO EN 2099', surface: 'wet', dust: [0.35, 0.38, 0.45], dustLight: 0.35, crack: 0x050508, debris: 0x2a2a30, amb: 'neon', music: 'neon',
     desc: 'Lluvia, rótulos de neón y coches voladores sobre el asfalto mojado. Así será el barrio en 2099.', tags: ['NOCHE', 'LLUVIA', 'SYNTHWAVE'], acc: '#ff3cb4',
     grade: { sat: 1.16, slope: [1.0, 0.98, 1.05] } },
   // Orión's home: the inside of the computer where the AI lives, the fight on the motherboard (made by code)
-  pc: { cls: CoreStage, name: 'DENTRO DEL PC', sub: 'EL HOGAR DE ORIÓN', surface: 'metal', dust: [0.3, 0.6, 0.7], dustLight: 0.5, amb: 'pc', music: 'pc',
+  pc: { cls: CoreStage, name: 'DENTRO DEL PC', sub: 'EL HOGAR DE ORIÓN', surface: 'metal', dust: [0.3, 0.6, 0.7], dustLight: 0.5, crack: 0x35e0ff, debris: 0x202428, amb: 'pc', music: 'pc',
     desc: 'Dentro de la torre donde vive Orión: luchas sobre la tarjeta gráfica, entre ventiladores RGB, memorias y su bomba de agua con sus ojos rojos.', tags: ['DIGITAL', 'RGB', 'ELECTRO'], acc: '#3ce8ff',
     shot: { pos: [-6.5, 6.2, 9.0], look: [5.5, 3.6, -5.5], fov: 60 },
     grade: { sat: 1.12, slope: [0.98, 1.0, 1.05] } },
@@ -131,11 +133,13 @@ class Game {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     LOD.hair = { low: 0.45, medium: 0.7, high: 1.0, ultra: 1.0 }[this.quality] ?? 1.0;
+    LOD.far = q.get('lodfar') ? +q.get('lodfar') : { low: 0.35, medium: 0.5, high: 0.62, ultra: 0.8 }[this.quality] ?? 0.62;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(34, vs.w / vs.h, 0.05, 600);
     this.camera.position.set(0, 1.4, 5);
     this.camCtl = new FightCamera(this.camera);
     this.fx = new FX(this.scene, this.camera);
+    this.impacts = new ImpactFX(this.scene, this.fx); // (floor cracks, walls answering a body slammed into them)
     this.audio = new Audio();
     this.hud = new HUD({});
     this.training = new Training(this); // (ENTRENAMIENTO: the partner's settings, recording, input history, combo trials)
@@ -145,6 +149,15 @@ class Game {
     this.timeScale = 1;
     this.effects = { hitFlash: 0, radial: 0, desat: 0, letterbox: 0, fade: 0 };
     this.touch = new TouchController($('#touch'));
+    // (the ★ buttons: what each throws for the stick's direction, for the player's own fighter: js/ui/touch.js)
+    this.touch.sp = (group, cls) => {
+      const m = this.match, f = m?.fighters?.[this.online.inFight ? this.online.local : 0];
+      const T = f?.style.touchSP?.[group];
+      if (!T) return null;
+      const cmd = T[cls] || (cls === 'u' && group === 'K' ? 'uf+4' : T.n);
+      const c = f.commands.find((x) => x.str === cmd);
+      return c ? { cmd, name: f.moves[c.move].name, fwd: m.screenForward(f) } : null;
+    };
     this.p1ctrl = new MergedController(new KeyboardController(KEYMAPS.p1), new GamepadController(0), this.touch);
     this.p2keys = new MergedController(new KeyboardController(KEYMAPS.p2), new GamepadController(1));
     this.controlsUI = new ControlsUI(this);
@@ -222,6 +235,7 @@ class Game {
     if (inFight !== this._tv || cine !== this._tc) { this._tv = inFight; this._tc = cine; this.touch.setVisible(inFight, cine); }
     const p1 = m?.fighters?.[this.online.inFight ? this.online.local : 0];
     this.touch.setRage(!!(inFight && p1 && p1.rage && !p1.rageUsed && m.phase === 'fight'));
+    if (inFight) this.touch.refreshSP(); // (the ★ names: the side the fighter is on decides what forward is)
   }
 
   loadAudioPrefs() {
@@ -261,14 +275,16 @@ class Game {
     $('#title .menu.main').hidden = which !== 'main';
     $('#title .menu.vs').hidden = which !== 'vs';
     $('#title .menu.extras').hidden = which !== 'extras';
+    $('#title .menu.chal').hidden = which !== 'chal';
     if (which === 'extras') this.refreshExtras();
+    if (which === 'chal') { const r = this.records, el = $('#title .menu.chal [data-act="records"] .cont'); if (el) el.textContent = r.count() ? `${r.count()} MARCAS` : ''; }
     this.setupMenu(`#title .menu.${which}`, (act) => this.titleAction(act));
   }
 
   async boot() {
     const bar = $('#loading .bar i'), tip = $('#loading .tip'), status = $('#loading .st');
     const tips = ['Consejo: mantén atrás para bloquear golpes altos y medios.', 'Consejo: agáchate (abajo-atrás) para bloquear los golpes bajos.', 'Consejo: pulsa BLOQUEO justo antes del golpe y harás una parada.',
-      'Consejo: toca arriba o abajo para esquivar lateralmente.', 'Consejo: abajo-adelante + 2 lanza al rival por los aires.', 'Consejo: 1+3 agarra; pulsa 1 o 2 para zafarte de un agarre.', 'Consejo: pulsa un botón justo al caer al suelo para recuperarte rodando.'];
+      'Consejo: toca arriba o abajo para esquivar lateralmente.', 'Consejo: abajo-adelante + 2 lanza al rival por los aires.', 'Consejo: 1+3 agarra; pulsa 1 o 2 para zafarte de un agarre.', 'Consejo: pulsa un botón justo al caer al suelo para recuperarte rodando.', 'Consejo: en el móvil, ★ PUÑO y ★ PATADA lanzan los especiales; el joystick elige cuál.', 'Consejo: 1, 2 y 3 seguidos es la cadena propia de cada luchador.'];
     tip.textContent = tips[Math.floor(Math.random() * tips.length)];
     // (the bar runs on its own while the code downloads: index.html; from here on it shows the real progress)
     $('#loading .bar').classList.remove('indet');
@@ -289,6 +305,8 @@ class Game {
     });
     this.stagePick = STAGES[q.get('stage')] ? q.get('stage') : MAIN_STAGE;
     say(`Preparando ${STAGES[this.stagePick].name.toLowerCase().replace(/^./, (c) => c.toUpperCase())}…`);
+    // (the fighters' textures GPU-compressed, where the GPU takes it: js/charloader.js; ?ktx2=0 for the pictures)
+    const ktxP = q.get('ktx2') === '0' ? Promise.resolve(false) : initKTX2(this.renderer, textureCap);
     const LM = THREE.DefaultLoadingManager;
     LM.onProgress = (url, done, total) => prog(0.08 + 0.72 * done / Math.max(1, total));
     await this.setStage(this.stagePick, false);
@@ -302,6 +320,7 @@ class Game {
     // menus only need the descriptors; meshes load on demand
     say('Preparando a los luchadores…');
     const metas = await Promise.all(ROSTER.map(id => loadCharacterMeta(id).catch(() => null)));
+    this.ktx2On = await ktxP;
     // a fighter whose files cannot be loaded is left out of the roster instead of stopping the boot
     for (let i = ROSTER.length - 1; i >= 0; i--) {
       if (metas[i]) this.meta[ROSTER[i]] = metas[i];
@@ -309,6 +328,7 @@ class Game {
     }
     // achievements, endings and unlocks kept on this device (js/ui/progress.js)
     this.progress = new Progress({ roster: ROSTER, stageKeys: STAGE_KEYS });
+    this.records = new Records(); // (DESAFÍOS: SUPERVIVENCIA and CONTRARRELOJ, js/ui/records.js)
     mark('metas');
     prog(0.86);
     say('Montando el escenario…');
@@ -430,6 +450,7 @@ class Game {
     this.stage.fx = this.fx; this.stage.audio = this.audio; // (a stage that answers the fight: splashes, sparks, glass)
     this.fx.dustColor = new THREE.Color(...def.dust);
     this.fx.dustLight = def.dustLight ?? 0.8;
+    this.impacts.setStage({ crackColor: def.crack, debrisColor: def.debris, dustColor: this.fx.dustColor.clone().multiplyScalar(this.fx.dustLight + 0.2) });
     this.camCtl.koView = this.stage.koView || null;
     await this.stage.ready();
     if (bake) this.bakeStage();
@@ -473,6 +494,7 @@ class Game {
   stageFor(opts) {
     if (opts.stage) return opts.stage;
     if (this.mode === 'arcade' && this.arcade) return this.arcade.stages?.[this.arcade.stage] || STAGE_KEYS[this.arcade.stage % STAGE_KEYS.length];
+    if (this.isChal() && this.chal) return this.chal.stages[this.chal.i % this.chal.stages.length];
     return this.stagePick || MAIN_STAGE;
   }
 
@@ -576,7 +598,7 @@ class Game {
     this.hud.show(false);
     this.menuIndex = 0;
     this.titleMenu = 'main';
-    $('#title .menu.main').hidden = false; $('#title .menu.vs').hidden = true; $('#title .menu.extras').hidden = true;
+    $('#title .menu.main').hidden = false; $('#title .menu.vs').hidden = true; $('#title .menu.extras').hidden = true; $('#title .menu.chal').hidden = true;
     this.refreshModeButtons(); // (sets the menu up with the buttons that show: CONTINUAR)
     $('#title .presskey').textContent = document.body.classList.contains('touchui') ? 'TOCA UNA OPCIÓN' : 'PULSA ENTER O ⓧ';
     this.audio.music('menu');
@@ -612,8 +634,10 @@ class Game {
     // phones: go fullscreen + landscape on the first tap (needs a user gesture; unsupported on iPhone Safari)
     if (document.body.classList.contains('touchui') && !this.fsAsked && !DEVICE.standalone && fullscreenSupported()) { this.fsAsked = true; goFullscreenLandscape(); }
     if (act === 'versus' && this.needsPad()) { this.online.toast('Para jugar dos en el mismo aparato hace falta un mando (o un teclado). En dos móviles: ONLINE.', 3200); return; }
-    if (act === 'arcade' || act === 'versus' || act === 'training') { this.mode = act; this.toSelect(); }
+    if (act === 'arcade' || act === 'versus' || act === 'training' || act === 'survival' || act === 'timeattack') { this.mode = act; this.toSelect(); }
     else if (act === 'vsmenu') this.showTitleMenu('vs');
+    else if (act === 'chalmenu') this.showTitleMenu('chal');
+    else if (act === 'records') this.showRecords();
     else if (act === 'extras') this.showTitleMenu('extras');
     else if (act === 'back') this.showTitleMenu('main');
     else if (act === 'achievements') this.showAchievements();
@@ -675,10 +699,11 @@ class Game {
     if (online) this.onlineResend();
   }
   refreshStageBar() {
-    const mode = this.mode === 'arcade' ? 'MODO ARCADE' : this.mode === 'versus' ? 'VERSUS' : this.mode === 'online' ? 'ONLINE' : 'ENTRENAMIENTO';
+    const mode = this.mode === 'arcade' ? 'MODO ARCADE' : this.mode === 'versus' ? 'VERSUS' : this.mode === 'online' ? 'ONLINE'
+      : this.mode === 'survival' ? 'SUPERVIVENCIA' : this.mode === 'timeattack' ? 'CONTRARRELOJ' : 'ENTRENAMIENTO';
     const bar = $('#select .stagebar');
     // (the stage is picked on the next screen: toStageSelect)
-    bar.textContent = this.mode === 'arcade' ? `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}` : mode;
+    bar.textContent = this.mode === 'arcade' || this.isChal() ? `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}` : mode;
   }
   // online: this phone's cursor to the other phone (by fighter id: the rosters could differ) and its costume
   selMoved(k) {
@@ -1028,6 +1053,8 @@ class Game {
       if (this.stageRandom) for (let k = 1; k < stages.length; k++) { let x; do x = STAGE_KEYS[Math.floor(Math.random() * n)]; while (n > 1 && x === stages[k - 1]); stages[k] = x; }
       this.arcade = { p1, ladder: others, stage: 0, diff: this.difficulty, costume: cos[0], stages };
       this.startFight(p1, this.arcade.ladder[0], { ai: this.arcadeAI(0), costumes: [cos[0], 0] });
+    } else if (this.isChal()) {
+      this.startChallenge(p1, cos[0]);
     } else if (this.mode === 'versus') {
       this.startFight(p1, ROSTER[this.sel.i[1]], { human2: true, costumes: cos });
     } else {
@@ -1038,6 +1065,81 @@ class Game {
   arcadeAI(stage) {
     const t = DIFFICULTY[this.arcade?.diff || this.difficulty].ai;
     return t[Math.min(stage, t.length - 1)];
+  }
+
+  // ------------------------------------------------------------------ DESAFÍOS
+  // SUPERVIVENCIA: one-round fights one after another against rivals drawn at random, the health left carried into
+  // the next fight (a fifth of it back after each win), the computer harder each time, until a fight is lost. The
+  // record: fights won. CONTRARRELOJ: the seven rivals, one round each, full health, against the clock (the fight
+  // time only: not the presentations, the loading or the results); a fight lost ends the run. Both are kept on the
+  // device (js/ui/records.js); the stage changes every fight (the one picked first, then at random)
+  isChal() { return this.mode === 'survival' || this.mode === 'timeattack'; }
+  startChallenge(p1, costume) {
+    const others = ROSTER.filter((x) => x !== p1).sort(() => Math.random() - 0.5);
+    const n = STAGE_KEYS.length, i0 = Math.max(0, STAGE_KEYS.indexOf(this.stagePick));
+    const stages = [this.stageRandom ? STAGE_KEYS[Math.floor(Math.random() * n)] : STAGE_KEYS[i0]];
+    for (let k = 1; k < 40; k++) { let x; do x = STAGE_KEYS[Math.floor(Math.random() * n)]; while (n > 1 && x === stages[k - 1]); stages.push(x); }
+    this.chal = { kind: this.mode, p1, costume, diff: this.difficulty, i: 0, hp: 1, frames: 0, ladder: others, last: null, stages };
+    this.chalFight();
+  }
+  chalRival() {
+    const C = this.chal;
+    if (C.kind === 'timeattack') return C.ladder[C.i];
+    // (survival: anybody but the one just beaten)
+    const pool = ROSTER.filter((x) => x !== C.p1 && x !== C.last);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  chalFight() {
+    const C = this.chal, rival = this.chalRival();
+    C.rival = rival;
+    // (the computer: the arcade's ladder for the difficulty, and its last level from there on)
+    this.startFight(C.p1, rival, { ai: this.arcadeAI(C.i), costumes: [C.costume | 0, 0], chal: true, hpStart: C.kind === 'survival' ? [C.hp, 1] : null });
+  }
+  chalEnd(match) {
+    const C = this.chal, won = match.winner === 0, me = match.fighters[0];
+    const W = match.fighters[match.winner], name = (f) => f.ch.meta.display;
+    if (C.kind === 'survival') {
+      if (won) {
+        C.i++; C.last = C.rival;
+        const left = Math.max(0, me.hp / me.maxHp), back = Math.min(1, left + 0.2);
+        C.hp = back;
+        if (C.i >= 5) this.progress.unlock('survival5');
+        this.showResults(match, `${name(W)} GANA`, `${C.i} ${C.i === 1 ? 'COMBATE GANADO' : 'COMBATES GANADOS'} · VIDA ${Math.round(left * 100)} % + 20 % → ${Math.round(back * 100)} %`, [['SIGUIENTE COMBATE', 'next', true], ['▶ VER JUGADA', 'hl'], ['RENDIRSE', 'end']],
+          (act) => { if (act === 'next') this.chalFight(); else this.chalOver(); });
+      } else this.showResults(match, 'FIN DE LA SUPERVIVENCIA', `${name(W)} te ha vencido · ${C.i} ${C.i === 1 ? 'combate ganado' : 'combates ganados'}`, [['VER RÉCORDS', 'end', true], ['▶ VER JUGADA', 'hl']], () => this.chalOver());
+      return;
+    }
+    C.frames += match.fightFrames || 0;
+    if (!won) {
+      this.showResults(match, 'HAS PERDIDO', `${name(W)} gana · el contrarreloj se acaba en el combate ${C.i + 1} de ${C.ladder.length}`, [['OTRA VEZ', 'again', true], ['▶ VER JUGADA', 'hl'], ['MENÚ', 'menu']],
+        (act) => { if (act === 'again') { this.mode = C.kind; this.startChallenge(C.p1, C.costume); } else this.backToTitle(); });
+      return;
+    }
+    C.i++;
+    if (C.i < C.ladder.length) {
+      this.showResults(match, `${name(W)} GANA`, `COMBATE ${C.i} DE ${C.ladder.length} · TIEMPO ${clock(C.frames)} · SIGUIENTE: ${this.meta[C.ladder[C.i]].display}`, [['SIGUIENTE COMBATE', 'next', true], ['▶ VER JUGADA', 'hl'], ['RENDIRSE', 'menu']],
+        (act) => { if (act === 'next') this.chalFight(); else this.backToTitle(); });
+      return;
+    }
+    this.progress.unlock('timeattack');
+    this.showResults(match, '¡CONTRARRELOJ COMPLETADO!', `${C.ladder.length} de ${C.ladder.length} rivales · TIEMPO ${clock(C.frames)}`, [['VER RÉCORDS', 'end', true], ['▶ VER JUGADA', 'hl']], () => this.chalOver());
+  }
+  // a run over: into the table (if it makes it), shown with its row lit up
+  chalOver() {
+    const C = this.chal;
+    const e = C.kind === 'survival' ? { id: C.p1, n: C.i, hp: Math.round(C.hp * 100), diff: C.diff } : { id: C.p1, frames: C.frames, diff: C.diff };
+    const done = C.kind === 'survival' ? C.i > 0 : C.i >= C.ladder.length;
+    const at = done ? this.records.add(C.kind, e) : -1;
+    const head = C.kind === 'survival'
+      ? `<h3>${at === 0 ? '¡NUEVO RÉCORD!' : 'SUPERVIVENCIA'}</h3><p style="font-size:20px">${this.meta[C.p1].display}: ${C.i} ${C.i === 1 ? 'combate ganado' : 'combates ganados'} seguidos</p>`
+      : `<h3>${at === 0 ? '¡NUEVO RÉCORD!' : 'CONTRARRELOJ'}</h3><p style="font-size:20px">${this.meta[C.p1].display}: los ${C.ladder.length} rivales en ${clock(C.frames)}</p>`;
+    const sub = at > 0 ? `<p style="font-size:15px;opacity:.8">Puesto ${at + 1} de la tabla</p>` : '';
+    this.chal = null;
+    this.showOverlay(head + sub + this.records.html(this.meta, (d) => DIFFICULTY[d]?.name || '', at >= 0 ? { kind: C.kind, at } : null),
+      () => { this.mode = C.kind; this.startChallenge(C.p1, C.costume); }, () => this.backToTitle(), { ok: 'OTRA VEZ', back: 'MENÚ' });
+  }
+  showRecords() {
+    this.showOverlay(`<h3>RÉCORDS</h3>${this.records.html(this.meta, (d) => DIFFICULTY[d]?.name || '')}`, () => { this.state = 'title'; this.showTitleMenu('chal'); }, null, { ok: 'VOLVER' });
   }
 
   // ------------------------------------------------------------------ fight
@@ -1052,7 +1154,8 @@ class Game {
     const stageKey = this.stageFor(opts);
     const vs = $('#fadeVs'), stp = $('#fadeStep');
     if (vs) vs.textContent = `${this.meta[id1]?.display || id1}  vs  ${this.meta[id2]?.display || id2}`;
-    if (stp) stp.textContent = this.mode === 'arcade' && this.arcade ? `COMBATE ${this.arcade.stage + 1} DE ${this.arcade.ladder.length}` : opts.online ? `VERSUS ONLINE · ${this.online.names().join('  vs  ')}` : opts.replay ? 'REPETICIÓN' : '';
+    if (stp) stp.textContent = this.mode === 'arcade' && this.arcade ? `COMBATE ${this.arcade.stage + 1} DE ${this.arcade.ladder.length}`
+      : opts.chal && this.chal ? (this.chal.kind === 'survival' ? `SUPERVIVENCIA · COMBATE ${this.chal.i + 1}` : `CONTRARRELOJ · COMBATE ${this.chal.i + 1} DE ${this.chal.ladder.length}`) : opts.online ? `VERSUS ONLINE · ${this.online.names().join('  vs  ')}` : opts.replay ? 'REPETICIÓN' : '';
     const card = this.loadCard(id1, id2, stageKey);
     this.fade(true);
     await new Promise(r => setTimeout(r, 380));
@@ -1092,8 +1195,9 @@ class Game {
     if (opts.replay) { this.replayFight(chars, id1, id2, opts); return; }
     // arcade and versus fights are deterministic (det: nothing but the inputs counts, as online) and recorded, so
     // that their best play can be shown again (JUGADA DEL COMBATE); the camera follows the match's own side view
-    const det = !opts.training && !opts.demo && (this.mode === 'arcade' || this.mode === 'versus');
-    this.match = new Match(this, chars, [id1, id2], { training: !!opts.training, det });
+    const det = !opts.training && !opts.demo && (this.mode === 'arcade' || this.mode === 'versus' || !!opts.chal);
+    // (DESAFÍOS: a single round, and in SUPERVIVENCIA the health carried over)
+    this.match = new Match(this, chars, [id1, id2], { training: !!opts.training, det, ...(opts.chal ? { rounds: 1, hpStart: opts.hpStart || null } : {}) });
     this.hud.setRounds(this.match.opts.rounds);
     // (a det fight's knocked-out fighter keeps the position the simulation gives him, the ragdoll is only drawn: driven
     // by the body, the position would follow the screen's frame rate and the play shown again would drift after a KO)
@@ -1120,7 +1224,7 @@ class Game {
     this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
     $('#trainingInfo').classList.toggle('on', !!opts.training);
     const hint = $('.movelist-hint');
-    hint.textContent = document.body.classList.contains('touchui') ? 'II: pausa y lista de movimientos' : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
+    hint.textContent = document.body.classList.contains('touchui') ? (this.touch.opt.specials !== false ? '★: especiales (el joystick elige cuál) · II: pausa y movimientos' : 'II: pausa y lista de movimientos') : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
     clearTimeout(this.hintT); this.hintT = setTimeout(() => hint.classList.add('fade'), 6000);
     this.state = 'fight';
     this.fx.warmup();
@@ -1130,7 +1234,10 @@ class Game {
       this.resumeT = 3; this._resumeShown = null;
     } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
+    if (q.get('startx')) { this.match.startX = +q.get('startx'); if (opts.training) this.match.startRound(); }
     // (?winnow=1: straight to player 1's win pose, for captures: index.html?demo=1&p1=…&winnow=1&readyon=win&readyat=<frame>)
+    // (?matchpoint=1: both a round from winning, for captures of a match-winning finish: js/fight/camera.js impact)
+    if (q.get('matchpoint')) { const m = this.match; m.wins = [m.opts.rounds - 1, m.opts.rounds - 1]; }
     if (q.get('winnow')) { const m = this.match; m.startRound(); m.koWinner = 0; m.wins = [m.opts.rounds - 1, 0]; m.afterRound(); if (q.get('fatalbtn')) m.humans = [true, false]; }
     // (?fatalnow=1: straight to player 1's PUÑETALITY, for captures: index.html?demo=1&p1=noemi&p2=…&fatalnow=1&readyon=fatal&readyat=<frame>)
     if (q.get('fatalnow') && this.match.fighters[0].style.fatal) {
@@ -1295,7 +1402,7 @@ class Game {
     $('#fade .txt').textContent = 'CARGANDO…';
     this.showScreen('none');
     const hint = $('.movelist-hint');
-    hint.textContent = document.body.classList.contains('touchui') ? 'II: pausa y lista de movimientos' : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
+    hint.textContent = document.body.classList.contains('touchui') ? (this.touch.opt.specials !== false ? '★: especiales (el joystick elige cuál) · II: pausa y movimientos' : 'II: pausa y lista de movimientos') : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
     clearTimeout(this.hintT); this.hintT = setTimeout(() => hint.classList.add('fade'), 6000);
     this.state = 'fight';
     this.acc = 0;
@@ -1325,8 +1432,9 @@ class Game {
     if (this.fightOpts && (this.fightOpts.replay || this.fightOpts.online)) { if (this.replaying) this.online.replayEnded(); return; }
     const won = match.winner === 0;
     const W = match.fighters[match.winner], name = (f) => f.ch.meta.display;
-    if (this.mode === 'arcade' || this.mode === 'versus') this.progress.noteMatch(match, 0, this.mode, this.stageKey);
+    if (this.mode === 'arcade' || this.mode === 'versus' || this.isChal()) this.progress.noteMatch(match, 0, this.mode, this.stageKey);
     const again = () => this.startFight(this.fightOpts.id1, this.fightOpts.id2, this.fightOpts);
+    if (this.isChal() && this.chal) { this.chalEnd(match); return; }
     if (this.mode === 'arcade') {
       const a = this.arcade, n = a.ladder.length;
       if (won) {
@@ -1587,6 +1695,8 @@ class Game {
       // (the arcade run is kept: CONTINUAR goes on from this very moment)
       $('#pause .menu.local [data-act="quit"]').textContent = this.mode === 'arcade' ? 'GUARDAR Y SALIR' : 'SALIR AL MENÚ';
       $('#pause .menu.local [data-act="tset"]').hidden = !(this.fightOpts?.training && this.training.m === this.match);
+      // (DESAFÍOS: no starting a fight that is going badly again; the run goes on, or it is given up)
+      $('#pause .menu.local [data-act="restart"]').hidden = !!this.fightOpts?.chal;
       // (the keys and buttons can be changed mid-fight; not on a phone played by touch only)
       $('#pause .menu.local [data-act="controls"]').hidden = document.body.classList.contains('touchui') && !this.padActive;
       this.setupMenu('#pause .menu.local', (act) => {
@@ -1619,8 +1729,26 @@ class Game {
   }
   showMoveList() {
     const f = this.match.fighters[this.online.inFight ? this.online.local : 0];
-    const rows = f.commands.map(c => `<tr><td>${c.str.replace(/\+/g, ' + ')}</td><td>${f.moves[c.move].name}</td><td>${f.moves[c.move].hit ? ({ high: 'Alto', mid: 'Medio', low: 'Bajo', smid: 'Medio esp.', throw: 'Agarre' })[f.moves[c.move].hit.lvl] : ''}</td></tr>`).join('');
-    this.showOverlay(`<h3>${f.ch.meta.display} — MOVIMIENTOS</h3><table>${rows}</table><p style="color:#999;font-size:14px;margin-top:10px">1 = puño izq · 2 = puño der · 3 = patada izq · 4 = patada der · f = hacia el rival · b = atrás · d = abajo · u = arriba</p>`, () => this.pause(true), null, { ok: 'VOLVER' });
+    const LV = { high: 'Alto', mid: 'Medio', low: 'Bajo', smid: 'Medio esp.', throw: 'Agarre' };
+    const lv = (m) => (m?.hit ? LV[m.hit.lvl] : '');
+    const rows = f.commands.map(c => `<tr><td>${c.str.replace(/\+/g, ' + ')}</td><td>${f.moves[c.move].name}</td><td>${lv(f.moves[c.move])}</td></tr>`).join('');
+    // the strings: the jab's and the straight's follow-ups (js/fight/moves.js cancel), the fighter's own one starred
+    const S = f.style, str = [['1, 1, 2', 'Doble jab y directo', 'Alto · Alto · Alto']];
+    if (S.onetwoFinish && f.moves[S.onetwoFinish]) str.push(['1, 2, 4', `1, 2 y ${f.moves[S.onetwoFinish].name}`, `Alto · Alto · ${lv(f.moves[S.onetwoFinish])}`]);
+    if (S.stringFinish && f.moves[S.stringFinish]) str.push(['1, 2, 3', `★ 1, 2 y ${f.moves[S.stringFinish].name}`, `Alto · Alto · ${lv(f.moves[S.stringFinish])}`]);
+    let strRows = `<tr><th colspan="3" style="text-align:left;padding-top:10px">CADENAS</th></tr>` + str.map(([c, n, l]) => `<tr><td>${c}</td><td>${n}</td><td>${l}</td></tr>`).join('');
+    // (on a phone with the ★ buttons: what each throws for each position of the stick)
+    if (document.body.classList.contains('touchui') && this.touch.opt.specials !== false && S.touchSP) {
+      const DIRN = { n: 'sin dirección', f: 'adelante', b: 'atrás', d: 'abajo' };
+      for (const [g, lab] of [['P', '★ PUÑO'], ['K', '★ PATADA']]) {
+        strRows += `<tr><th colspan="3" style="text-align:left;padding-top:10px">${lab}</th></tr>`;
+        for (const k of ['n', 'f', 'b', 'd']) {
+          const cmd = S.touchSP[g][k], c = f.commands.find((x) => x.str === cmd);
+          if (c) strRows += `<tr><td>${lab.split(' ')[0]} ${DIRN[k]}</td><td>${f.moves[c.move].name} <small style="opacity:.6">(${cmd.replace(/\+/g, ' + ')})</small></td><td>${lv(f.moves[c.move])}</td></tr>`;
+        }
+      }
+    }
+    this.showOverlay(`<h3>${f.ch.meta.display} — MOVIMIENTOS</h3><table>${rows}${strRows}</table><p style="color:#999;font-size:14px;margin-top:10px">1 = puño izq · 2 = puño der · 3 = patada izq · 4 = patada der · f = hacia el rival · b = atrás · d = abajo · u = arriba</p>`, () => this.pause(true), null, { ok: 'VOLVER' });
     this.state = 'overlay-pause';
   }
   // EXTRAS -> CONTROLES: how to play, with the keys and buttons as the players have them (CONFIGURAR changes them)
@@ -1637,7 +1765,7 @@ class Game {
       <tr><td>Agarre</td><td>1+3 o 2+4 · Escapar: 1 o 2 al ser agarrado</td></tr>
       <tr><td>Recuperación</td><td>Pulsa cualquier botón justo al caer al suelo para levantarte al instante</td></tr>
       <tr><td>Pausa</td><td>${h.pause}</td></tr>
-      <tr><td>Táctil</td><td>Joystick a la izquierda (aparece donde apoyes el pulgar) · botones 1 2 3 4 a la derecha · el hueco entre dos botones pulsa los dos (1+2, 3+4, 1+3, 2+4) · el botón RAGE ART aparece cuando tienes furia · II = pausa</td></tr></table>`, () => this.controlsUI.show(() => this.showControls()), () => this.toTitle(), { ok: 'CONFIGURAR', back: 'VOLVER' });
+      <tr><td>Táctil</td><td>Joystick a la izquierda (aparece donde apoyes el pulgar) · botones 1 2 3 4 a la derecha · el hueco entre dos botones pulsa los dos (1+2, 3+4, 1+3, 2+4) · <b>★ PUÑO</b> y <b>★ PATADA</b>: los especiales de tu luchador sin comandos; el joystick elige cuál (quieto, adelante, atrás o abajo) y el botón muestra su nombre · el botón RAGE ART aparece cuando tienes furia · II = pausa (en OPCIONES puedes volver a los 4 botones)</td></tr></table>`, () => this.controlsUI.show(() => this.showControls()), () => this.toTitle(), { ok: 'CONFIGURAR', back: 'VOLVER' });
   }
   // (keep: the choices made on the screen before going to CONTROLES and back, not saved yet)
   showOptions(keep) {
@@ -1659,6 +1787,7 @@ class Game {
       <div class="row"><span>Opacidad</span><input id="optTo" type="range" min="0.35" max="1" step="0.05" value="${t.opacity}"></div>
       <div class="row"><span>Joystick</span>${sel('optTk', [['float', 'Flotante'], ['fixed', 'Fijo']], t.stick)}</div>
       <div class="row"><span>Vibración</span>${sel('optTh', [[1, 'Sí'], [0, 'No']], t.haptics ? 1 : 0)}</div>
+      <div class="row"><span>Botones</span>${sel('optTsp', [[1, '6 (con ★ especiales)'], [0, '4 (clásico)']], t.specials !== false ? 1 : 0)}</div>
       <h4>ACCESIBILIDAD</h4>
       <div class="row"><span>Subtítulos</span>${sel('optSub', [[1, 'Sí'], [0, 'No']], this.prefs.subs ? 1 : 0)}</div>
       <div class="row"><span>Temblor de cámara</span>${sel('optShk', [[1, 'Normal'], [0.4, 'Suave'], [0, 'Sin temblor']], this.prefs.shake)}</div>
@@ -1668,7 +1797,7 @@ class Game {
       <p class="note">Un cambio de calidad gráfica recarga el juego.</p>
       <p class="note">Música: Kevin MacLeod (incompetech.com) · Público: Gregor Quendel · licencia CC BY 4.0 · Gritos: HaelDB, VoiceBosch, PlumpDev y SkyRae (OpenGameArt) · Voces: Piper (davefx; Sharvard, CC BY 3.0) · Golpes, pasos y ambiente (CC0): Kenney, artisticdude, IgnasD y Kresiek The Furry</p>`, () => {
       const T = this.touch;
-      T.opt = { ...T.opt, show: $('#optTs').value, size: +$('#optTz').value, opacity: +$('#optTo').value, stick: $('#optTk').value, haptics: $('#optTh').value === '1' };
+      T.opt = { ...T.opt, show: $('#optTs').value, size: +$('#optTz').value, opacity: +$('#optTo').value, stick: $('#optTk').value, haptics: $('#optTh').value === '1', specials: $('#optTsp').value === '1' };
       saveTouchPrefs(T.opt);
       this.prefs = { subs: $('#optSub').value === '1', shake: +$('#optShk').value, flash: +$('#optFl').value, fatal: $('#optFat').value === '1' };
       // (a fight under way, off line: the change counts from now on)
@@ -1686,7 +1815,7 @@ class Game {
     $('#optS').oninput = (e) => { this.audio.vol.sfx = +e.target.value; if (this.audio.sfxBus) this.audio.sfxBus.gain.value = +e.target.value; };
     $('#optV').oninput = (e) => { this.audio.vol.voice = +e.target.value; if (this.audio.voiceBus) this.audio.voiceBus.gain.value = +e.target.value; };
     if ($('#optFs')) $('#optFs').onclick = () => toggleFullscreen();
-    const FORM = ['optQ', 'optTs', 'optTz', 'optTo', 'optTk', 'optTh', 'optSub', 'optShk', 'optFl', 'optFat'];
+    const FORM = ['optQ', 'optTs', 'optTz', 'optTo', 'optTk', 'optTh', 'optTsp', 'optSub', 'optShk', 'optFl', 'optFat'];
     for (const id of FORM) if (keep?.[id] != null && $('#' + id)) $('#' + id).value = keep[id];
     $('#optCtl').onclick = (e) => {
       e.stopPropagation(); this.audio.play('uiok');
@@ -1737,7 +1866,7 @@ class Game {
     const M = menuKeys(keys), A = M.any;
     const pads = this.padMenuState();
     if (this.controlsUI.open) this.controlsUI.input(keys, M, pads);
-    else if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras') && (A.back || pads[0].back)) { this.audio.play('uiback'); this.showTitleMenu('main'); } else this.menuInput(A, pads[0]); }
+    else if (this.state === 'title') { if ((this.titleMenu === 'vs' || this.titleMenu === 'extras' || this.titleMenu === 'chal') && (A.back || pads[0].back)) { this.audio.play('uiback'); this.showTitleMenu('main'); } else this.menuInput(A, pads[0]); }
     else if (this.state === 'ending') { if (keys.size || pads[0].ok || pads[0].back || pads[0].start) this.endingTap(); }
     else if (this.state === 'select') this.selectInput(keys, M, pads);
     else if (this.state === 'stage') this.stageInput(keys, M, pads);
@@ -1797,10 +1926,12 @@ class Game {
           // a few frames after the first heavy/counter hit past frame `readyat` (impact VFX checks)
           || (ro === 'hit' && m.lastHeavyFrame >= ra && m.frame - m.lastHeavyFrame >= +(q.get('hitage') || 2))
           || (ro === 'tech' && m.lastTechFrame >= ra && m.frame - m.lastTechFrame >= +(q.get('hitage') || 8))
-          || (ro === 'parry' && m.lastParryFrame >= ra && m.frame - m.lastParryFrame >= +(q.get('hitage') || 3));
+          || (ro === 'parry' && m.lastParryFrame >= ra && m.frame - m.lastParryFrame >= +(q.get('hitage') || 3))
+          || (ro === 'wall' && m.lastWallFrame >= ra && m.frame - m.lastWallFrame >= +(q.get('hitage') || 6))
+          || (ro === 'crack' && m.lastCrackFrame >= ra && m.frame - m.lastCrackFrame >= +(q.get('hitage') || 6));
         const koHit = stopAt();
         // impact captures freeze the simulation on the stop frame; the camera snaps and the particles age by `hitage` once
-        if ((ro === 'hit' || ro === 'tech' || ro === 'parry' || ro === 'fatal' || ro === 'fight' || (ro === 'win' && q.get('winnow'))) && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
+        if ((ro === 'hit' || ro === 'tech' || ro === 'parry' || ro === 'wall' || ro === 'crack' || ro === 'fatal' || ro === 'fight' || (ro === 'win' && q.get('winnow'))) && koHit && !this.capFrozen) { this.capFrozen = 1; this.camCtl.snap = true; this.readyIn = 3; }
         const fastForward = simonly && m.phase !== 'showcase' && m.frame < simonly && !koHit;
         if (koHit && !window.__ready) { this.readyIn = (this.readyIn ?? 8) - 1; if (this.readyIn <= 0) window.__ready = true; }
         if (fastForward) { this.acc = 400 / FPS; maxSteps = 400; }
@@ -1826,6 +1957,8 @@ class Game {
         alpha = this.acc * FPS;
       }
       for (const f of m.fighters) { if (!f.ragdoll && !f.drawnBy) f.syncRender(alpha); }
+      // (hair and beard detail by the camera's distance: full in close-ups, lighter at the fight's distance)
+      for (const f of m.fighters) { const hb = f.ch.bones.head; if (hb) detailFor(f.ch, this.camera.position.distanceTo(hb.getWorldPosition(_detV))); }
       this.ragdolls.sync();
       // (the PUÑETALITY: its props, the halves of the loser, the blood, the shot; after the fighters are posed)
       this.fatal.update(m, alpha, dt);
@@ -1844,7 +1977,9 @@ class Game {
         FIGHTER_KEY.fill.value.setRGB((kc.r + l) / 2, (kc.g + l) / 2, (kc.b + l) / 2).multiplyScalar(this.stage.keyBoost > 1 ? 0.36 : 0.15); }
       this.camCtl.introT = m.phase === 'intro' ? m.pt / FPS : null; this.camCtl.introCut = (m.introCut || 101) / FPS; this.camCtl.introEnd = (m.introEnd || 220) / FPS; this.camCtl.readyT = m.phase === 'ready' ? m.pt / FPS : null;
       // (the title's fighters walking in: the shot stays where they are heading)
-      this.camCtl.update(dt, this.entrance?.m === m ? this.titleGhosts : m.fighters);
+      // (?camdt=: the camera moved by a fixed time per drawn frame, so that captures in slow software rendering see
+      // its timed shots: the critical finish's impact shot lasts 0.6 s)
+      this.camCtl.update(q.get('camdt') ? +q.get('camdt') : dt, this.entrance?.m === m ? this.titleGhosts : m.fighters);
       // per-fighter key light (view space): from in front of each fighter, above and towards the lens, so a face in
       // profile is lit whichever side of the screen it is on; the rim kicks in from behind the fighter
       this.camera.updateMatrixWorld();
@@ -1878,6 +2013,18 @@ class Game {
     e.letterbox += (lb - e.letterbox) * (1 - Math.exp(-dt * 4));
     // phones: the player's own fighter taking a blow is felt in the hand too (the vibration option rules)
     const mine = this.online.inFight ? this.online.local : 0, feel = document.body.classList.contains('touchui') && this.state === 'fight' && !this.replaying;
+    // DESAFÍOS: the run's clock (CONTRARRELOJ) or its count of fights won (SUPERVIVENCIA) under the round timer
+    {
+      const el = this.chalHud || (this.chalHud = $('#chalHud'));
+      const C = this.chal, on = !!(el && m && C && this.fightOpts?.chal && (this.state === 'fight' || this.state === 'pause') && !this.replaying);
+      if (el && on !== !!this._chalOn) { this._chalOn = on; el.classList.toggle('on', on); }
+      if (on) {
+        const best = this.records.best(C.kind);
+        const txt = C.kind === 'timeattack' ? `⏱ ${clock(C.frames + (m.fightFrames || 0))}${best ? `<small>RÉCORD ${clock(best.frames)}</small>` : ''}`
+          : `${C.i} ${C.i === 1 ? 'VICTORIA' : 'VICTORIAS'}${best ? `<small>RÉCORD ${best.n}</small>` : ''}`;
+        if (txt !== this._chalTxt) { this._chalTxt = txt; el.innerHTML = txt; }
+      }
+    }
     if (m) for (const ev of m.events) {
       if (ev.t === 'hit' && (ev.heavy || ev.ch)) { e.radial = Math.max(e.radial, ev.ch ? 0.35 : 0.2); e.hitFlash = Math.max(e.hitFlash, ev.ch ? 0.35 : 0.18); }
       // the marks a fight leaves on them (js/fx/wear.js), and the stage's answer to a blow or a fall (stage.react)
@@ -1887,11 +2034,24 @@ class Game {
       if (feel && ev.t === 'hit' && ev.def && ev.def.index === mine) haptic(ev.def.ko ? 90 : ev.heavy || ev.ch ? 40 : 14);
       if (feel && ev.t === 'block' && ev.f && ev.f.index === mine) haptic(8);
       if (ev.t === 'rageArt') { e.radial = 0.8; e.hitFlash = 0.6; e.desat = 0.5; }
+      // a critical finish: the screen kicks, drains of colour for a beat, a deep boom under the blow
+      if (ev.t === 'crit') { e.radial = 1; e.hitFlash = 0.75; e.desat = Math.max(e.desat, 0.4); this.audio.fatal?.('cutin', ev.p); }
       if (ev.t === 'rage') { e.hitFlash = Math.max(e.hitFlash, 0.25); }
+      // the stage takes the blows too: the floor cracks under a big knockdown, a barrier rattles, a tree sheds its
+      // leaves (js/fx/impacts.js)
+      if (ev.t === 'crack') { this.impacts.floorCrack(ev.pos, ev.power); this.audio.play?.('crack', ev.pos); e.radial = Math.max(e.radial, 0.3); }
+      if (ev.t === 'wall' && ev.n) {
+        this.impacts.wall(ev.pos, ev.n, ev.kind, ev.power);
+        this.audio.play?.(ev.kind === 'tree' ? 'wallTree' : ev.kind === 'barrier' ? 'wallMetal' : 'wallHard', ev.pos);
+        if (ev.kind === 'barrier') this.audio.crowdReact?.(true);
+        e.radial = Math.max(e.radial, 0.25);
+        if (feel && ev.f?.index === mine) haptic(50);
+      }
     }
     if (m) m.events.length = 0;
     setFxViewHeight(this.renderer.getDrawingBufferSize(this._dbs || (this._dbs = new THREE.Vector2())).y);
-    this.fx.update(this.capFrozen ? (this.capFrozen++ === 1 ? (+(q.get('hitage') || 2)) / FPS : 0) : dt);
+    const fxDt = this.capFrozen ? (this.capFrozen++ === 1 ? (+(q.get('hitage') || 2)) / FPS : 0) : dt;
+    this.fx.update(fxDt); this.impacts.update(fxDt);
     this.stage.update(dt, this.camera);
     if (m && (this.state === 'fight' || this.state === 'pause')) { const wet = this.stage.wetness?.() || 0; for (const f of m.fighters) f.ch?.wear?.update(f, this.state === 'fight' ? dt : 0, wet, this.fx); }
     if (m && this.stage.feet) this.stage.feet(m.fighters, dt);
@@ -2029,7 +2189,7 @@ window.__game = game;
 window.__debug = () => {
   const m = game.match;
   return JSON.stringify({ state: game.state, stage: game.stageKey, loading: document.querySelector('#loading').className, phase: m?.phase, frame: m?.frame, round: m?.round,
-    f: m?.fighters.map(f => ({ id: f.id, st: f.state, hp: f.hp, pos: f.pos.toArray().map(v => +v.toFixed(2)), mv: f.moveName })), screens: [...document.querySelectorAll('.screen.on')].map(e => e.id) });
+    f: m?.fighters.map(f => ({ id: f.id, st: f.state, hp: f.hp, pos: f.pos.toArray().map(v => +v.toFixed(2)), mv: f.moveName })), screens: [...document.querySelectorAll('.screen.on')].map(e => e.id), ktx2: game.ktx2On, textures: game.renderer?.info?.memory?.textures ?? 0 });
 };
 game.boot().catch(err => {
   console.error(err);

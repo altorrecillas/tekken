@@ -38,6 +38,7 @@ export function budget(quality) {
 
 let maxTex = 0;
 export function setTextureCap(px) { maxTex = px || 0; }
+export function textureCap() { return maxTex; }
 
 // Downscale every loaded image above the cap before it reaches the GPU (TextureLoader uses ImageLoader).
 const origLoad = THREE.ImageLoader.prototype.load;

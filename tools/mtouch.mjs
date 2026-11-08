@@ -120,6 +120,46 @@ await wait(1500);
   check('block shield let go -> guard down', d.f[0].st !== 'guard', `(state ${d.f[0].st})`);
 }
 await wait(600);
+// the ★ buttons (Zapponi: ★ PUÑO = 1+2 lariat at rest, b+2 chop back; ★ PATADA = d+4 sweep down, f+3 big boot at rest)
+{
+  const inView = await p.evaluate(() => [...document.querySelectorAll('#touch .tb')].every((b) => { const r = b.getBoundingClientRect(); return !b.hidden && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; }));
+  const overlap = await p.evaluate(() => { const R = [...document.querySelectorAll('#touch .tb')].map((b) => b.getBoundingClientRect()); for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) { const a = R[i], b = R[j]; if (Math.hypot((a.left + a.right - b.left - b.right) / 2, (a.top + a.bottom - b.top - b.bottom) / 2) < (a.width + b.width) / 2 * 0.98) return true; } return false; });
+  check('six buttons on screen, none overlapping', inView && !overlap && (await p.evaluate(`document.querySelectorAll('#touch .tb.sp:not([hidden])').length`)) === 2);
+  const spBox = async (k) => { const bb = await box(`#touch .tb.sp.${k}`); return [bb.x + bb.width / 2, bb.y + bb.height / 2]; };
+  const label = (k) => p.evaluate((k) => document.querySelector(`#touch .tb.sp.${k} em`).textContent, k);
+  // (the move the fighter is doing, waited for on the simulation's clock)
+  const waitMove = async (name) => { try { await p.waitForFunction(`JSON.parse(window.__debug()).f[0].mv === '${name}'`, null, { timeout: 60000, polling: 50 }); return name; } catch (e) { return (await dbg()).f[0].mv; } };
+  const idle = async () => { try { await p.waitForFunction(`['idle','walkF','walkB','crouch'].includes(JSON.parse(window.__debug()).f[0].st)`, null, { timeout: 120000, polling: 100 }); } catch (e) { /* reported by the next check */ } await wait(300); };
+  await idle();
+  check('★ PUÑO label at rest: LARIAT', (await label('pu')) === 'LARIAT', `(${await label('pu')})`);
+  let [sx, sy] = await spBox('pu');
+  await touch('touchStart', [[sx, sy, 7]]); await wait(90); await touch('touchEnd', []);
+  let mv = await waitMove('lariat');
+  check('★ PUÑO at rest -> lariat (1+2)', mv === 'lariat', `(mv ${mv})`);
+  await idle();
+  // stick held back (P1 faces right: left), then ★ PUÑO with a second finger
+  await touch('touchStart', [[x0, y0, 1]]); await wait(40); await touch('touchMove', [[x0 - 60, y0, 1]]); await wait(300);
+  const lb = await label('pu');
+  await touch('touchStart', [[x0 - 60, y0, 1], [sx, sy, 8]]); await wait(90); await touch('touchEnd', [[x0 - 60, y0, 1]]);
+  mv = await waitMove('chop');
+  await touch('touchEnd', []);
+  check('★ PUÑO label follows the stick: back -> CHOP', lb === 'CHOP', `(${lb})`);
+  check('stick back + ★ PUÑO -> chop (b+2)', mv === 'chop', `(mv ${mv})`);
+  await idle();
+  // stick down + ★ PATADA: the sweep
+  [sx, sy] = await spBox('ki');
+  await touch('touchStart', [[x0, y0 - 40, 1]]); await wait(40); await touch('touchMove', [[x0, y0 + 25, 1]]); await wait(300);
+  await touch('touchStart', [[x0, y0 + 25, 1], [sx, sy, 9]]); await wait(90); await touch('touchEnd', [[x0, y0 + 25, 1]]);
+  mv = await waitMove('sweep');
+  await touch('touchEnd', []);
+  check('stick down + ★ PATADA -> sweep (d+4)', mv === 'sweep', `(mv ${mv})`);
+  await idle();
+  await touch('touchStart', [[sx, sy, 10]]); await wait(90); await touch('touchEnd', []);
+  mv = await waitMove('bigBoot');
+  check('★ PATADA at rest -> big boot (f+3)', mv === 'bigBoot', `(mv ${mv})`);
+  await p.screenshot({ path: (process.env.SHOTS || '.') + '/mtouch_specials.png' });
+  await idle();
+}
 // pause button, then resume by tap
 await tapSel('#touchPause'); await wait(300);
 check('pause by tap', (await dbg()).state === 'pause');

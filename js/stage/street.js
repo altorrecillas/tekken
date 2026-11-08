@@ -153,7 +153,8 @@ export class StreetStage {
     this.shadowSize = { low: 1024, medium: 1024, high: 2048, ultra: 2048 }[quality] || 2048;
     this.group = new THREE.Group(); this.group.name = 'stage-street';
     scene.add(this.group);
-    this.arenaRadius = 6.0;
+    // (the barriers are the arena's walls along x: the circle only ends it up and down the avenue)
+    this.arenaRadius = 8.0;
     this.t = 0;
     this.animated = [];
     this.koView = new THREE.Vector3(0, 0, -1); // KO shots look towards the finish arch
@@ -165,8 +166,13 @@ export class StreetStage {
     scene.fog = new THREE.FogExp2(new THREE.Color(0.8, 0.83, 0.86), 0.0035);
   }
   ready() { return Promise.all(pending); }
-  // walkable space: the avenue between the crowd barriers (fighters and ragdoll joints of radius r)
-  clampWalk(p, r = 0) { const lim = 6.15 - r; if (p.x > lim) p.x = lim; else if (p.x < -lim) p.x = -lim; return p; }
+  // walkable space: the avenue between the crowd barriers (fighters and ragdoll joints of radius r). They are solid:
+  // a fighter knocked into one is slammed against it (lastWall, Match.wallImpact)
+  clampWalk(p, r = 0) {
+    const lim = 6.15 - r;
+    if (p.x > lim) { p.x = lim; this.lastWall = 'barrier'; } else if (p.x < -lim) { p.x = -lim; this.lastWall = 'barrier'; }
+    return p;
+  }
   // cinematic cameras stay over the road, clear of the barriers and the crowd
   clampCam(p) { p.x = THREE.MathUtils.clamp(p.x, -5.5, 5.5); p.z = THREE.MathUtils.clamp(p.z, -45, 20); return p; }
 
@@ -407,7 +413,7 @@ export class StreetStage {
   }
 
   buildCrowd() {
-    const atlas = tex('crowd_atlas.png', { srgb: true });
+    const atlas = tex('crowd_atlas.webp', { srgb: true });
     atlas.wrapS = atlas.wrapT = THREE.ClampToEdgeWrapping; atlas.repeat.set(1, 1);
     const COLS = 16, ROWS = 4;
     const geo = new THREE.PlaneGeometry(0.9, 1.8); geo.translate(0, 0.9, 0);

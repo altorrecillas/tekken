@@ -21,6 +21,8 @@ function toNumpad(fwd, up) {
 }
 const DIRCODE = { f: 6, b: 4, u: 8, d: 2, uf: 9, ub: 7, df: 3, db: 1, n: 5 };
 const BTN = { 1: B1, 2: B2, 3: B3, 4: B4 };
+// metres the end of a fighter's own string (1, 2, 3) steps in further than the same blow on its own (startMove)
+const CHAIN_STEP = 0.3;
 
 function parseCommand(str) {
   // "f,f+2", "df+1", "1+2", "f+1+2", "d+4"
@@ -56,6 +58,7 @@ const ROOT_END = Math.max(POSE.rootPos[0], POSE.rootRot[0]);
 const LIMB_BONE = {
   handL: 'wrist.L', handR: 'wrist.R', footL: 'foot.L', footR: 'foot.R', kneeL: 'lowerleg01.L', kneeR: 'lowerleg01.R',
   head: 'head', belly: 'spine04', forearmR: 'lowerarm02.R', forearmL: 'lowerarm02.L', elbowR: 'lowerarm01.R', elbowL: 'lowerarm01.L',
+  shoulderL: 'upperarm01.L', shoulderR: 'upperarm01.R', chest: 'spine02',
 };
 
 export class Fighter {
@@ -103,6 +106,9 @@ export class Fighter {
       kneeL: new THREE.Vector3(0, 0, 0.04), kneeR: new THREE.Vector3(0, 0, 0.04),
       head: new THREE.Vector3(0, 0.1, 0.06), belly: new THREE.Vector3(0, 0, 0.14),
       forearmR: new THREE.Vector3(), forearmL: new THREE.Vector3(), elbowR: new THREE.Vector3(), elbowL: new THREE.Vector3(),
+      // (the point of the shoulder: a little out and forward of the joint, along the upper arm)
+      shoulderL: new THREE.Vector3(0, 0.05, 0.03), shoulderR: new THREE.Vector3(0, 0.05, 0.03),
+      chest: new THREE.Vector3(0, 0.04, 0.15),
     };
     this.bodyR = 0.16 * Math.sqrt(this.stats.weight);
     // secondary motion: damped springs driven by impacts (spine / neck pitch-yaw-roll)
@@ -144,6 +150,7 @@ export class Fighter {
     this.clip = this.clips.idle; this.cf = 0; this.blendT = 1; this.blendDur = 1;
     this.feet?.reset(); this.ubc = 0; this.snapSmooth = true; this.yawRate = 0;
     this.stun = 0; this.juggles = 0; this.comboHits = 0; this.comboDmg = 0; this.spin = 0;
+    this.wallHits = 0; this.wallBounced = 0; this.wallNx = 0; this.wallNz = 0; this.slamPow = 0;
     this.slide = 0; this.vel.set(0, 0, 0); this.pos.y = 0;
     this.pending = 0; this.pendingT = 0; this.downT = 0; this.invuln = 0; this.parryW = 0; this.parryCD = 0;
     this.crouching = false; this.airborne = false; this.guard = 'none';
@@ -263,6 +270,9 @@ export class Fighter {
     const m = this.moves[name];
     if (!m) return false;
     this.move = m; this.moveName = name; this.mf = 0; this.moveHit = false; this.moveConnected = false; this.latchedHit = null;
+    // (the end of the fighter's own string, 1, 2, 3, steps in further when it comes out of the string: the opponent
+    // is a step back by then and still reeling from the straight, the way a string's last blow follows him in)
+    this.chainAdv = from === 'cancel' && name === this.style.stringFinish ? CHAIN_STEP : 0;
     this.setState('move');
     this.play(name, from === 'cancel' ? 3 : 4, m.clip);
     this.advPrev = 0;
@@ -306,7 +316,10 @@ export class Fighter {
           this.startMove(cmd.move);
           return;
         }
-      } else if (!(s === 'move' && (this.mf > this.move.total - 10 || (this.move.hit?.launch && this.moveConnected && this.mf >= this.move.hit.f[1])))) {
+      } else if (!(s === 'move' && (this.mf > this.move.total - 10 || (this.move.hit?.launch && this.moveConnected && this.mf >= this.move.hit.f[1])
+        // (a string's next button pressed as the blow lands, in the hit stop, before its window opens: kept for it,
+        // as long as it is one of the buttons the string goes on with)
+        || (this.move.cancel && this.mf < this.move.cancel.from && this.mf >= (this.move.hit?.f[0] ?? 0) - 2 && Object.keys(this.move.cancel.next).some((k) => this.move.cancel.next[k] && this.pending === BTN[k]))))) {
         this.pending = 0; // drop presses that cannot be buffered (a launcher that connected keeps them for its cancel)
       }
     }
@@ -373,9 +386,22 @@ export class Fighter {
       }
       case 'block': case 'hit':
         if (--this.stun <= 0) {
-          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0;
+          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0; this.wallHits = 0; this.wallBounced = 0;
           if (this.crouching && inp.up < 0) { this.setState('crouch'); this.sf = 10; this.play('crouchIdle', 5); }
           else { this.crouching = false; this.setState('idle'); this.play('idle', 6); }
+        }
+        break;
+      case 'wall':
+        // pinned against a wall or a barrier (Match.wallImpact): back to it, turning to face out from it, stunned
+        // and open to the follow-ups (a wall combo) until the stun runs out; then he pushes himself off it
+        this.slide = 0;
+        { let dy = Math.atan2(this.wallNx, this.wallNz) - this.yaw;
+          while (dy > Math.PI) dy -= 2 * Math.PI;
+          while (dy < -Math.PI) dy += 2 * Math.PI;
+          this.yaw += dy * 0.25; }
+        if (--this.stun <= 0) {
+          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0; this.wallHits = 0; this.wallBounced = 0;
+          this.crouching = false; this.setState('idle'); this.play('idle', 8);
         }
         break;
       case 'air':
@@ -400,7 +426,7 @@ export class Fighter {
         // attacker, invulnerable, out of range of ground follow-ups
         if (this.sf <= 10 && this.hp > 0 && (inp.pressed & (B1 | B2 | B3 | B4))) {
           this.setState('tech'); this.play('getup', 2); this.cfRate = 1.7; this.invuln = 24; this.slide = 6;
-          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0;
+          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0; this.wallHits = 0; this.wallBounced = 0;
           this.match.onTech?.(this);
           break;
         }
@@ -413,7 +439,7 @@ export class Fighter {
         this.downT++;
         if ((this.downT > 14 && (inp.pressed || inp.up !== 0 || inp.fwd !== 0)) || this.downT > 55) {
           this.setState('getup'); this.play('getup', 3); this.invuln = 24;
-          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0;
+          this.comboHits = 0; this.comboDmg = 0; this.juggles = 0; this.wallHits = 0; this.wallBounced = 0;
         }
         break;
       case 'getup':
@@ -424,7 +450,7 @@ export class Fighter {
         break;
       case 'thrown':
         break;
-      case 'win': case 'intro': case 'ko': case 'lose': case 'rageArt': case 'rageHit':
+      case 'win': case 'intro': case 'ko': case 'lose': case 'rageArt': case 'rageHit': case 'tired':
         break;
     }
     // guard status
@@ -477,7 +503,8 @@ export class Fighter {
       // ... nor step closer than the strike needs: an arm or leg thrown from inside its own reach goes through the
       // opponent (clinch moves - headbutt, belly bump, knee, throws - are meant to close right in)
       if (step > 0 && this.opp && this.move.hit) {
-        const limb = this.move.hit.limb, clinch = this.move.throw || limb === 'head' || limb === 'belly' || limb === 'kneeR' || limb === 'kneeL';
+        const limb = this.move.hit.limb, clinch = this.move.throw || limb === 'head' || limb === 'belly' || limb === 'kneeR' || limb === 'kneeL'
+          || limb === 'chest' || limb === 'shoulderL' || limb === 'shoulderR';
         const near = this.bodyR + this.opp.bodyR + (clinch ? 0.12 : limb.startsWith('foot') ? 0.5 : 0.42);
         // hip to hip (the clip's root motion carries the body ahead of this.pos)
         const ha = this.boneWorld('spine05', _u1), hb = this.opp.boneWorld('spine05', _u2);
@@ -508,7 +535,7 @@ export class Fighter {
       if (this.pos.y < 0 && this.state !== 'air' && this.state !== 'jump') { this.pos.y = 0; this.vel.y = 0; }
     }
     // facing: track the opponent unless committed to an attack's active phase
-    const tracking = !(s === 'move' && this.mf > (this.move.hit ? this.move.hit.f[0] - 5 : 999)) && !['air', 'land', 'down', 'thrown', 'throwing', 'ko'].includes(s);
+    const tracking = !(s === 'move' && this.mf > (this.move.hit ? this.move.hit.f[0] - 5 : 999)) && !['air', 'land', 'down', 'thrown', 'throwing', 'ko', 'wall'].includes(s);
     const target = Math.atan2(ax.x, ax.z);
     let dy = target - this.yaw;
     while (dy > Math.PI) dy -= 2 * Math.PI;
@@ -524,11 +551,13 @@ export class Fighter {
 
   advanceAt(f) {
     const adv = this.move.advance;
+    // (a string's last blow: its extra step, eased in up to the blow)
+    const ch = this.chainAdv ? this.chainAdv * Math.min(1, f / Math.max(1, this.move.hit?.f[0] || 10)) : 0;
     for (let i = 1; i < adv.length; i++) if (f <= adv[i][0]) {
       const t = (f - adv[i - 1][0]) / Math.max(1, adv[i][0] - adv[i - 1][0]);
-      return adv[i - 1][1] + (adv[i][1] - adv[i - 1][1]) * t;
+      return adv[i - 1][1] + (adv[i][1] - adv[i - 1][1]) * t + ch;
     }
-    return adv[adv.length - 1][1];
+    return adv[adv.length - 1][1] + ch;
   }
 
   // ------------------------------------------------------------------ animation
@@ -764,7 +793,7 @@ export class Fighter {
     const s = this.state, mv = this.move;
     // (the PUÑETALITY: the loser afraid; the winner's cold smile, her face set hard through the cut)
     const F = s === 'fatal' ? this.style.fatal : null, fc = F ? (F.contact ?? F.cut) : 0, fe = F && this.cf >= fc - 12 && this.cf <= fc + 10;
-    const pain = this.ko ? 0 : s === 'hit' || s === 'air' || s === 'thrown' ? 1 : s === 'block' ? 0.45 : s === 'land' || s === 'down' || s === 'getup' ? 0.5 : s === 'fatalV' ? 0.8 : 0;
+    const pain = this.ko ? 0 : s === 'hit' || s === 'air' || s === 'thrown' || s === 'wall' ? 1 : s === 'block' ? 0.45 : s === 'land' || s === 'down' || s === 'getup' ? 0.5 : s === 'fatalV' ? 0.8 : 0;
     const effort = (s === 'move' && mv?.hit && this.mf <= mv.hit.f[1] + 6) || s === 'throwing' || s === 'rageArt' || fe ? 1 : 0;
     const smile = s === 'win' ? 0.85 : F && !fe ? 0.45 : 0;
     const t = ((this.match?.frame || 0) + alpha) / 60;
@@ -785,10 +814,22 @@ export class Fighter {
     const prop = this.ch.winProp;
     if (prop) prop.visible = this.state === 'win' && this.clipName === 'win' && this.cf >= (prop.userData.from || 0);
     // eyes squeeze while taking a hit, shut when knocked out
-    this.rig.lidClose = this.ch.meta?.robot ? 0 : this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown') ? 0.55 : this.state === 'fatalV' ? 0.2 : 0;
+    this.rig.lidClose = this.ch.meta?.robot ? 0 : this.ko ? 0.92 : (this.state === 'hit' || this.state === 'air' || this.state === 'thrown' || this.state === 'wall') ? 0.55 : this.state === 'fatalV' ? 0.2 : 0;
     // (his mouth a plate on a hinge: it moves a little as he speaks, no more)
     if (this.ch.meta?.robot) { const j = POSE.jaw[0]; this.renderPose[j] = Math.min(this.renderPose[j], 0.12); this.rig.noBlink = true; }
     this.updateFace(alpha);
+    // worn down (under a quarter of his health, on his feet and not attacking): his shoulders heave with his breathing,
+    // the trunk sags a little and the head rolls; drawn only (what the simulation hits stays the same)
+    const low = this.maxHp ? 1 - this.hp / (this.maxHp * 0.25) : 0;
+    const tiredK = this.fatigue = (this.fatigue || 0) + ((low > 0 && !this.ko && ['idle', 'walkF', 'walkB', 'guard', 'crouch'].includes(this.state) ? Math.min(1, low * 1.6) : 0) - (this.fatigue || 0)) * 0.05;
+    if (tiredK > 0.01 && !this.ch.meta?.robot) {
+      const t = ((this.match?.frame || 0) + alpha) / 60, R = this.renderPose, sp = POSE.spine[0], nk = POSE.neck[0], rp = POSE.rootPos[0];
+      const br = Math.sin(t * 5.2), sway = Math.sin(t * 1.3);
+      R[sp] += tiredK * (0.07 + 0.025 * br); R[sp + 2] += tiredK * 0.03 * sway;
+      R[nk] += tiredK * (0.06 - 0.03 * br); R[nk + 2] += tiredK * 0.06 * Math.sin(t * 1.3 + 0.8);
+      R[rp + 1] -= tiredK * (0.012 + 0.006 * br);
+      const j = POSE.jaw[0]; R[j] = Math.max(R[j], tiredK * (0.12 + 0.08 * Math.max(0, br)));
+    }
     this.rig.apply(this.renderPose);
     const g = this.ch.group;
     g.position.lerpVectors(this.prevPos, this.pos, alpha);
