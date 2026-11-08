@@ -345,6 +345,27 @@ Las patadas se revisaron midiendo, fotograma a fotograma, el ángulo de la rodil
 - **Equilibrio intacto:** las posiciones en el momento del impacto no cambian. El alcance de todos los golpes se midió antes y después (`rangeall.mjs`, cada 2 cm): solo varía en 2 cm en tres casos. Los combos de las pruebas de entrenamiento siguen saliendo (`trainingtest.mjs`).
 - `fightlab.html?…&fx=1` dibuja las tiras de fotogramas con los efectos del juego (chispas, estelas).
 
+### Golpes (0.82)
+
+Se revisaron todos los golpes de todos los luchadores: tiras de fotogramas de cada uno, más la auditoría de animación completa (`animaudit.mjs`) y una medición de cada golpe (`tools/strikeprobe.mjs`). La medición da, para cada golpe, la velocidad del puño o del pie al ir y al volver, la extensión del brazo o la pierna al impactar y el giro de hombros o cadera.
+- **Sin tirones:** muchos golpes especiales salían de una carga que acababa parada en seco y arrancaban de golpe. En un solo fotograma la muñeca o el antebrazo saltaban 20-38 cm. Ahora la carga fluye hacia el golpe:
+  - el puñetazo con carrera (f,f+2), el directo al cuerpo (df+1) y el Rage Art;
+  - la plancha y el martillo de Aleix;
+  - el revés de Camilo;
+  - el panzazo y el mazazo de Rafa;
+  - el lariat y el hachazo de Zapponi y Orión;
+  - el gancho al hígado y el guantazo de Dani;
+  - el triaje de Noemí.
+
+  La suma de tirones bruscos de todos los golpes ha bajado de 2.579 a 1.140.
+- **Puñetazo con carrera:** el cuerpo entra primero, bajo y con el puño cargado en la barbilla, y el golpe sale al apoyar el pie delantero (antes todo el cuerpo saltaba hacia delante a la vez).
+- **Panzazo de Rafa:** ahora es un empujón de sumo: los brazos atrás, la cadera hundida y la barriga lanzada hacia delante, con el tronco a 20°. Antes se tumbaba 43° hacia atrás con las manos en alto, como si se cayera. El punto de impacto es el mismo.
+- **Dani:** el puño de atrás va a la barbilla y ya no le tapa los ojos cuando gira la cabeza en los golpes.
+- **Barrido:** al levantarse no se dobla tanto sobre la pierna delantera.
+- **Patada en carrera de Camilo:** la carga de la rodilla con la cadera algo hacia atrás, para no forzarla.
+- **Estela de los golpes fuertes:** como las patadas, los puñetazos fuertes dejan un abanico de aire cortado desde el antebrazo hasta los nudillos solo en los últimos fotogramas. Antes era una banda gris plana que seguía a la muñeca.
+- El equilibrio no cambia: los combos de las pruebas de entrenamiento salen todos, y el alcance de los golpes se midió antes y después. Solo varía entre 2 y 4 cm en unos pocos casos (el puñetazo con carrera, el directo al cuerpo y el empujón de Noemí). El cabezazo de Aleix y el puñetazo gacela de Dani conservan su ritmo original: suavizarlos les quitaba 8 y 4 cm de alcance.
+
 ### Revisión de las caras (0.81)
 
 Todas las caras se compararon con sus fotos de referencia. Cada render de frente se alineó por los ojos con la foto y se midieron sus proporciones con MediaPipe. Solo cambian las texturas de la cara, las gafas y el iris. El pelo, la ropa y la forma de la cabeza que ya estaban aprobados se quedan como estaban; la única excepción es la cara de Zapponi, algo más llena.

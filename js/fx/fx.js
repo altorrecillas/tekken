@@ -288,11 +288,13 @@ export class FX {
   }
 
   trail(fighter, limb, duration, color = new THREE.Color(0.9, 0.95, 1.0)) {
-    // (a kick: the sweep of the whole shin and foot, from the knee to past the toes)
+    // (a kick: the sweep of the whole shin and foot, from the knee to past the toes; a punch: of the forearm and fist,
+    // from mid-forearm to past the knuckles. A ribbon behind the wrist alone read as a flat grey band in the air)
     const side = limb && { 'foot.L': 'L', 'foot.R': 'R', 'lowerleg01.L': 'L', 'lowerleg01.R': 'R' }[limb.bone];
-    if (side && fighter) {
-      const power = limb.power ?? 1;
-      this.trails.push({ fighter, limb, side, t0: this.clock, dur: duration, tr: new SweepTrail(this.scene, color.clone().lerp(new THREE.Color(0.55, 0.75, 1.25), 0.5), power), sweep: true });
+    const arm = limb && { 'wrist.L': 'L', 'wrist.R': 'R', 'lowerarm02.L': 'L', 'lowerarm02.R': 'R' }[limb.bone];
+    if ((side || arm) && fighter) {
+      const power = (limb.power ?? 1) * (arm ? 0.8 : 1);
+      this.trails.push({ fighter, limb, side: side || arm, arm: !!arm, t0: this.clock, dur: duration, tr: new SweepTrail(this.scene, color.clone().lerp(new THREE.Color(0.55, 0.75, 1.25), 0.5), power), sweep: true });
       return;
     }
     this.trails.push({ fighter, limb, t0: this.clock, dur: duration, tr: new Trail(this.scene, color) });
@@ -319,7 +321,14 @@ export class FX {
       const T = this.trails[i];
       const age = this.clock - T.t0;
       if (age > T.dur + 0.2) { T.tr.dispose(this.scene); this.trails.splice(i, 1); continue; }
-      if (age <= T.dur && T.fighter && T.sweep) {
+      if (age <= T.dur && T.fighter && T.sweep && T.arm) {
+        const B = T.fighter.ch.bones, el = B['lowerarm01.' + T.side], wr = B['wrist.' + T.side];
+        if (el && wr) {
+          const e = el.getWorldPosition(new THREE.Vector3()), w = wr.getWorldPosition(new THREE.Vector3());
+          const knuck = w.clone().addScaledVector(_tv1.subVectors(w, e), 0.32);
+          T.tr.push(e.lerp(w, 0.55), knuck, this.clock);
+        }
+      } else if (age <= T.dur && T.fighter && T.sweep) {
         const B = T.fighter.ch.bones, kn = B['lowerleg01.' + T.side], ft = B['foot.' + T.side], toe = B['toe3-1.' + T.side] || B['toe1-1.' + T.side];
         if (kn && ft) {
           const k = kn.getWorldPosition(new THREE.Vector3()), a = ft.getWorldPosition(new THREE.Vector3());

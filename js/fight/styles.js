@@ -259,9 +259,9 @@ export const STYLES = {
       slide: {
         name: 'Slide tackle', total: 56, clip: C([
           [0, {}],
-          [6, { rootPos: [0, -0.2, 0.05], rootRot: [0.3, -0.4, 0] }, 'out'],
+          [6, { rootPos: [0, -0.2, 0.05], rootRot: [0.3, -0.4, 0] }, 'inout'],
           [18, { rootPos: [0, -0.74, 0.1], rootRot: [-0.95, -0.3, 0], spine: [0.35, 0, 0], footL: [0.1, 0.1, 0.98], kneeL: [0.1, 1, 0.3], footRotL: [-1.4, 0, 0], footR: [0.22, 0.075, 0.28], kneeR: [0.5, 1, 0.3],
-            handL: GUARD_L, handR: [0.45, -0.8, -0.3], aimL: 0, aimR: 1, poleR: [0.4, 0, -1], neck: [0.75, 0.2, 0] }, 'snap'],
+            handL: GUARD_L, handR: [0.45, -0.8, -0.3], aimL: 0, aimR: 1, poleR: [0.4, 0, -1], neck: [0.75, 0.2, 0] }, 'drive'],
           [26, {}, 'lin'],
           [42, { rootPos: [0, -0.4, 0], rootRot: [0.1, -0.4, 0], footL: [0.1, 0.071, 0.25], footR: [0.22, 0.071, -0.15], handR: GUARD_R, aimR: 0, neck: [0.2, 0.15, 0] }, 'inout'],
           [56, null, 'inout'],
@@ -272,9 +272,9 @@ export const STYLES = {
       hammer: {
         name: 'Hammer fist', total: 44, clip: C([
           [0, {}],
-          [8, { rootPos: [0, -0.02, -0.04], rootRot: [-0.2, -0.3, 0], spine: [-0.25, 0.3, 0], handR: [0.1, 0.9, 0.1], aimR: 1, twistR: 0.4, clavR: [0.3, 0.1] }, 'out'],
+          [8, { rootPos: [0, -0.02, -0.04], rootRot: [-0.2, -0.3, 0], spine: [-0.25, 0.3, 0], handR: [0.1, 0.9, 0.1], aimR: 1, twistR: 0.4, clavR: [0.3, 0.1] }, 'inout'],
           // the power comes from dropping the hips; the torso folds only moderately so the head stays behind the fist
-          [18, { rootPos: [0, -0.24, 0.1], rootRot: [0.24, -0.2, 0], spine: [0.26, 0.3, 0], handR: [0.0, 0.02, 0.86], aimR: 1, twistR: -0.14, neck: [-0.1, 0, 0], kneeL: [0.25, 0, 1] }, 'snap'],
+          [18, { rootPos: [0, -0.24, 0.1], rootRot: [0.24, -0.2, 0], spine: [0.26, 0.3, 0], handR: [0.0, 0.02, 0.86], aimR: 1, twistR: -0.14, neck: [-0.1, 0, 0], kneeL: [0.25, 0, 1] }, 'drive'],
           [22, {}, 'lin'],
           [30, { rootPos: [0, -0.16, 0.04], rootRot: [0.14, -0.35, 0], spine: [0.16, 0.2, 0], handR: [-0.08, 0.15, 0.55], aimR: 0.6, neck: [0.05, 0.1, 0] }, 'ret'],
           [44, null, 'inout'],
@@ -389,7 +389,7 @@ export const STYLES = {
           [6, { rootPos: [0, -0.1, 0.05], rootRot: [0.25, -0.3, 0], footR: [0.18, 0.2, -0.05], handL: [0.3, -0.38, -0.18], handR: [0.1, 0.1, 0.5], aimL: 1, aimR: 1 }, 'inout'],
           // out of the run the knee drives up high in front, the foot tucked under it and the trunk coming upright
           // (the leg used to rise straight out of the stride over twelve frames: a knee lift, not a kick)...
-          [12, { rootPos: [0, -0.06, 0.09], rootRot: [0.02, -0.36, 0], spine: [0.16, 0.1, 0], footR: [0.12, 0.56, 0.36], kneeR: [0.1, 0.9, 0.7], footRotR: [-0.45, 0, 0], toeR: -0.2,
+          [12, { rootPos: [0, -0.06, 0.09], rootRot: [-0.14, -0.36, 0], spine: [0.24, 0.1, 0], footR: [0.12, 0.5, 0.36], kneeR: [0.1, 0.9, 0.7], footRotR: [-0.45, 0, 0], toeR: -0.2,
             handL: [0.2, -0.05, 0.3], handR: [0.16, -0.45, -0.1], neck: [0.3, 0.12, 0] }, 'inout'],
           // ... and the leg drives out from it, the sole first, the hips thrown in behind it
           [18, { rootPos: [0, -0.02, 0.12], rootRot: [-0.35, -0.4, 0], spine: [0.2, 0.1, 0], footR: [0.02, 0.88, 0.98], kneeR: [0.1, 1, 0.5], footRotR: [-1.3, 0, 0], toeR: -0.5, handL: GUARD_L, handR: [0.18, -0.8, -0.38], aimL: 0, aimR: 0, poleR: [0.2, 0, -1], neck: [0.45, 0.15, 0] }, 'drive'],
@@ -435,7 +435,7 @@ export const STYLES = {
           // the lead fist coils across the chest, then whips out along a flat arc and lands with the back of the
           // knuckles on the centre line (the old arc swung wide and passed beside the opponent's head): the fist on
           // edge, palm in, and the wrist a little flexed so the back of the hand leads (it had landed palm down)
-          [4, { rootRot: [0.05, -0.9, 0], handL: [-0.22, 0.16, 0.32], twistL: -0.2 }, 'out'],
+          [4, { rootRot: [0.05, -0.9, 0], handL: [-0.22, 0.16, 0.32], twistL: -0.2 }, 'inout'],
           [11, { rootRot: [0.05, -0.35, 0], handL: [0.04, 0.24, 0.96], aimL: 1, twistL: -0.47, wristL: [-0.3, 0], clavL: [0, 0.35] }, 'whip'],
           [14, {}, 'lin'],
           [20, { handL: [0.02, 0.22, 0.7], twistL: -0.3, wristL: [0.05, 0], clavL: [0, 0.15], rootRot: [0.05, -0.45, 0] }, 'ret'],
@@ -567,8 +567,13 @@ export const STYLES = {
       bellyBump: {
         name: 'Belly bump', total: 44, clip: C([
           [0, {}],
-          [8, { rootPos: [0, -0.06, -0.08], rootRot: [-0.25, -0.1, 0], spine: [-0.3, 0, 0], handL: [0.55, 0.1, -0.1], handR: [0.55, 0.1, -0.1], aimL: 1, aimR: 1, fistL: 0.2, fistR: 0.2 }, 'out'],
-          [16, { rootPos: [0, -0.1, 0.24], rootRot: [-0.35, 0, 0], spine: [-0.4, 0, 0], neck: [0.3, 0, 0] }, 'snap'],
+          // a sumo's belly bump: the arms swing back, the hips sink and the belly is thrown forward with the legs; the
+          // chest stays over the hips, leaning back no more than to get the belly out in front (it lay back 43 degrees
+          // with the hands up, as if falling over), the eyes on the target
+          [8, { rootPos: [0, -0.1, -0.08], rootRot: [-0.12, -0.1, 0], spine: [-0.12, 0, 0], neck: [0.15, 0, 0],
+            handL: [0.3, -0.7, -0.35], handR: [0.3, -0.7, -0.35], aimL: 1, aimR: 1, fistL: 0.6, fistR: 0.6, poleL: [0.4, -0.3, -1], poleR: [0.4, -0.3, -1] }, 'inout'],
+          [16, { rootPos: [0, -0.075, 0.215], rootRot: [-0.22, 0, 0], spine: [-0.2, 0, 0], neck: [0.32, 0, 0],
+            handL: [0.36, -0.62, -0.42], handR: [0.36, -0.62, -0.42], footL: [0.06, 0.071, 0.34], kneeL: [0.2, 0, 1] }, 'drive'],
           [20, {}, 'lin'],
           [44, null, 'inout'],
         ]),
@@ -578,8 +583,8 @@ export const STYLES = {
       smash: {
         name: 'Overhand smash', total: 50, clip: C([
           [0, {}],
-          [10, { rootPos: [0, 0.0, -0.06], rootRot: [-0.15, -0.8, 0], spine: [-0.2, -0.4, 0], handR: [0.4, 0.75, -0.2], aimR: 1, twistR: 0.8, clavR: [0.3, -0.1] }, 'out'],
-          [18, { rootPos: [0, -0.23, 0.12], rootRot: [0.22, 0.2, 0], spine: [0.26, 0.45, 0], handR: [-0.05, 0.0, 0.98], aimR: 1, twistR: 1.0, clavR: [0.1, 0.5], footL: [0.1, 0.071, 0.36], neck: [-0.08, -0.1, 0], kneeL: [0.25, 0, 1] }, 'snap'],
+          [10, { rootPos: [0, 0.0, -0.06], rootRot: [-0.15, -0.8, 0], spine: [-0.2, -0.4, 0], handR: [0.4, 0.75, -0.2], aimR: 1, twistR: 0.8, clavR: [0.3, -0.1] }, 'inout'],
+          [18, { rootPos: [0, -0.23, 0.12], rootRot: [0.22, 0.2, 0], spine: [0.26, 0.45, 0], handR: [-0.05, 0.0, 0.98], aimR: 1, twistR: 1.0, clavR: [0.1, 0.5], footL: [0.1, 0.071, 0.36], neck: [-0.08, -0.1, 0], kneeL: [0.25, 0, 1] }, 'drive'],
           [22, {}, 'lin'],
           [31, { rootPos: [0, -0.15, 0.06], rootRot: [0.12, -0.2, 0], spine: [0.16, 0.25, 0], handR: [-0.1, 0.2, 0.6], aimR: 0.6, twistR: 0.2, clavR: [0.0, 0.2] }, 'ret'],
           [50, null, 'inout'],
@@ -843,8 +848,8 @@ export const STYLES = {
       lariat: {
         name: 'Lariat', total: 52, clip: C([
           [0, {}],
-          [10, { rootPos: [0, -0.1, -0.02], rootRot: [0.1, -1.0, 0], spine: [0.1, -0.4, 0], handR: [0.9, 0.2, -0.2], aimR: 1, twistR: 0.3, fistR: 0.8 }, 'out'],
-          [20, { rootPos: [0, -0.1, 0.2], rootRot: [0.15, 0.6, 0], spine: [0.1, 0.5, 0], handR: [0.25, 0.25, 0.95], aimR: 1, clavR: [0.1, 0.4], footL: [0.1, 0.071, 0.45] }, 'snap'],
+          [10, { rootPos: [0, -0.1, -0.02], rootRot: [0.1, -1.0, 0], spine: [0.1, -0.4, 0], handR: [0.9, 0.2, -0.2], aimR: 1, twistR: 0.3, fistR: 0.8 }, 'inout'],
+          [20, { rootPos: [0, -0.1, 0.2], rootRot: [0.15, 0.6, 0], spine: [0.1, 0.5, 0], handR: [0.25, 0.25, 0.95], aimR: 1, clavR: [0.1, 0.4], footL: [0.1, 0.071, 0.45] }, 'drive'],
           [24, {}, 'lin'],
           [52, null, 'inout'],
         ]),
@@ -855,10 +860,10 @@ export const STYLES = {
       axe: {
         name: 'Double axe handle', total: 52, clip: C([
           [0, {}],
-          [12, { rootPos: [0, 0.02, -0.05], rootRot: [-0.3, -0.2, 0], spine: [-0.3, 0.1, 0], handL: [0.05, 0.95, 0.15], handR: [0.05, 0.95, 0.15], aimL: 1, aimR: 1, fistL: 1, fistR: 1 }, 'out'],
-          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], twistL: -0.19, twistR: -0.19, footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'snap'],
+          [12, { rootPos: [0, 0.02, -0.05], rootRot: [-0.3, -0.2, 0], spine: [-0.3, 0.1, 0], handL: [0.05, 0.95, 0.15], handR: [0.05, 0.95, 0.15], aimL: 1, aimR: 1, fistL: 1, fistR: 1 }, 'inout'],
+          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], twistL: -0.19, twistR: -0.19, footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'drive'],
           [25, {}, 'lin'],
-          [34, { rootPos: [0, -0.17, 0.05], rootRot: [0.16, -0.3, 0], spine: [0.2, 0.1, 0], handL: [0.0, 0.1, 0.55], handR: [-0.05, 0.12, 0.5], aimL: 0.5, aimR: 0.5, neck: [0.05, 0.05, 0] }, 'ret'],
+          [34, { rootPos: [0, -0.17, 0.05], rootRot: [0.16, -0.3, 0], spine: [0.2, 0.1, 0], handL: [0.0, 0.1, 0.55], handR: [-0.05, 0.12, 0.5], aimL: 0.5, aimR: 0.5, neck: [0.05, 0.05, 0] }, 'inout'], // (heavy: it comes back up slowly, not snapped off the hold)
           [52, null, 'inout'],
         ]),
         hit: { f: [21, 24], limb: 'handR', r: 0.15, dmg: 21, lvl: 'mid', react: 'hitMid', blk: -15, kd: true, push: 0.4 },
@@ -925,8 +930,8 @@ export const STYLES = {
       lariat: {
         name: 'Lariat', total: 52, clip: C([
           [0, {}],
-          [10, { rootPos: [0, -0.1, -0.02], rootRot: [0.1, -1.0, 0], spine: [0.1, -0.4, 0], handR: [0.9, 0.2, -0.2], aimR: 1, twistR: 0.3, fistR: 0.8 }, 'out'],
-          [20, { rootPos: [0, -0.1, 0.2], rootRot: [0.15, 0.6, 0], spine: [0.1, 0.5, 0], handR: [0.25, 0.25, 0.95], aimR: 1, clavR: [0.1, 0.4], footL: [0.1, 0.071, 0.45] }, 'snap'],
+          [10, { rootPos: [0, -0.1, -0.02], rootRot: [0.1, -1.0, 0], spine: [0.1, -0.4, 0], handR: [0.9, 0.2, -0.2], aimR: 1, twistR: 0.3, fistR: 0.8 }, 'inout'],
+          [20, { rootPos: [0, -0.1, 0.2], rootRot: [0.15, 0.6, 0], spine: [0.1, 0.5, 0], handR: [0.25, 0.25, 0.95], aimR: 1, clavR: [0.1, 0.4], footL: [0.1, 0.071, 0.45] }, 'drive'],
           [24, {}, 'lin'],
           [52, null, 'inout'],
         ]),
@@ -937,10 +942,10 @@ export const STYLES = {
       axe: {
         name: 'Double axe handle', total: 52, clip: C([
           [0, {}],
-          [12, { rootPos: [0, 0.02, -0.05], rootRot: [-0.3, -0.2, 0], spine: [-0.3, 0.1, 0], handL: [0.05, 0.95, 0.15], handR: [0.05, 0.95, 0.15], aimL: 1, aimR: 1, fistL: 1, fistR: 1 }, 'out'],
-          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], twistL: -0.19, twistR: -0.19, footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'snap'],
+          [12, { rootPos: [0, 0.02, -0.05], rootRot: [-0.3, -0.2, 0], spine: [-0.3, 0.1, 0], handL: [0.05, 0.95, 0.15], handR: [0.05, 0.95, 0.15], aimL: 1, aimR: 1, fistL: 1, fistR: 1 }, 'inout'],
+          [21, { rootPos: [0, -0.27, 0.12], rootRot: [0.3, -0.2, 0], spine: [0.34, 0.1, 0], handL: [-0.05, 0.0, 0.86], handR: [-0.05, 0.0, 0.86], twistL: -0.19, twistR: -0.19, footL: [0.12, 0.071, 0.36], neck: [-0.12, 0, 0], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'drive'],
           [25, {}, 'lin'],
-          [34, { rootPos: [0, -0.17, 0.05], rootRot: [0.16, -0.3, 0], spine: [0.2, 0.1, 0], handL: [0.0, 0.1, 0.55], handR: [-0.05, 0.12, 0.5], aimL: 0.5, aimR: 0.5, neck: [0.05, 0.05, 0] }, 'ret'],
+          [34, { rootPos: [0, -0.17, 0.05], rootRot: [0.16, -0.3, 0], spine: [0.2, 0.1, 0], handL: [0.0, 0.1, 0.55], handR: [-0.05, 0.12, 0.5], aimL: 0.5, aimR: 0.5, neck: [0.05, 0.05, 0] }, 'inout'], // (heavy: it comes back up slowly, not snapped off the hold)
           [52, null, 'inout'],
         ]),
         hit: { f: [21, 24], limb: 'handR', r: 0.15, dmg: 21, lvl: 'mid', react: 'hitMid', blk: -15, kd: true, push: 0.4 },
@@ -1122,7 +1127,8 @@ export const STYLES = {
     hairSway: 0, // how far the hair swings with the head: bald (js/anim/hairsway.js)
     aiMoves: ['1', '1', '2', 'b+1', '1+2', 'd+2', 'df+1', 'df+2', 'd+3', '3', '4', 'd+4', '1+3'], juggle: ['1', '1+2', 'b+1'],
     // old-school boxer: more upright and bladed, chin tucked, both fists high by the face
-    stance: { rootPos: [0, -0.07, -0.02], rootRot: [0.07, -0.5, 0], spine: [0.14, 0.12, 0], neck: [0.2, 0.22, 0], hgPosL: [0.07, -0.07, 0.26], hgPosR: [0.1, -0.09, 0.1] },
+    // (the rear fist at the chin, not on the cheekbone: up there, as the head turned with a blow it covered his eyes)
+    stance: { rootPos: [0, -0.07, -0.02], rootRot: [0.07, -0.5, 0], spine: [0.14, 0.12, 0], neck: [0.2, 0.22, 0], hgPosL: [0.07, -0.07, 0.26], hgPosR: [0.1, -0.15, 0.13] },
     bob: 0.026,
     commands: [['b+1', 'liverShot'], ['d+2', 'gazelle'], ['1+2', 'slap']],
     moves: (C) => ({
@@ -1133,10 +1139,10 @@ export const STYLES = {
         name: 'Liver hook', total: 36, clip: C([
           [0, {}],
           [5, { rootPos: [0, -0.17, 0.0], rootRot: [0.22, -0.78, 0], spine: [0.26, -0.05, 0], neck: [0.2, 0.3, 0],
-            handL: [0.2, -0.12, 0.42], aimL: 1, poleL: [1, -0.3, -0.4], twistL: -0.5, kneeL: [0.3, 0, 1], kneeR: [0.45, 0, 1] }, 'out'],
+            handL: [0.2, -0.12, 0.42], aimL: 1, poleL: [1, -0.3, -0.4], twistL: -0.5, kneeL: [0.3, 0, 1], kneeR: [0.45, 0, 1] }, 'inout'],
           // (the torso dips to his left: the head slips outside the opponent's lead hand)
           [12, { rootPos: [0, -0.2, 0.03], rootRot: [0.24, -0.05, -0.04], spine: [0.26, 0.3, -0.26], neck: [0.1, -0.2, 0.08],
-            handL: [-0.12, -0.32, 0.86], poleL: [1, -0.1, -0.2], twistL: -0.4, clavL: [0.05, 0.3], footRotL: [0, -0.1, 0], footRotR: [0.3, 0.85, 0] }, 'snap'],
+            handL: [-0.12, -0.32, 0.86], poleL: [1, -0.1, -0.2], twistL: -0.4, clavL: [0.05, 0.3], footRotL: [0, -0.1, 0], footRotR: [0.3, 0.85, 0], hgPosR: [0.11, -0.19, 0.16] }, 'drive'],
           [15, {}, 'lin'],
           [23, { rootPos: [0, -0.13, 0.03], rootRot: [0.15, -0.4, 0], spine: [0.18, 0.1, 0], neck: [0.16, 0.15, 0],
             handL: [0.04, 0.05, 0.6], poleL: [0.3, -1, -0.15], twistL: -0.9, clavL: [0, 0.12] }, 'inout'],
@@ -1172,7 +1178,7 @@ export const STYLES = {
         name: 'Slap', total: 34, clip: C([
           [0, {}],
           [6, { rootPos: [0, -0.08, -0.02], rootRot: [0.06, -0.75, 0], spine: [0.1, -0.2, 0], neck: [0.16, 0.45, 0],
-            handR: [0.5, 0.18, 0.18], aimR: 1, poleR: [0.6, -0.7, -0.6], twistR: -0.6, fistR: 0.05, clavR: [0.1, -0.1] }, 'out'],
+            handR: [0.5, 0.18, 0.18], aimR: 1, poleR: [0.6, -0.7, -0.6], twistR: -0.6, fistR: 0.05, clavR: [0.1, -0.1] }, 'inout'],
           [12, { rootPos: [0, -0.1, 0.07], rootRot: [0.12, 0.2, 0], spine: [0.1, 0.45, 0], neck: [0.05, -0.35, 0],
             handR: [-0.22, 0.14, 0.86], poleR: [0.8, -0.2, -0.4], twistR: -1.3, clavR: [0.05, 0.35],
             footR: [0.18, 0.1, -0.2], footRotR: [0.45, 0.2, 0], toeR: 0.6, handL: [-0.2, 0.2, 0.4] }, 'whip'],
@@ -1246,9 +1252,9 @@ export const STYLES = {
       triage: {
         name: 'Triaje', total: 32, clip: C([
           [0, {}],
-          [4, { rootPos: [0, -0.09, -0.03], rootRot: [0.08, -0.55, 0], handL: [0.04, -0.06, 0.52], aimL: 1, twistL: 0.5, wristL: [0.6, 0], fistL: 0.1 }, 'out'],
+          [4, { rootPos: [0, -0.09, -0.03], rootRot: [0.08, -0.55, 0], handL: [0.04, -0.06, 0.52], aimL: 1, twistL: 0.5, wristL: [0.6, 0], fistL: 0.1 }, 'inout'],
           [10, { rootPos: [0, -0.1, 0.08], rootRot: [0.12, -0.72, 0], spine: [0.14, -0.05, 0], neck: [0.14, 0.3, 0], handL: [0.0, -0.14, 0.98], aimL: 1, twistL: 1.09, wristL: [1.2, 0], fistL: 0.02,
-            clavL: [0.05, 0.45], footL: [0.06, 0.071, 0.34] }, 'snap'],
+            clavL: [0.05, 0.45], footL: [0.06, 0.071, 0.34] }, 'drive'],
           [13, {}, 'lin'],
           [20, { rootPos: [0, -0.085, 0.02], rootRot: [0.08, -0.5, 0], spine: [0.11, 0.08, 0], handL: [0.02, 0.06, 0.66], twistL: 0.2, wristL: [0.4, 0], fistL: 0.2, clavL: [0.0, 0.18] }, 'ret'],
           [32, null, 'inout'],

@@ -164,7 +164,7 @@ export class Match {
     if (m.hit && (m.hit.dmg >= 13 || kickLimb) && this.fx.trail) {
       const bone = { handL: 'wrist.L', handR: 'wrist.R', footL: 'foot.L', footR: 'foot.R', kneeR: 'lowerleg01.R', kneeL: 'lowerleg01.L', forearmR: 'lowerarm02.R', forearmL: 'lowerarm02.L' }[m.hit.limb];
       // (a kick's sweep only over the last frames of its whip: from further back it took in the lift off the floor)
-      const lead = kickLimb ? 4 : 7;
+      const lead = 4;
       if (bone) f.pendingTrail = { bone, at: Math.max(0, m.hit.f[0] - lead), dur: (m.hit.f[1] - Math.max(0, m.hit.f[0] - lead) + 3) / 60, move: m };
       else f.pendingTrail = null;
     } else f.pendingTrail = null;

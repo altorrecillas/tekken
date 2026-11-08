@@ -791,16 +791,16 @@ export function buildMoves(style) {
       [21, {}, 'lin'],
       // the hips start back up and round; the sweeping foot rolls back flat while it is still off the floor and the
       // rear hand comes round outside the hip
-      [25, { rootPos: [-0.12, -0.42, -0.03], rootRot: [0.28, 0.8, -0.06], spine: [0.45, -0.5, 0],
+      [25, { rootPos: [-0.12, -0.42, -0.03], rootRot: [0.2, 0.8, -0.06], spine: [0.34, -0.5, 0],
         footR: [0.22, 0.14, 0.72], footRotR: [0.1, 0.6, 0.55], handR: [0.1, 0.0, 0.48] }, 'inout'],
       // the leg folds back in under the hips, the foot still just off the floor so that it lands slowly where the
       // stance wants it (set down here in full flight, it was pinned to the floor mid-swing); the lead foot turns
       // back in under its knee
-      [30, { rootPos: [-0.12, -0.38, -0.05], rootRot: [0.3, 0.55, -0.04], spine: [0.2, -0.4, 0], neck: [0.14, -0.4, 0],
+      [30, { rootPos: [-0.12, -0.38, -0.05], rootRot: [0.2, 0.55, -0.04], spine: [0.16, -0.4, 0], neck: [0.2, -0.4, 0],
         footL: [0.14, 0.071, 0.22], kneeL: [0.3, 0.05, 1], footRotL: [0.3, 0.6, 0],
         footR: [0.3, 0.09, 0.15], kneeR: [0.4, 0.4, 1], footRotR: [0.2, 0.7, 0],
         handR: [0.04, 0.08, 0.46] }, 'inout'],
-      [38, { rootPos: [0, -0.3, -0.06], rootRot: [0.3, -0.2, 0], spine: [0.2, 0.05, 0], neck: [0.14, 0.1, 0],
+      [38, { rootPos: [0, -0.3, -0.06], rootRot: [0.22, -0.2, 0], spine: [0.18, 0.05, 0], neck: [0.18, 0.1, 0],
         footL: [0.08, 0.071, 0.24], footRotL: [0.1, -0.2, 0], kneeL: [0.2, 0, 1],
         footR: [0.22, 0.071, -0.18], kneeR: [0.5, 0, 1], footRotR: [0.25, 0.65, 0],
         hgPosL: st.hgPosL, handR: [-0.08, 0.3, 0.44], aimR: 0 }, 'inout'],
@@ -814,8 +814,9 @@ export function buildMoves(style) {
   M.bodyJab = {
     name: 'Body blow', total: 32, clip: C([
       [0, {}],
-      [4, { rootPos: [0, -0.14, -0.02], handL: [0.05, -0.05, 0.45], fistL: 1, wristL: WRM }, 'out'],
-      [12, { rootPos: [0, -0.2, 0.08], rootRot: [0.28, -0.6, 0], spine: [0.3, -0.05, 0], handL: [0.02, -0.25, 1.0], aimL: 1, twistL: 0.17, wristL: WRP, clavL: [0, 0.4], footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1] }, 'snap'],
+      // (a dip that flows into the punch: from a dead stop the snap jerked the wrist round in a frame)
+      [4, { rootPos: [0, -0.14, -0.02], handL: [0.05, -0.05, 0.45], fistL: 1, wristL: WRM }, 'inout'],
+      [12, { rootPos: [0, -0.2, 0.08], rootRot: [0.28, -0.6, 0], spine: [0.3, -0.05, 0], handL: [0.02, -0.25, 1.0], aimL: 1, twistL: 0.17, wristL: WRP, clavL: [0, 0.4], footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1] }, 'drive'],
       [15, {}, 'lin'],
       [20, { rootPos: [0, -0.16, 0.04], rootRot: [0.2, -0.52, 0], spine: [0.22, 0.05, 0], handL: [0.03, 0.02, 0.62], twistL: -0.1, clavL: [0, 0.2] }, 'ret'],
       [32, { rootPos: [0, -0.075, -0.02], rootRot: [0.06, -0.45, 0], spine: [0.1, 0.12, 0], handL: [0.02, 0.2, 0.62], aimL: 0, twistL: TG.L, wristL: WR, clavL: [-0.05, 0.1], footL: [0.05, 0.071, 0.24] }, 'inout'],
@@ -859,8 +860,13 @@ export function buildMoves(style) {
     name: 'Lunge punch', total: 42, clip: C([
       [0, {}],
       [6, { rootPos: [0, -0.16, 0.04], rootRot: [0.2, -0.7, 0], handR: [-0.1, 0.1, 0.25], fistR: 1, wristR: WRM, twistR: 0.15 }, 'inout'],
+      // the dash carries him in, low, the lead foot reaching out and the fist still cocked at the chin: the weight
+      // goes in first (the whole body snapped forward from the crouch at once, every limb jumping in the first frames)
+      [12, { rootPos: [0, -0.17, 0.1], rootRot: [0.24, -0.62, 0], spine: [0.14, 0.05, 0], handR: [-0.1, 0.12, 0.3], twistR: 0.3,
+        footL: [0.05, 0.11, 0.38], kneeL: [0.2, 0.2, 1], footR: [0.18, 0.08, -0.24], toeR: 0.5, footRotR: [0.45, 0.4, 0] }, 'inout'],
+      // ... then it all turns over into the punch as the lead foot lands: hips, shoulders and the fist driving through
       [16, { rootPos: [0, -0.16, 0.14], rootRot: [0.25, 0.25, 0], spine: [0.15, 0.4, 0], handR: [-0.05, 0.05, 1.0], aimR: 1, twistR: 0.74, wristR: WRP, clavR: [0, 0.55],
-        footL: [0.05, 0.071, 0.44], kneeL: [0.2, 0, 1], footR: [0.18, 0.1, -0.28], toeR: 0.8, footRotR: [0.6, 0.2, 0], handL: [-0.04, 0.14, 0.42] }, 'snap'],
+        footL: [0.05, 0.071, 0.44], kneeL: [0.2, 0, 1], footR: [0.18, 0.1, -0.28], toeR: 0.8, footRotR: [0.6, 0.2, 0], handL: [-0.04, 0.14, 0.42] }, 'drive'],
       [20, {}, 'lin'],
       [27, { handR: [-0.1, 0.2, 0.6], twistR: 0.1, clavR: [0, 0.25], rootPos: [0, -0.13, 0.08], rootRot: [0.18, -0.15, 0], spine: [0.12, 0.25, 0],
         footR: [0.18, 0.071, -0.2], toeR: 0.4, footRotR: [0.35, 0.3, 0], handL: [-0.02, 0.2, 0.45] }, 'ret'],
@@ -977,9 +983,10 @@ export function buildMoves(style) {
   M.rageArt = {
     name: 'Rage Art', total: 64, rage: true, invuln: [1, 20], clip: C([
       [0, {}],
-      [12, { rootPos: [0, -0.18, -0.08], rootRot: [0.15, -0.9, 0], spine: [0.1, -0.5, 0], handR: [0.2, 0.0, -0.1], aimR: 1, fistR: 1, twistR: 0.1, neck: [0.1, 0.5, 0] }, 'out'],
+      // (the wind-up flows into the blow: from a dead stop the snap threw the forearm 30 cm in a frame)
+      [12, { rootPos: [0, -0.18, -0.08], rootRot: [0.15, -0.9, 0], spine: [0.1, -0.5, 0], handR: [0.2, 0.0, -0.1], aimR: 1, fistR: 1, twistR: 0.1, neck: [0.1, 0.5, 0] }, 'inout'],
       [22, { rootPos: [0, -0.14, 0.16], rootRot: [0.2, 0.3, 0], spine: [0.15, 0.5, 0], handR: [-0.05, 0.1, 1.0], aimR: 1, twistR: 0.75, fistR: 1, wristR: WRP, clavR: [0.05, 0.55],
-        footL: [0.05, 0.071, 0.42], footR: [0.18, 0.12, -0.25], toeR: 0.7, footRotR: [0.5, 0.3, 0] }, 'snap'],
+        footL: [0.05, 0.071, 0.42], footR: [0.18, 0.12, -0.25], toeR: 0.7, footRotR: [0.5, 0.3, 0] }, 'drive'],
       [27, {}, 'lin'],
       [64, null, 'inout'],
     ]),
