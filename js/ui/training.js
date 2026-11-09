@@ -76,11 +76,11 @@ const TRIALS = {
   ],
   noemi: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
-    ['TRIAJE', 'Tras el directo (2), la palma al esternón (atrás + 1) entra antes de que se recupere.', ['2', 'b+1']],
+    ['AVISO DE INTRUSIÓN', 'Tras el directo (2), el aviso de intrusión (atrás + 1), un palmazo al esternón, entra antes de que se recupere.', ['2', 'b+1']],
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
-    ['REANIMACIÓN', 'El desfibrilador (1 + 2) lo lanza por los aires: el directo (2) antes de que caiga y el barrido (abajo + 4) al tocar el suelo.', ['1+2', '2', 'd+4']],
-    ['ALTA MÉDICA', 'El gancho (abajo-adelante + 2) lo levanta, el desfibrilador (1 + 2) lo carga en el aire y el directo (2) remata.', ['df+2', '1+2', '2']],
-    ['CADENA PROPIA: A LA RODILLA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la patada a la rodilla.', ['1', '2', '3']],
+    ['PROTOCOLO ACTIVADO', 'El botón del pánico (1 + 2) lo lanza por los aires: el directo (2) antes de que caiga y el barrido (abajo + 4) al tocar el suelo.', ['1+2', '2', 'd+4']],
+    ['AVISO A LA POLICÍA', 'El gancho (abajo-adelante + 2) lo levanta, el botón del pánico (1 + 2) lo carga en el aire y el directo (2) remata.', ['df+2', '1+2', '2']],
+    ['CADENA PROPIA: DETECTOR DE PRESENCIA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en el detector de presencia, una patada baja a la rodilla.', ['1', '2', '3']],
   ],
 };
 

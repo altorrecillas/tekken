@@ -1541,7 +1541,7 @@ export const STYLES = {
       [84, { hgPosL: [0.088, -0.31, 0.29], hgPosR: [0.088, -0.31, 0.25] }, 'sine'],
       [96, null, 'inout'],
     ],
-    title: 'La Coordinadora', desc: 'Al mando de la sala de emergencias. Palmas certeras, empujones y un desfibrilador en las manos.',
+    title: 'La Cortadora de Áloe', desc: 'Desde la central de alarmas lo ve todo: escucha, verifica y da el aviso. Palmas certeras, empujones y una descarga que salta como una alarma.',
     say: 'Te falta tomar áloe vera.', sayAt: 78, sayLen: 108, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Voy cargadita de áloe vera, cuidado conmigo.', introLen: 150, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 184, walk: 1.18, weight: 0.96, power: 1.04, speed: 1.04 },
@@ -1560,11 +1560,11 @@ export const STYLES = {
     // forward (f), back (b) or down (d), as the command it stands for
     touchSP: { P: { n: '1+2', f: 'f+1', b: 'b+1', d: 'df+2' }, K: { n: 'f+4', f: 'f+4', b: 'b+3', d: 'd+4' } },
     moves: (C) => ({
-      // TRIAJE: the lead palm drives straight into the sternum with the hips behind it and shoves the opponent away.
+      // AVISO DE INTRUSIÓN: the lead palm drives straight into the sternum with the hips behind it and shoves the opponent away.
       // A palm strike: the hand turned palm down and bent back at the wrist, fingers up, so the heel of the palm leads
       // (with the wrist straight she struck with her fingertips)
       triage: {
-        name: 'Triaje', total: 32, clip: C([
+        name: 'Aviso de intrusión', total: 32, clip: C([
           [0, {}],
           [4, { rootPos: [0, -0.09, -0.03], rootRot: [0.08, -0.55, 0], handL: [0.04, -0.06, 0.52], aimL: 1, twistL: 0.5, wristL: [0.6, 0], fistL: 0.1 }, 'inout'],
           [10, { rootPos: [0, -0.1, 0.08], rootRot: [0.12, -0.72, 0], spine: [0.14, -0.05, 0], neck: [0.14, 0.3, 0], handL: [0.0, -0.14, 0.98], aimL: 1, twistL: 1.09, wristL: [1.2, 0], fistL: 0.02,
@@ -1576,9 +1576,9 @@ export const STYLES = {
         hit: { f: [9, 12], limb: 'handL', r: 0.12, dmg: 12, lvl: 'mid', react: 'hitMid', blk: -1, hitAdv: 10, push: 0.6 },
         advance: [[0, 0], [10, 0.16], [32, 0.14]], sfx: 'slap',
       },
-      // EMPUJÓN: a push kick with the lead leg, the sole driven into the stomach to make room, the leg almost straight
+      // ZONA PERIMETRAL: a push kick with the lead leg, the sole driven into the stomach to make room, the leg almost straight
       pushKick: {
-        name: 'Empujón', total: 38, clip: C([
+        name: 'Zona perimetral', total: 38, clip: C([
           [0, {}],
           [6, { footL: [0.06, 0.34, 0.24], kneeL: [0.1, 0.5, 1], rootPos: [0, -0.06, -0.06], rootRot: [-0.08, -0.4, 0], spine: [0.06, 0.1, 0], handL: [0.08, 0.08, 0.55], handR: [0.0, 0.14, 0.38] }, 'inout'],
           // the knee up to the chest, the sole turned to him (a beat of a push kick's chamber), then out with the hips
@@ -1592,10 +1592,10 @@ export const STYLES = {
         hit: { f: [13, 16], limb: 'footL', r: 0.13, dmg: 14, lvl: 'mid', react: 'hitMid', blk: -7, hitAdv: 2, push: 0.85 },
         advance: [[0, 0], [14, 0.2], [38, 0.2]], sfx: 'kick',
       },
-      // DESFIBRILADOR: palms rubbed together in front of the chest to charge them, the hands drawn back as the weight
+      // BOTÓN DEL PÁNICO: palms rubbed together in front of the chest to charge them, the hands drawn back as the weight
       // sinks, then both palms driven into the opponent's chest with a crackle of electricity that throws him up
       defib: {
-        name: 'Desfibrilador', total: 56, clip: C([
+        name: 'Botón del pánico', total: 56, clip: C([
           [0, {}],
           [8, { rootPos: [0, -0.1, -0.04], rootRot: [0.1, -0.32, 0], spine: [0.12, 0.08, 0], neck: [0.14, 0.12, 0],
             hgL: 1, hgPosL: [0.08, -0.3, 0.28], hgR: 1, hgPosR: [0.08, -0.3, 0.28], fistL: 0, fistR: 0 }, 'inout'],
@@ -1617,10 +1617,10 @@ export const STYLES = {
         hit: { f: [30, 34], limb: 'handL', r: 0.15, dmg: 21, lvl: 'mid', react: 'air', blk: -16, launch: 5.6, push: 0.15, fx: 'electric' },
         advance: [[0, 0], [25, -0.04], [31, 0.24], [56, 0.24]], sfx: 'heavy',
       },
-      // PALMA AL MENTÓN: a step in and the lead arm driven out straight, the heel of the open palm up under the chin
+      // VERIFICACIÓN: a step in and the lead arm driven out straight, the heel of the open palm up under the chin
       // (the wrist bent back, the fingers up)
       palm: {
-        name: 'Palma al mentón', total: 28, clip: C([
+        name: 'Verificación', total: 28, clip: C([
           [0, {}],
           [4, { rootPos: [0, -0.1, -0.02], handL: [0.0, 0.1, 0.5], aimL: 0, fistL: 0, wristL: [0.8, 0], twistL: 0.75 }, 'inout'],
           [9, { handL: [0.02, 0.2, 1.0], aimL: 1, wristL: [0.9, 0], twistL: 0.75, fistL: 0, clavL: [0.05, 0.45], rootRot: [0.12, -0.62, 0], rootPos: [0, -0.09, 0.1], spine: [0.12, -0.02, 0] }, 'drive'],
@@ -1631,10 +1631,10 @@ export const STYLES = {
         hit: { f: [9, 11], limb: 'handL', r: 0.11, dmg: 12, lvl: 'high', react: 'hitHigh', blk: -2, hitAdv: 6, push: 0.35, ch: { kd: true } },
         advance: [[0, 0], [9, 0.26], [28, 0.22]], sfx: 'slap',
       },
-      // PATADA A LA RODILLA: a stop kick: the hips turned side-on and the heel driven down and out into his knee (a
+      // DETECTOR DE PRESENCIA: a stop kick: the hips turned side-on and the heel driven down and out into his knee (a
       // low), then straight back. The end of her 1, 2, 3
       kneeKick: {
-        name: 'Patada a la rodilla', total: 30, clip: C([
+        name: 'Detector de presencia', total: 30, clip: C([
           [0, {}],
           [5, { rootPos: [0, -0.1, -0.04], rootRot: [0.0, -1.0, 0.05], spine: [0.06, 0.25, 0], neck: [0.2, 0.7, 0],
             footL: [0.0, 0.3, 0.16], kneeL: [-0.2, 0.5, 0.8], footRotL: [0, -1.1, -0.2], footRotR: [0.15, -0.6, 0] }, 'inout'],
