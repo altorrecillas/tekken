@@ -41,7 +41,7 @@ def robot_fx(src, dst):
 INTROS = {
     'alejandro': 'Calienta bien, que esto va a ser rápido.',
     'aleix': 'No hay juego que se me resista.',
-    'camilo': 'Tengo una reunión. Acabemos rápido.',
+    'camilo': 'Tengo trabajo, acabemos rápido.',
     'rafa': 'Tranquilo, que iré despacito.',
     'zapponi': '¡Esto va a ser espectacular, vale!',
     'dani': 'Ponte los guantes, chaval.',

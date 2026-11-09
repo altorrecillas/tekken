@@ -39,7 +39,7 @@ export const STYLES = {
       [70, { handR: [-0.08, -0.19, 0.59] }, 'snap'],
       [95, null, 'inout'],
     ],
-    title: 'El Tatuado', desc: 'Kickboxer rápido y preciso. Patadas altas y rodillazos.',
+    title: 'El Runner', desc: 'Encuentra cualquier momento para salir a correr, no perdona ni una.',
     say: '¿Eso era todo? Ni me he despeinado.', sayAt: 78, sayLen: 147, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Calienta bien, que esto va a ser rápido.', introLen: 133, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
@@ -478,9 +478,9 @@ export const STYLES = {
       [84, { rootPos: [0, 0.03, 0] }, 'sine'],
       [100, null, 'inout'],
     ],
-    title: 'El Maratoniano', desc: 'Alcance enorme y fondo inagotable. Patadas a la carrera.',
+    title: 'Dominadas Powa', desc: 'Alcance enorme y fondo inagotable. Patadas a la carrera.',
     say: 'No molestes, estoy trabajando.', sayAt: 78, sayLen: 127, // (the line spoken on winning: tools/quotes_tts.py)
-    introSay: 'Tengo una reunión. Acabemos rápido.', introLen: 141, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
+    introSay: 'Tengo trabajo, acabemos rápido.', introLen: 144, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 174, walk: 1.4, weight: 0.95, power: 1.02, speed: 1.07 },
     hairSway: 0.45, // how far the hair swings with the head: short, combed back (js/anim/hairsway.js)
     aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1', 'b+3', 'f+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
@@ -1146,7 +1146,7 @@ export const STYLES = {
       [70, { handL: [-0.09, 0.06, 0.5], handR: [-0.09, 0.06, 0.5] }, 'snap'],
       [98, null, 'inout'],
     ],
-    title: 'El Androide', desc: 'Androide de combate. Golpes hidráulicos y llaves mecánicas.',
+    title: 'Los TAMPER son lo mío', desc: 'Androide de combate. Golpes hidráulicos y llaves mecánicas.',
     say: 'Clave incorrecta.', sayAt: 30, sayLen: 64, // (the line spoken on winning: tools/quotes_tts.py)
     introSay: 'Necesito la clave.', introLen: 70, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 204, walk: 1.06, weight: 1.45, power: 1.16, speed: 0.98 },
