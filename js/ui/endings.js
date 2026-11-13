@@ -2,11 +2,11 @@
 // tells it over the champion celebrating on the stage of the final; EXTRAS > FINALES shows the ones unlocked).
 export const ENDINGS = {
   alejandro: {
-    title: 'TINTA DE CAMPEÓN',
+    title: 'RECORDS ON',
     text: [
-      'Con el trofeo del barrio bajo el brazo, Alejandro entra directo en su estudio de tatuajes de confianza.',
-      '—Ponme otro. El más grande que tengas —dice, señalándose el antebrazo.',
-      'Esa noche estrena un tigre dorado que ruge cada vez que cierra el puño. Cuentan que el tigre todavía busca rival.',
+      'Con el trofeo del barrio todavía en la mano, Alejandro mira el reloj y se ata bien las zapatillas.',
+      '—Ya que estoy calentito, salgo a correr un rato —dice, y se pierde por la calle de la carrera.',
+      'Vuelve una hora después con tres récords personales nuevos y sin haber soltado el trofeo. Dicen que nunca perdona un entreno.',
     ],
   },
   aleix: {
@@ -18,11 +18,11 @@ export const ENDINGS = {
     ],
   },
   camilo: {
-    title: 'LA VUELTA DE HONOR',
+    title: 'EL GYM ES FÁCIL',
     text: [
-      'Camilo celebra el título dando una vuelta al barrio corriendo. Y otra. Y diez más.',
-      'Cuando por fin se para, sus amigos llevan dos horas cenando sin él.',
-      '—¿Ya habéis acabado? Yo ni he empezado a sudar. —El año que viene, el dorsal número uno de la carrera lleva su nombre.',
+      'Camilo celebra el título como mejor sabe: directo al gimnasio, con el trofeo en la mochila.',
+      'Lo usa de mancuerna para una serie de curl de bíceps y luego encadena dominadas hasta que la sala entera se para a mirarle.',
+      '—¿Cansado? Qué va, el gym es fácil —dice, y apunta el trofeo en su rutina como un peso más.',
     ],
   },
   rafa: {

@@ -22,9 +22,9 @@ const TRIALS = {
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
     ['PATADA DE REMATE', 'El directo se encadena con la patada alta si pulsas 4 en cuanto sale el 2.', ['2', '4']],
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
-    ['RODILLA VOLADORA', 'La rodilla (adelante + 3) también lanza: 1, 2 en el aire y la patada alta para cerrar.', ['f+3', '1', '2', '4']],
+    ['A LA CARRERA', 'Su patada a la carrera (adelante, adelante + 4): conéctala.', ['f,f+4']],
     ['GIRATORIA', 'Su patada giratoria (atrás + 4): conéctala.', ['b+4']],
-    ['CADENA PROPIA: PATADA CAMBIADA', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la patada cambiando de guardia.', ['1', '2', '3']],
+    ['CADENA PROPIA: LLEGADA A META', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la llegada a meta.', ['1', '2', '3']],
   ],
   aleix: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],
@@ -39,8 +39,8 @@ const TRIALS = {
     ['TRIPLE', 'Dos jabs y el directo, cada uno en cuanto toca el anterior.', ['1', '1', '2']],
     ['LANZAMIENTO', 'El gancho (abajo-adelante + 2) lo levanta: espera a que caiga un poco y remata con 1, 2.', ['df+2', '1', '2']],
     ['COMBO AÉREO', 'Tras el 1, 2 en el aire, barre (abajo + 4) antes de que se levante.', ['df+2', '1', '2', 'd+4']],
-    ['A LA CARRERA', 'Su patada a la carrera (adelante, adelante + 4): conéctala.', ['f,f+4']],
-    ['CADENA PROPIA: LLEGADA A META', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en la llegada a meta.', ['1', '2', '3']],
+    ['DOMINADA', 'La dominada (1 + 2) lo levanta: 1, 2 en el aire antes de que caiga.', ['1+2', '1', '2']],
+    ['CADENA PROPIA: SWING DE KETTLEBELL', 'Su cadena: 1, 2 y el 3 en cuanto toque el directo; acaba en el swing de kettlebell.', ['1', '2', '3']],
   ],
   rafa: [
     ['UNO-DOS', 'Pulsa 2 justo después del 1: la cadena entra entera.', ['1', '2']],

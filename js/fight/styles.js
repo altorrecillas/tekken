@@ -44,7 +44,7 @@ export const STYLES = {
     introSay: 'Calienta bien, que esto va a ser rápido.', introLen: 133, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 182, walk: 1.24, weight: 1.0, power: 1.06, speed: 1.08 },
     hairSway: 0.8, // how far the hair swings with the head: the topknot and its tail (js/anim/hairsway.js)
-    aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', 'f+3', '1+2', 'd+4', '1+3', 'f+2', 'b+3'], juggle: ['1', '2', '4'],
+    aiMoves: ['1', '1', '2', 'd+3', 'df+1', 'df+2', '3', '4', 'b+4', '1+2', 'd+4', '1+3', 'f+2', 'f,f+4', '3+4', 'b+3', 'f+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', '2', '4'],
     // a natural kickboxer's guard: standing up straight (the default one, js/anim/poses.js STANCE, leant him forward
     // from the hips, the head pushed out and the chin tucked), the knees just soft, the fists at the chin and close
     // to him (the default held the rear one 10 cm under the head: from the side where that hand is nearer the camera
@@ -55,11 +55,11 @@ export const STYLES = {
       hgPosL: [0.07, -0.13, 0.3], hgPosR: [0.1, -0.18, 0.12] }, // (the rear fist 23 cm out: closer, it was in his chest)
     bob: 0.022,
     onetwoFinish: 'roundhouse',
-    commands: [['b+4', 'spinKick'], ['f+3', 'knee'], ['1+2', 'tattooCombo'], ['f+2', 'superman'], ['b+3', 'switchKick']],
-    stringFinish: 'switchKick', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    commands: [['b+4', 'spinKick'], ['1+2', 'tattooCombo'], ['f+2', 'superman'], ['f,f+4', 'sprintKick'], ['3+4', 'flyKick'], ['b+3', 'hurdle'], ['f+1', 'finishLean']],
+    stringFinish: 'finishLean', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
     // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
     // forward (f), back (b) or down (d), as the command it stands for
-    touchSP: { P: { n: '1+2', f: 'f+2', b: 'df+1', d: 'df+2' }, K: { n: 'b+4', f: 'f+3', b: 'b+3', d: 'd+4' } },
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'f+1', d: 'df+2' }, K: { n: '3+4', f: 'f,f+4', b: 'b+3', d: 'd+4' } },
     moves: (C) => ({
       // spinning back kick: the body spins clockwise on the ball of the lead foot (the support knee turning with it),
       // the rear knee chambers in front of the pelvis, then the leg drives straight back at the target, heel
@@ -92,20 +92,6 @@ export const STYLES = {
         ]),
         hit: { f: [20, 23], limb: 'footR', r: 0.14, dmg: 24, lvl: 'mid', react: 'hitMid', blk: -14, kd: true, push: 0.6 },
         advance: [[0, 0], [20, 0.18], [48, 0.18]], sfx: 'heavy',
-      },
-      // (the hands go to the opponent's neck as in a clinch, pulling him onto the knee: they used to reach above the head)
-      knee: {
-        name: 'Flying knee', total: 44, clip: C([
-          [0, {}],
-          [5, { rootPos: [0, -0.16, 0], rootRot: [0.2, -0.3, 0], footR: [0.2, 0.12, -0.2] }, 'inout'],
-          [15, { rootPos: [0, 0.12, 0.12], rootRot: [-0.1, -0.1, 0], spine: [-0.1, 0.1, 0], footR: [0.12, 0.62, 0.42], kneeR: [0.1, 1, 0.6], footRotR: [0.6, 0, 0],
-            footL: [0.08, 0.2, -0.02], handL: [0.06, 0.04, 0.7], handR: [0.12, 0.06, 0.68], aimL: 1, aimR: 1, fistL: 0.3, fistR: 0.3, neck: [0.4, 0.1, 0] }, 'drive'],
-          [19, {}, 'lin'],
-          [30, { rootPos: [0, -0.12, 0.1], footR: [0.2, 0.071, 0.0], footL: [0.05, 0.071, 0.3], handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, fistL: 1, fistR: 1, neck: [0.2, 0.2, 0] }, 'in'],
-          [44, null, 'inout'],
-        ]),
-        hit: { f: [14, 18], limb: 'kneeR', r: 0.13, dmg: 17, lvl: 'mid', react: 'air', blk: -12, launch: 5.8, push: 0.1 },
-        advance: [[0, 0], [15, 0.3], [44, 0.35]], sfx: 'heavy',
       },
       tattooCombo: {
         name: 'Tattoo rush', total: 50, clip: C([
@@ -153,33 +139,99 @@ export const STYLES = {
         hit: { f: [15, 17], limb: 'handR', r: 0.11, dmg: 16, lvl: 'high', react: 'hitHigh', blk: -8, hitAdv: 4, push: 0.4, ch: { kd: true } },
         advance: [[0, 0], [8, 0.0], [15, 0.4], [38, 0.38]], sfx: 'heavy',
       },
-      // SWITCH KICK: a quick switch of the feet (a hop: the lead foot back, the rear one forward), then the left leg,
-      // now behind, swings round into the body as a roundhouse (the hips turning the other way to his right kick's),
-      // the left arm swinging down and back; it lands in front again, in his own stance, and the right foot steps back.
-      // The end of his 1, 2, 3
-      switchKick: {
-        name: 'Switch kick', total: 44, clip: C([
+      // (the leg drives out almost straight into the stomach: it used to stop short, the shin hanging from a raised knee;
+      // the run-up carries the body a little less far, so the reach is the same; the lead hand guards, the kicking side's
+      // arm swings down and back instead of both held out wide)
+      sprintKick: {
+        name: 'Sprint kick', total: 50, clip: C([
           [0, {}],
-          [3, { rootPos: [0, -0.04, -0.03], footL: [0.12, 0.13, 0.04], footR: [0.12, 0.13, 0.0], footRotL: [0, 0.1, 0], footRotR: [0, 0.2, 0] }, 'inout'],
-          [6, { rootPos: [0, -0.085, -0.02], rootRot: [0.06, 0.3, 0], spine: [0.1, -0.1, 0], neck: [0.16, -0.15, 0],
-            footL: [0.2, 0.071, -0.18], footRotL: [0, 0.6, 0], footR: [0.06, 0.071, 0.2], footRotR: [0, -0.3, 0] }, 'inout'],
-          [10, { rootPos: [0, -0.06, 0.02], rootRot: [-0.1, -0.5, 0.28], spine: [0.06, 0.32, 0], neck: [0.22, 0.42, -0.08],
-            footL: [0.3, 0.42, 0.18], kneeL: [0.25, 0.15, 1], footRotL: [-0.2, 0.3, 0.6], toeL: -0.3, footRotR: [0.18, 0.8, 0],
-            handL: [0.14, -0.88, 0.1], poleL: [0.2, 0, -1], twistL: -0.2 }, 'inout'],
-          [15, { rootPos: [0, -0.05, -0.02], rootRot: [-0.26, -1.15, 0.48], spine: [0.1, 0.52, -0.1], neck: [0.48, 0.72, -0.18],
-            footL: [0.0, 0.9, 0.94], kneeL: [0.35, 1, 0.15], footRotL: [-0.25, 0.1, 1.1], toeL: -0.4, footRotR: [0.25, 1.15, 0],
-            handL: [0.16, -0.8, -0.4], hgPosR: [0.16, -0.16, 0.18] }, 'drive'],
-          [18, {}, 'lin'],
-          [26, { rootPos: [0, -0.06, 0.0], rootRot: [-0.1, -0.55, 0.14], spine: [0.08, 0.28, 0.05], neck: [0.3, 0.38, -0.06],
-            footL: [0.3, 0.4, 0.2], kneeL: [0.25, 0.15, 1], footRotL: [-0.1, 0.3, 0.4], toeL: -0.1, footRotR: [0.1, 0.7, 0],
-            handL: [0.22, -0.5, 0.06], poleL: [0.25, -1, -0.25] }, 'inout'],
-          [33, { rootPos: [0, -0.085, 0.04], rootRot: [0.05, -0.3, 0], spine: [0.1, 0.1, 0], neck: [0.16, 0.15, 0],
-            footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1], footRotL: [0, -0.35, 0], toeL: 0, footRotR: [0.1, 0.3, 0],
-            handL: GUARD_L, aimL: 0, twistL: -0.4 }, 'inout'],
-          [44, null, 'inout'],
+          // (the left arm swings back wide of the body: from the guard straight to behind the hip it went through
+          // the belly)
+          [6, { rootPos: [0, -0.1, 0.05], rootRot: [0.25, -0.3, 0], footR: [0.18, 0.2, -0.05], handL: [0.3, -0.38, -0.18], handR: [0.1, 0.1, 0.5], aimL: 1, aimR: 1 }, 'inout'],
+          // out of the run the knee drives up high in front, the foot tucked under it and the trunk coming upright
+          // (the leg used to rise straight out of the stride over twelve frames: a knee lift, not a kick)...
+          [12, { rootPos: [0, -0.06, 0.09], rootRot: [-0.24, -0.36, 0], spine: [0.2, 0.1, 0], footR: [0.17, 0.46, 0.36], kneeR: [0.2, 0.9, 0.7], footRotR: [-0.45, 0, 0], toeR: -0.2,
+            handL: [0.2, -0.05, 0.3], handR: [0.16, -0.45, -0.1], neck: [0.3, 0.12, 0] }, 'inout'],
+          // ... and the leg drives out from it, the sole first, the hips thrown in behind it
+          [18, { rootPos: [0, -0.02, 0.12], rootRot: [-0.43, -0.4, 0], spine: [0.14, 0.1, 0], footR: [0.02, 0.84, 0.98], kneeR: [0.1, 1, 0.5], footRotR: [-1.3, 0, 0], toeR: -0.5, handL: GUARD_L, handR: [0.18, -0.8, -0.38], aimL: 0, aimR: 0, poleR: [0.2, 0, -1], neck: [0.45, 0.15, 0] }, 'drive'],
+          [22, {}, 'lin'],
+          // the knee folds back before the foot comes down in front (it hung out straight for a quarter of a second)
+          [30, { rootPos: [0, -0.06, 0.09], rootRot: [-0.05, -0.38, 0], footR: [0.12, 0.5, 0.42], kneeR: [0.1, 0.8, 0.8], footRotR: [-0.4, 0, 0], toeR: 0 }, 'inout'],
+          [36, { rootPos: [0, -0.1, 0.05], footR: [0.2, 0.071, 0.2], rootRot: [0.1, -0.4, 0], handR: [0.12, -0.3, 0.3], poleR: [0.25, -1, -0.25], neck: [0.2, 0.2, 0] }, 'inout'],
+          [50, null, 'inout'],
         ]),
-        hit: { f: [15, 17], limb: 'footL', r: 0.12, dmg: 15, lvl: 'mid', react: 'hitMid', swing: -1, blk: -7, hitAdv: 2, push: 0.6 },
-        advance: [[0, 0], [6, -0.04], [15, 0.1], [44, 0.08]], sfx: 'kick',
+        hit: { f: [18, 21], limb: 'footR', r: 0.14, dmg: 22, lvl: 'mid', react: 'hitMid', blk: -12, kd: true, push: 0.8 },
+        advance: [[0, 0], [6, 0.2], [18, 0.52], [50, 0.57]], sfx: 'heavy',
+      },
+      // (the arms swing up with the take-off, then the lead hand guards and the kicking side's arm drops back: they were
+      // held up and wide in the air and flung up again on landing)
+      flyKick: {
+        name: 'Flying kick', total: 54, airborne: [8, 34], clip: C([
+          [0, {}],
+          [8, { rootPos: [0, -0.22, 0], rootRot: [0.3, -0.4, 0], spine: [0.15, 0, 0], handL: [0.3, -0.35, 0.15], handR: [0.3, -0.4, 0.05], aimL: 1, aimR: 1 }, 'inout'],
+          [13, { rootPos: [0, 0.3, 0.12], rootRot: [-0.1, -0.6, -0.1], footL: [0.1, 0.7, 0.2], kneeL: [0.2, 0.8, 0.6], footR: [0.12, 0.6, 0.3], kneeR: [0.2, 0.4, 1],
+            handL: [0.1, 0.22, 0.55], handR: [0.14, 0.15, 0.5] }, 'inout'],
+          // (the hips square up to the kick: turned 50 degrees away from it, the leg went out across the body and the
+          // hip folded some 20 degrees past its limit)
+          [18, { rootPos: [0, 0.45, 0.2], rootRot: [-0.35, -0.6, -0.2], footL: [0.12, 0.72, 0.05], kneeL: [0.2, 0.8, 0.5], footR: [0.0, 1.25, 1.0], kneeR: [0.2, 1, 0.3],
+            footRotR: [-1.2, 0.5, 0], handL: GUARD_L, handR: [0.18, -0.8, -0.38], aimL: 0, aimR: 0, poleR: [0.2, 0, -1], neck: [0.45, 0.2, 0] }, 'drive'],
+          // past the apex: the body starts to come down and the kick eases off (a held pose hung in the air)
+          [26, { rootPos: [0, 0.37, 0.22], rootRot: [-0.3, -0.55, -0.18], footR: [0.02, 1.14, 0.9], handR: [0.18, -0.72, -0.28] }, 'sine'],
+          // falling: the kicking leg comes down under the body and both legs reach for the floor
+          [32, { rootPos: [0, 0.1, 0.18], rootRot: [0.05, -0.6, -0.08], footL: [0.06, 0.24, 0.26], kneeL: [0.25, 0.2, 1], footR: [0.18, 0.26, -0.05], kneeR: [0.4, 0.2, 1],
+            footRotR: [0.1, 0.5, 0], handR: [0.15, -0.38, 0.14], poleR: [0.25, -1, -0.25] }, 'inout'],
+          // touch-down at the stance's height and still moving down, then the knees take the landing up (the body used
+          // to fall the whole way in one accelerating segment and stop dead on the floor, the feet on tiptoe)
+          [35, { rootPos: [0, -0.07, 0.16], rootRot: [0.15, -0.5, 0], footL: [0.05, 0.071, 0.3], footR: [0.2, 0.071, -0.15], kneeL: [0.3, 0, 1], kneeR: [0.5, 0, 1],
+            footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], handR: [0.12, -0.15, 0.35], neck: [0.16, 0.2, 0] }, 'inout'],
+          [40, { rootPos: [0, -0.2, 0.15], rootRot: [0.25, -0.45, 0] }, 'inout'],
+          [54, null, 'inout'],
+        ]),
+        hit: { f: [18, 25], limb: 'footR', r: 0.15, dmg: 24, lvl: 'high', react: 'hitHigh', blk: -14, kd: true, push: 0.7 },
+        advance: [[0, 0], [8, 0], [26, 0.8], [54, 0.85]], sfx: 'heavy',
+      },
+      // PATADA DE VALLISTA: the hurdler's lead leg: the knee driven up and the leg out straight at his stomach,
+      // the heel first, the body leaning in over it and the arms swapped as in the stride (the right one reaching
+      // forward, the left swung back); a long reach
+      hurdle: {
+        name: 'Patada de vallista', total: 38, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.1, 0.0], rootRot: [0.14, -0.42, 0], spine: [0.12, 0.08, 0], footL: [0.06, 0.3, 0.3], kneeL: [0.1, 0.6, 1], footRotL: [-0.3, -0.3, 0],
+            handR: [0.0, 0.08, 0.5], aimR: 0, handL: [0.2, -0.28, 0.1], aimL: 0, fistL: 0.6, fistR: 0.6 }, 'inout'],
+          [11, { rootPos: [0, -0.03, 0.12], rootRot: [0.06, -0.36, 0], spine: [0.15, 0.05, 0], neck: [0.04, 0.1, 0],
+            footL: [0.04, 0.62, 1.04], kneeL: [0.1, 0.8, 0.6], footRotL: [-1.15, -0.2, 0], toeL: -0.4, footR: [0.2, 0.071, -0.24], footRotR: [0.42, 0.65, 0],
+            handR: [0.05, 0.12, 0.95], aimR: 1, handL: [0.24, -0.5, -0.4], poleL: [0.3, -0.3, -1], fistL: 0.4, fistR: 0.4 }, 'drive'],
+          [14, {}, 'lin'],
+          [19, { handR: [0.1, 0.0, 0.6], aimR: 0, handL: [0.25, -0.35, 0.05], aimL: 0, footL: [0.05, 0.4, 0.6], kneeL: [0.1, 0.6, 1] }, 'inout'],
+          [25, { rootPos: [0, -0.07, 0.08], rootRot: [0.1, -0.45, 0], spine: [0.12, 0.1, 0], neck: [0.12, 0.18, 0],
+            footL: [0.05, 0.3, 0.44], kneeL: [0.1, 0.5, 1], footRotL: [0, -0.35, 0], toeL: 0, footRotR: [0.1, 0.65, 0],
+            handR: GUARD_R, handL: GUARD_L, fistL: 1, fistR: 1 }, 'inout'],
+          [31, { footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1], rootPos: [0, -0.085, 0.04] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [11, 14], limb: 'footL', r: 0.13, dmg: 15, lvl: 'mid', react: 'hitMid', blk: -8, hitAdv: 2, push: 0.9 },
+        advance: [[0, 0], [11, 0.32], [38, 0.3]], sfx: 'kick',
+      },
+      // LLEGADA A META: the dip at the finish line: a step in and the chest thrown forward at the tape, the arms
+      // flung back and the head up, straight into him. The end of his 1, 2, 3
+      finishLean: {
+        name: 'Llegada a meta', total: 38, clip: C([
+          [0, {}],
+          [6, { rootPos: [0, -0.12, 0.02], rootRot: [0.2, -0.22, 0], spine: [0.14, 0.05, 0], neck: [0.05, 0.1, 0],
+            handL: [0.15, -0.1, 0.42], handR: [0.18, -0.36, -0.08], aimL: 0, aimR: 0, fistL: 0.5, fistR: 0.5,
+            footR: [0.15, 0.13, -0.02], kneeR: [0.2, 0.3, 1], footRotR: [0.2, 0.4, 0] }, 'inout'],
+          [12, { rootPos: [0, -0.08, 0.15], rootRot: [0.56, -0.06, 0], spine: [0.32, 0.0, 0], neck: [-0.42, 0.0, 0],
+            handL: [0.42, -0.45, -0.48], handR: [0.42, -0.45, -0.48], poleL: [0.4, -0.2, -1], poleR: [0.4, -0.2, -1], fistL: 0.4, fistR: 0.4,
+            footR: [0.13, 0.071, 0.1], kneeR: [0.35, 0, 1], footRotR: [0.1, 0.1, 0], footL: [0.06, 0.071, 0.26], footRotL: [0.35, -0.2, 0] }, 'drive'],
+          [15, {}, 'lin'],
+          [21, { rootPos: [0, -0.11, 0.1], rootRot: [0.3, -0.18, 0], spine: [0.2, 0.05, 0], neck: [-0.1, 0.05, 0],
+            handL: [0.32, -0.62, 0.08], handR: [0.32, -0.62, 0.02], poleL: [0.4, -0.6, -0.6], poleR: [0.4, -0.6, -0.6] }, 'inout'],
+          [28, { rootPos: [0, -0.1, 0.08], rootRot: [0.16, -0.32, 0], spine: [0.12, 0.1, 0], neck: [0.12, 0.15, 0],
+            handL: GUARD_L, handR: GUARD_R, fistL: 1, fistR: 1, poleL: [0.3, -1, -0.15], poleR: [0.25, -1, -0.25], footR: [0.18, 0.071, -0.04], footRotL: [0, -0.3, 0] }, 'inout'],
+          [38, null, 'inout'],
+        ]),
+        hit: { f: [10, 14], limb: 'chest', r: 0.36, dmg: 13, lvl: 'mid', react: 'hitMid', blk: -6, hitAdv: 4, push: 1.1 },
+        advance: [[0, 0], [12, 0.44], [38, 0.44]], sfx: 'heavy',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): a runner. He stretches a quad, starts his watch, and sets off round the loser,
@@ -483,66 +535,15 @@ export const STYLES = {
     introSay: 'Tengo trabajo, acabemos rápido.', introLen: 144, // (the line said in the fight's presentation, frames until the voice ends: tools/quotes_tts.py --intro)
     stats: { health: 174, walk: 1.4, weight: 0.95, power: 1.02, speed: 1.07 },
     hairSway: 0.45, // how far the hair swings with the head: short, combed back (js/anim/hairsway.js)
-    aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', '3+4', 'd+4', 'df+1', 'b+3', 'f+1'], longRange: ['f,f+4', '3+4'], juggle: ['1', 'b+1', '4'],
+    aiMoves: ['1', '2', 'b+1', '3', '4', 'd+3', 'df+2', 'd+4', 'df+1', 'f+3', '1+2', 'f+2', 'b+2', 'b+3'], juggle: ['1', 'b+1', '4'],
     stance: { rootPos: [0, -0.06, -0.02], hgPosL: [0.06, -0.13, 0.33], hgPosR: [0.12, -0.16, 0.2] },
     bob: 0.03,
-    commands: [['f,f+4', 'sprintKick'], ['3+4', 'flyKick'], ['b+1', 'backfist'], ['b+3', 'hurdle'], ['f+1', 'finishLean']],
-    stringFinish: 'finishLean', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
+    commands: [['b+1', 'backfist'], ['f+3', 'knee'], ['1+2', 'dominada'], ['f+2', 'pressBanca'], ['b+2', 'curl'], ['b+3', 'kettlebell']],
+    stringFinish: 'kettlebell', // (the end of his own 1, 2, 3: js/fight/moves.js straight's cancel)
     // the phone's ★ buttons (js/ui/touch.js): the special that ★ PUÑO / ★ PATADA throws with the stick at rest (n),
     // forward (f), back (b) or down (d), as the command it stands for
-    touchSP: { P: { n: 'b+1', f: 'f+1', b: 'b+1', d: 'df+2' }, K: { n: '3+4', f: 'f,f+4', b: 'b+3', d: 'd+4' } },
+    touchSP: { P: { n: '1+2', f: 'f+2', b: 'b+2', d: 'df+2' }, K: { n: 'f+3', f: 'uf+4', b: 'b+3', d: 'd+4' } },
     moves: (C) => ({
-      // (the leg drives out almost straight into the stomach: it used to stop short, the shin hanging from a raised knee;
-      // the run-up carries the body a little less far, so the reach is the same; the lead hand guards, the kicking side's
-      // arm swings down and back instead of both held out wide)
-      sprintKick: {
-        name: 'Sprint kick', total: 50, clip: C([
-          [0, {}],
-          // (the left arm swings back wide of the body: from the guard straight to behind the hip it went through
-          // the belly)
-          [6, { rootPos: [0, -0.1, 0.05], rootRot: [0.25, -0.3, 0], footR: [0.18, 0.2, -0.05], handL: [0.3, -0.38, -0.18], handR: [0.1, 0.1, 0.5], aimL: 1, aimR: 1 }, 'inout'],
-          // out of the run the knee drives up high in front, the foot tucked under it and the trunk coming upright
-          // (the leg used to rise straight out of the stride over twelve frames: a knee lift, not a kick)...
-          [12, { rootPos: [0, -0.06, 0.09], rootRot: [-0.14, -0.36, 0], spine: [0.24, 0.1, 0], footR: [0.12, 0.5, 0.36], kneeR: [0.1, 0.9, 0.7], footRotR: [-0.45, 0, 0], toeR: -0.2,
-            handL: [0.2, -0.05, 0.3], handR: [0.16, -0.45, -0.1], neck: [0.3, 0.12, 0] }, 'inout'],
-          // ... and the leg drives out from it, the sole first, the hips thrown in behind it
-          [18, { rootPos: [0, -0.02, 0.12], rootRot: [-0.35, -0.4, 0], spine: [0.2, 0.1, 0], footR: [0.02, 0.88, 0.98], kneeR: [0.1, 1, 0.5], footRotR: [-1.3, 0, 0], toeR: -0.5, handL: GUARD_L, handR: [0.18, -0.8, -0.38], aimL: 0, aimR: 0, poleR: [0.2, 0, -1], neck: [0.45, 0.15, 0] }, 'drive'],
-          [22, {}, 'lin'],
-          // the knee folds back before the foot comes down in front (it hung out straight for a quarter of a second)
-          [30, { rootPos: [0, -0.06, 0.09], rootRot: [-0.05, -0.38, 0], footR: [0.12, 0.5, 0.42], kneeR: [0.1, 0.8, 0.8], footRotR: [-0.4, 0, 0], toeR: 0 }, 'inout'],
-          [36, { rootPos: [0, -0.1, 0.05], footR: [0.2, 0.071, 0.2], rootRot: [0.1, -0.4, 0], handR: [0.12, -0.3, 0.3], poleR: [0.25, -1, -0.25], neck: [0.2, 0.2, 0] }, 'inout'],
-          [50, null, 'inout'],
-        ]),
-        hit: { f: [18, 21], limb: 'footR', r: 0.14, dmg: 22, lvl: 'mid', react: 'hitMid', blk: -12, kd: true, push: 0.8 },
-        advance: [[0, 0], [6, 0.2], [18, 0.52], [50, 0.57]], sfx: 'heavy',
-      },
-      // (the arms swing up with the take-off, then the lead hand guards and the kicking side's arm drops back: they were
-      // held up and wide in the air and flung up again on landing)
-      flyKick: {
-        name: 'Flying kick', total: 54, airborne: [8, 34], clip: C([
-          [0, {}],
-          [8, { rootPos: [0, -0.22, 0], rootRot: [0.3, -0.4, 0], spine: [0.15, 0, 0], handL: [0.3, -0.35, 0.15], handR: [0.3, -0.4, 0.05], aimL: 1, aimR: 1 }, 'inout'],
-          [13, { rootPos: [0, 0.3, 0.12], rootRot: [-0.1, -0.6, -0.1], footL: [0.1, 0.7, 0.2], kneeL: [0.2, 0.8, 0.6], footR: [0.12, 0.6, 0.3], kneeR: [0.2, 0.4, 1],
-            handL: [0.1, 0.22, 0.55], handR: [0.14, 0.15, 0.5] }, 'inout'],
-          // (the hips square up to the kick: turned 50 degrees away from it, the leg went out across the body and the
-          // hip folded some 20 degrees past its limit)
-          [18, { rootPos: [0, 0.45, 0.2], rootRot: [-0.35, -0.6, -0.2], footL: [0.12, 0.72, 0.05], kneeL: [0.2, 0.8, 0.5], footR: [0.0, 1.25, 1.0], kneeR: [0.2, 1, 0.3],
-            footRotR: [-1.2, 0.5, 0], handL: GUARD_L, handR: [0.18, -0.8, -0.38], aimL: 0, aimR: 0, poleR: [0.2, 0, -1], neck: [0.45, 0.2, 0] }, 'drive'],
-          // past the apex: the body starts to come down and the kick eases off (a held pose hung in the air)
-          [26, { rootPos: [0, 0.37, 0.22], rootRot: [-0.3, -0.55, -0.18], footR: [0.02, 1.14, 0.9], handR: [0.18, -0.72, -0.28] }, 'sine'],
-          // falling: the kicking leg comes down under the body and both legs reach for the floor
-          [32, { rootPos: [0, 0.1, 0.18], rootRot: [0.05, -0.6, -0.08], footL: [0.06, 0.24, 0.26], kneeL: [0.25, 0.2, 1], footR: [0.18, 0.26, -0.05], kneeR: [0.4, 0.2, 1],
-            footRotR: [0.1, 0.5, 0], handR: [0.15, -0.38, 0.14], poleR: [0.25, -1, -0.25] }, 'inout'],
-          // touch-down at the stance's height and still moving down, then the knees take the landing up (the body used
-          // to fall the whole way in one accelerating segment and stop dead on the floor, the feet on tiptoe)
-          [35, { rootPos: [0, -0.07, 0.16], rootRot: [0.15, -0.5, 0], footL: [0.05, 0.071, 0.3], footR: [0.2, 0.071, -0.15], kneeL: [0.3, 0, 1], kneeR: [0.5, 0, 1],
-            footRotL: [0, -0.35, 0], footRotR: [0, 0.65, 0], handR: [0.12, -0.15, 0.35], neck: [0.16, 0.2, 0] }, 'inout'],
-          [40, { rootPos: [0, -0.2, 0.15], rootRot: [0.25, -0.45, 0] }, 'inout'],
-          [54, null, 'inout'],
-        ]),
-        hit: { f: [18, 25], limb: 'footR', r: 0.15, dmg: 24, lvl: 'high', react: 'hitHigh', blk: -14, kd: true, push: 0.7 },
-        advance: [[0, 0], [8, 0], [26, 0.8], [54, 0.85]], sfx: 'heavy',
-      },
       backfist: {
         name: 'Back fist', total: 30, clip: C([
           [0, {}],
@@ -558,48 +559,99 @@ export const STYLES = {
         hit: { f: [11, 13], limb: 'handL', r: 0.11, dmg: 12, lvl: 'high', react: 'hitHighSide', swing: 1, blk: 2, hitAdv: 8, push: 0.2 },
         advance: [[0, 0], [11, 0.08], [30, 0.08]], sfx: 'light',
       },
-      // PATADA DE VALLISTA: the hurdler's lead leg: the knee driven up and the leg out straight at his stomach,
-      // the heel first, the body leaning in over it and the arms swapped as in the stride (the right one reaching
-      // forward, the left swung back); a long reach
-      hurdle: {
-        name: 'Patada de vallista', total: 38, clip: C([
+      // (the hands go to the opponent's neck as in a clinch, pulling him onto the knee: they used to reach above the head)
+      knee: {
+        name: 'Flying knee', total: 44, clip: C([
           [0, {}],
-          [5, { rootPos: [0, -0.1, 0.0], rootRot: [0.14, -0.42, 0], spine: [0.12, 0.08, 0], footL: [0.06, 0.3, 0.3], kneeL: [0.1, 0.6, 1], footRotL: [-0.3, -0.3, 0],
-            handR: [0.0, 0.08, 0.5], aimR: 0, handL: [0.2, -0.28, 0.1], aimL: 0, fistL: 0.6, fistR: 0.6 }, 'inout'],
-          [11, { rootPos: [0, -0.03, 0.12], rootRot: [0.06, -0.36, 0], spine: [0.15, 0.05, 0], neck: [0.04, 0.1, 0],
-            footL: [0.04, 0.62, 1.04], kneeL: [0.1, 0.8, 0.6], footRotL: [-1.15, -0.2, 0], toeL: -0.4, footR: [0.2, 0.071, -0.24], footRotR: [0.42, 0.65, 0],
-            handR: [0.05, 0.12, 0.95], aimR: 1, handL: [0.24, -0.5, -0.4], poleL: [0.3, -0.3, -1], fistL: 0.4, fistR: 0.4 }, 'drive'],
-          [14, {}, 'lin'],
-          [19, { handR: [0.1, 0.0, 0.6], aimR: 0, handL: [0.25, -0.35, 0.05], aimL: 0, footL: [0.05, 0.4, 0.6], kneeL: [0.1, 0.6, 1] }, 'inout'],
-          [25, { rootPos: [0, -0.07, 0.08], rootRot: [0.1, -0.45, 0], spine: [0.12, 0.1, 0], neck: [0.12, 0.18, 0],
-            footL: [0.05, 0.3, 0.44], kneeL: [0.1, 0.5, 1], footRotL: [0, -0.35, 0], toeL: 0, footRotR: [0.1, 0.65, 0],
-            handR: GUARD_R, handL: GUARD_L, fistL: 1, fistR: 1 }, 'inout'],
-          [31, { footL: [0.05, 0.071, 0.34], kneeL: [0.2, 0, 1], rootPos: [0, -0.085, 0.04] }, 'inout'],
-          [38, null, 'inout'],
+          [5, { rootPos: [0, -0.16, 0], rootRot: [0.2, -0.3, 0], footR: [0.2, 0.12, -0.2] }, 'inout'],
+          [15, { rootPos: [0, 0.12, 0.12], rootRot: [-0.1, -0.1, 0], spine: [-0.1, 0.1, 0], footR: [0.12, 0.62, 0.42], kneeR: [0.1, 1, 0.6], footRotR: [0.6, 0, 0],
+            footL: [0.08, 0.2, -0.02], handL: [0.06, 0.04, 0.7], handR: [0.12, 0.06, 0.68], aimL: 1, aimR: 1, fistL: 0.3, fistR: 0.3, neck: [0.4, 0.1, 0] }, 'drive'],
+          [19, {}, 'lin'],
+          [30, { rootPos: [0, -0.12, 0.1], footR: [0.2, 0.071, 0.0], footL: [0.05, 0.071, 0.3], handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, fistL: 1, fistR: 1, neck: [0.2, 0.2, 0] }, 'in'],
+          [44, null, 'inout'],
         ]),
-        hit: { f: [11, 14], limb: 'footL', r: 0.13, dmg: 15, lvl: 'mid', react: 'hitMid', blk: -8, hitAdv: 2, push: 0.9 },
-        advance: [[0, 0], [11, 0.32], [38, 0.3]], sfx: 'kick',
+        hit: { f: [14, 18], limb: 'kneeR', r: 0.13, dmg: 17, lvl: 'mid', react: 'air', blk: -12, launch: 5.8, push: 0.1 },
+        advance: [[0, 0], [15, 0.3], [44, 0.35]], sfx: 'heavy',
       },
-      // LLEGADA A META: the dip at the finish line: a step in and the chest thrown forward at the tape, the arms
-      // flung back and the head up, straight into him. The end of his 1, 2, 3
-      finishLean: {
-        name: 'Llegada a meta', total: 38, clip: C([
+      // DOMINADA: as at the bar: a dip, the fists dropped low in front of the hips with the palms up, then the whole
+      // body drives up through the legs and both fists come up together in front of him to the chin, the chest
+      // lifting and the eyes on the bar: a double uppercut that throws him up
+      dominada: {
+        name: 'Dominada', total: 40, clip: C([
           [0, {}],
-          [6, { rootPos: [0, -0.12, 0.02], rootRot: [0.2, -0.22, 0], spine: [0.14, 0.05, 0], neck: [0.05, 0.1, 0],
-            handL: [0.15, -0.1, 0.42], handR: [0.18, -0.36, -0.08], aimL: 0, aimR: 0, fistL: 0.5, fistR: 0.5,
-            footR: [0.15, 0.13, -0.02], kneeR: [0.2, 0.3, 1], footRotR: [0.2, 0.4, 0] }, 'inout'],
-          [12, { rootPos: [0, -0.08, 0.15], rootRot: [0.56, -0.06, 0], spine: [0.32, 0.0, 0], neck: [-0.42, 0.0, 0],
-            handL: [0.42, -0.45, -0.48], handR: [0.42, -0.45, -0.48], poleL: [0.4, -0.2, -1], poleR: [0.4, -0.2, -1], fistL: 0.4, fistR: 0.4,
-            footR: [0.13, 0.071, 0.1], kneeR: [0.35, 0, 1], footRotR: [0.1, 0.1, 0], footL: [0.06, 0.071, 0.26], footRotL: [0.35, -0.2, 0] }, 'drive'],
-          [15, {}, 'lin'],
-          [21, { rootPos: [0, -0.11, 0.1], rootRot: [0.3, -0.18, 0], spine: [0.2, 0.05, 0], neck: [-0.1, 0.05, 0],
-            handL: [0.32, -0.62, 0.08], handR: [0.32, -0.62, 0.02], poleL: [0.4, -0.6, -0.6], poleR: [0.4, -0.6, -0.6] }, 'inout'],
-          [28, { rootPos: [0, -0.1, 0.08], rootRot: [0.16, -0.32, 0], spine: [0.12, 0.1, 0], neck: [0.12, 0.15, 0],
-            handL: GUARD_L, handR: GUARD_R, fistL: 1, fistR: 1, poleL: [0.3, -1, -0.15], poleR: [0.25, -1, -0.25], footR: [0.18, 0.071, -0.04], footRotL: [0, -0.3, 0] }, 'inout'],
-          [38, null, 'inout'],
+          [6, { rootPos: [0, -0.2, -0.03], rootRot: [0.24, -0.3, 0], spine: [0.24, 0.05, 0], neck: [0.26, 0.1, 0],
+            handL: [0.12, -0.6, 0.32], handR: [0.1, -0.62, 0.3], aimL: 0, aimR: 0, fistL: 1, fistR: 1, twistL: -0.8, twistR: -0.8,
+            poleL: [0.3, -1, -0.3], poleR: [0.3, -1, -0.3], kneeL: [0.3, 0, 1], kneeR: [0.3, 0, 1] }, 'inout'],
+          [13, { rootPos: [0, -0.04, 0.1], rootRot: [0.02, -0.15, 0], spine: [-0.04, 0.05, 0], neck: [-0.12, 0.05, 0],
+            handL: [-0.08, 0.12, 0.74], handR: [-0.1, 0.1, 0.74], aimL: 1, aimR: 1, twistL: -0.92, twistR: -0.92,
+            poleL: [0.1, -1, 0.2], poleR: [0.1, -1, 0.2], clavL: [0.2, 0.35], clavR: [0.2, 0.35],
+            footR: [0.18, 0.11, -0.12], toeR: 0.6, footRotR: [0.4, 0.4, 0] }, 'drive'],
+          [16, { handL: [-0.1, 0.32, 0.6], handR: [-0.12, 0.3, 0.6], poleL: [0.1, -1, 0.3], poleR: [0.1, -1, 0.3], rootRot: [-0.04, -0.15, 0], spine: [-0.08, 0.05, 0] }, 'out'],
+          [26, { rootPos: [0, -0.08, 0.05], rootRot: [0.05, -0.35, 0], spine: [0.08, 0.1, 0], neck: [0.08, 0.1, 0],
+            handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, twistL: -0.4, twistR: -0.55, clavL: [0, 0.1], clavR: [0, 0.1],
+            poleL: [0.3, -1, -0.15], poleR: [0.25, -1, -0.25], footR: [0.2, 0.071, -0.2], toeR: 0, footRotR: [0, 0.65, 0] }, 'inout'],
+          [40, null, 'inout'],
         ]),
-        hit: { f: [10, 14], limb: 'chest', r: 0.36, dmg: 13, lvl: 'mid', react: 'hitMid', blk: -6, hitAdv: 4, push: 1.1 },
-        advance: [[0, 0], [12, 0.44], [38, 0.44]], sfx: 'heavy',
+        hit: { f: [13, 16], limb: 'handR', r: 0.13, dmg: 16, lvl: 'mid', react: 'air', blk: -14, launch: 6.0, push: 0.1 },
+        advance: [[0, 0], [6, 0.02], [13, 0.32], [40, 0.3]], sfx: 'heavy',
+      },
+      // PRESS DE BANCA: the fists drawn back to the chest with the elbows out wide, as with the bar on the chest,
+      // then both driven straight out together at his chest, the body square behind them: a huge push (into a wall,
+      // it pins him)
+      pressBanca: {
+        name: 'Press de banca', total: 36, clip: C([
+          [0, {}],
+          [7, { rootPos: [0, -0.13, -0.05], rootRot: [0.08, -0.2, 0], spine: [0.08, 0.05, 0], neck: [0.14, 0.1, 0],
+            handL: [0.16, -0.22, 0.2], handR: [0.12, -0.22, 0.18], aimL: 0, aimR: 0, fistL: 1, fistR: 1, twistL: 0.9, twistR: 0.9,
+            poleL: [1, -0.3, -0.3], poleR: [1, -0.3, -0.3] }, 'inout'],
+          [12, { rootPos: [0, -0.12, 0.12], rootRot: [0.16, -0.12, 0], spine: [0.14, 0.02, 0], neck: [0.04, 0.05, 0],
+            handL: [-0.08, -0.12, 0.98], handR: [-0.08, -0.12, 0.98], aimL: 1, aimR: 1, clavL: [0.05, 0.45], clavR: [0.05, 0.45],
+            poleL: [0.8, -0.6, 0], poleR: [0.8, -0.6, 0] }, 'drive'],
+          [15, {}, 'lin'],
+          [23, { rootPos: [0, -0.11, 0.06], rootRot: [0.1, -0.2, 0], spine: [0.1, 0.05, 0], handL: [0.1, -0.15, 0.55], handR: [0.06, -0.15, 0.52], aimL: 0, aimR: 0,
+            clavL: [0, 0.2], clavR: [0, 0.2], poleL: [0.6, -0.8, -0.2], poleR: [0.6, -0.8, -0.2] }, 'ret'],
+          [36, null, 'inout'],
+        ]),
+        hit: { f: [12, 15], limb: 'handR', r: 0.15, dmg: 15, lvl: 'mid', react: 'hitMid', blk: -7, hitAdv: 2, push: 1.15 },
+        advance: [[0, 0], [7, -0.03], [12, 0.18], [36, 0.16]], sfx: 'heavy',
+      },
+      // CURL DE BÍCEPS: the rear elbow pinned to his side and the fist dropped by the hip, palm up, then the forearm
+      // curled up hard into the chin, the hips turning in behind it: a short, quick uppercut from close in
+      curl: {
+        name: 'Curl de bíceps', total: 30, clip: C([
+          [0, {}],
+          [5, { rootPos: [0, -0.12, 0.0], rootRot: [0.1, -0.62, 0], spine: [0.12, -0.08, 0], handR: [0.16, -0.6, 0.2], aimR: 0, fistR: 1, twistR: -1.1,
+            poleR: [0.2, -1, -0.6] }, 'inout'],
+          [10, { rootPos: [0, -0.1, 0.08], rootRot: [0.1, 0.1, 0], spine: [0.08, 0.35, 0], neck: [0.05, -0.15, 0],
+            handR: [-0.06, 0.16, 0.8], aimR: 1, twistR: -1.2, wristR: [0.3, 0], poleR: [0.1, -1, 0.1], clavR: [0.15, 0.35],
+            footR: [0.18, 0.1, -0.15], toeR: 0.5, footRotR: [0.3, 0.4, 0] }, 'drive'],
+          [12, {}, 'lin'],
+          [19, { rootPos: [0, -0.09, 0.04], rootRot: [0.08, -0.3, 0], spine: [0.1, 0.2, 0], handR: [-0.12, 0.25, 0.55], aimR: 0, twistR: -0.6, wristR: [0.12, 0], clavR: [0, 0.2],
+            footR: [0.2, 0.071, -0.2], toeR: 0, footRotR: [0, 0.65, 0] }, 'ret'],
+          [30, null, 'inout'],
+        ]),
+        hit: { f: [10, 12], limb: 'handR', r: 0.11, dmg: 13, lvl: 'mid', react: 'hitHigh', blk: -4, hitAdv: 6, push: 0.25 },
+        advance: [[0, 0], [10, 0.2], [30, 0.18]], sfx: 'heavy',
+      },
+      // SWING DE KETTLEBELL: the hands clasped as round the kettlebell's handle, a hinge at the hips that takes them
+      // back between his legs, then the hips snapped forward and the clasped hands swung up into his stomach and
+      // chest on straight arms: a knockdown. The end of his 1, 2, 3
+      kettlebell: {
+        name: 'Swing de kettlebell', total: 40, clip: C([
+          [0, {}],
+          [7, { rootPos: [0, -0.15, -0.12], rootRot: [0.55, -0.22, 0], spine: [0.12, 0.0, 0], neck: [-0.25, 0.0, 0],
+            handL: [-0.12, -0.82, 0.12], handR: [-0.12, -0.84, 0.1], aimL: 1, aimR: 1, fistL: 1, fistR: 1, twistL: 0, twistR: 0,
+            poleL: [0.6, -0.4, -0.6], poleR: [0.6, -0.4, -0.6], footL: [0.14, 0.071, 0.16], footR: [0.18, 0.071, -0.1], kneeL: [0.25, 0, 1], kneeR: [0.25, 0, 1] }, 'inout'],
+          [13, { rootPos: [0, -0.07, 0.1], rootRot: [-0.08, -0.18, 0], spine: [0.02, 0.0, 0], neck: [0.05, 0.0, 0],
+            handL: [-0.14, 0.0, 1.0], handR: [-0.14, -0.02, 1.0], aimL: 1, aimR: 1, poleL: [0.6, -0.8, 0], poleR: [0.6, -0.8, 0], clavL: [0.1, 0.35], clavR: [0.1, 0.35] }, 'drive'],
+          [16, {}, 'lin'],
+          [26, { rootPos: [0, -0.1, 0.06], rootRot: [0.08, -0.35, 0], spine: [0.1, 0.1, 0], neck: [0.12, 0.15, 0],
+            handL: GUARD_L, handR: GUARD_R, aimL: 0, aimR: 0, clavL: [0, 0.1], clavR: [0, 0.1], poleL: [0.3, -1, -0.15], poleR: [0.25, -1, -0.25],
+            footL: [0.05, 0.071, 0.26], footR: [0.2, 0.071, -0.2] }, 'inout'],
+          [40, null, 'inout'],
+        ]),
+        hit: { f: [13, 16], limb: 'handR', r: 0.16, dmg: 17, lvl: 'mid', react: 'hitMid', blk: -12, kd: true, push: 0.6 },
+        advance: [[0, 0], [7, -0.04], [13, 0.18], [40, 0.16]], sfx: 'heavy',
       },
     }),
     // PUÑETALITY (js/fight/fatality.js): he cracks his neck, takes a pair of 20 kg dumbbells from behind his back, does

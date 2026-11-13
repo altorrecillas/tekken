@@ -33,7 +33,7 @@ const SHORT = {
   'Sprint kick': 'CARRERA', 'Patada de vallista': 'VALLISTA', 'Belly bump': 'PANZAZO', 'Overhand smash': 'MAZAZO', 'Palmada de orejas': 'OREJAS',
   'Pisotón': 'PISOTÓN', 'Jump kick': 'SALTO', 'Lariat': 'LARIAT', 'Double axe handle': 'HACHAZO', 'Chop': 'CHOP', 'Big boot': 'BIG BOOT',
   'Palma hidráulica': 'PISTÓN', 'Patada hidráulica': 'LATERAL', 'Slap': 'GUANTAZO', 'Overhand': 'OVERHAND', 'Liver hook': 'HÍGADO', 'Gazelle punch': 'GACELA',
-  'Front kick': 'FRONTAL', 'Botón del pánico': 'PÁNICO', 'Verificación': 'VERIFICACIÓN', 'Aviso de intrusión': 'INTRUSIÓN', 'Zona perimetral': 'PERÍMETRO', 'Detector de presencia': 'DETECTOR',
+  'Front kick': 'FRONTAL', 'Dominada': 'DOMINADA', 'Press de banca': 'PRESS BANCA', 'Curl de bíceps': 'CURL', 'Swing de kettlebell': 'KETTLEBELL', 'Botón del pánico': 'PÁNICO', 'Verificación': 'VERIFICACIÓN', 'Aviso de intrusión': 'INTRUSIÓN', 'Zona perimetral': 'PERÍMETRO', 'Detector de presencia': 'DETECTOR',
 };
 export const shortName = (n) => SHORT[n] || String(n).toUpperCase();
 // the frames that type a command ("f+2", "df+2", "1+2", "f,f+4", "uf+4") for the fighter: [fwd, up, buttons, frames]
