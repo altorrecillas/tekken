@@ -544,5 +544,99 @@ def outfit_noemi(ctx, P):
             G('pants', pants, loose(ctx, 0.15, 0, 0.1), (0.07, 0.1, 0.2), rough=0.9, knit=0.2, fold=1.6, extra=denim_extra,
               sheen=0.12, sheen_color=(0.4, 0.5, 0.7), snap=dict(leg=1.93, y_high=ctx.y_navel - 0.15))]
 
+# ------------------------------------------------------------------------ themed costumes (v0.89)
+# Built with OUTFIT=<name> python3 buildchar.py <id> into a scratch game folder; tools/pipeline/costumepart.py then
+# takes the costume's own garments and the body's triangle list out of that build into assets/chars/<id>/<costume>/
+# (js/fight/costumes.js outfit). Each returns the garments the fighter keeps too, unchanged, so the body's hidden
+# faces are those of the whole costume.
+def stacked_text(lines, W, fill, italic=0.0):
+    """Lines of condensed black type stacked into one print (each [text, height px, font size])."""
+    H = sum(h for _, h, _ in lines)
+    im = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    y = 0
+    for t, h, fs in lines:
+        im.alpha_composite(text_img(t, W, h, font('NotoSans-CondensedBlack.ttf', fs), fill=fill, italic=italic), (0, y))
+        y += h
+    return pil_to_bgra(im)
+
+
+def outfit_alejandro_run(ctx, P):
+    """RUNNER: fluorescent orange technical tee with his race bib (RECORDS ON across the back) + black running shorts;
+    his socks as they are."""
+    top = cover_top(ctx, sleeve=0.36, hem=ctx.y_hip - 0.18, neck=CREW)
+    orange = (1.0, 0.4, 0.0)  # (a fluorescent orange; its sheen kept orange too: a pale one washed it to salmon)
+    bib = bib_img(42, 'ALEJANDRO', sponsor='CURSA DEL BARRIO', color=(22, 22, 26))
+    back = stacked_text([('RECORDS ON', 150, 132)], 760, (250, 250, 248, 255), italic=0.18)
+    decals = [front_decal(ctx, bib, -0.05, ctx.y_navel + 1.2, 2.0, 1.4, min_facing=0.3, bump=0.3),
+              back_decal(ctx, back, 0.0, ctx.y_chest + 0.5, 2.9, 0.58, min_facing=0.3, bump=0.15)]
+    shorts = cover_bottom(ctx, length=0.38, waist=ctx.y_navel - 0.3)
+    return [G('shirt', top, loose(ctx, 0.09, 0.15), orange, rough=0.6, knit=1.5, fold=1.3, decals=decals, sheen=0.45,
+              sheen_color=(1.0, 0.36, 0.04), snap=dict(arm=0.36, y_low=ctx.y_hip - 0.18)),
+            G('shorts', shorts, loose(ctx, 0.1, 0, 0.35), (0.022, 0.022, 0.026), rough=0.78, knit=0.3, fold=1.2, sheen=0.22,
+              sheen_color=(0.3, 0.3, 0.34), snap=dict(leg=0.38, y_high=ctx.y_navel - 0.3))]
+
+
+def tank_curve(ctx, strap=1.15, drop=0.75, wide=2.3, p=1.7):
+    """A tank top's armhole as points (|x|, y): the strap's outer edge over the top of the shoulder, curving out in a U
+    to the side seam `drop` below the armpit (wide: past the torso's side, nothing cut there)."""
+    top = ctx.J['shoulder01.L']['head'][1] + 0.6
+    bot = ctx.y_armpit - drop
+    y = np.linspace(bot, top, 90)
+    t = (y - bot) / (top - bot)
+    return np.stack([strap + (wide - strap) * (1 - np.clip(t / 0.75, 0, 1)) ** p, y], 1)
+
+
+def tank_cover(ctx, hem, curve, neck=CREW, collar_drop=0.0):
+    """Torso only, cut at the armholes along `curve` (a strap left over each shoulder)."""
+    c = cover_top(ctx, sleeve=0.0, hem=hem, neck=neck, collar_drop=collar_drop) & (ctx.armness < 0.45)
+    V = ctx.V[:ctx.n]
+    ax, y = np.abs(V[:, 0]), V[:, 1]
+    lim = np.interp(y, curve[:, 1], curve[:, 0], left=9.0, right=curve[-1, 0])
+    return c & ~(ax > lim)
+
+
+def outfit_camilo_gym(ctx, P):
+    """GIMNASIO: a black gym tank top, armholes cut deep in a U with a strap over each shoulder, DOMINADAS POWA in red
+    across the chest; his shorts and socks as they are."""
+    curve = tank_curve(ctx, strap=float(P.get('strap', 1.38)), drop=float(P.get('drop', 0.75)))
+    top = tank_cover(ctx, ctx.y_hip - 0.12, curve)
+    red = (214, 40, 34, 255)
+    txt = stacked_text([('DOMINADAS', 170, 150), ('POWA', 220, 210)], 800, red, italic=0.16)
+    decals = [front_decal(ctx, txt, 0.0, ctx.y_chest - 0.15, 2.2, 1.08, min_facing=0.3, bump=0.25)]
+    tank = G('shirt', top, loose(ctx, 0.1, 0.16), (0.028, 0.028, 0.032), rough=0.8, knit=1.2, fold=1.4, decals=decals,
+             sheen=0.4, sheen_color=(0.3, 0.3, 0.33), snap=dict(y_low=ctx.y_hip - 0.12, hole=curve))
+    return [tank] + [g for g in outfit_camilo(ctx, P) if g.name != 'shirt']
+
+
+def outfit_noemi_cra(ctx, P):
+    """CENTRAL: the alarm centre's charcoal polo (CENTRAL DE ALARMAS embroidered in yellow on the chest, OPERADORA
+    across the back) over her jeans, as they are."""
+    yN, yC, yH = ctx.y_neck, ctx.y_chest, ctx.y_hip
+    V = ctx.V[:ctx.n]
+    torso = (ctx.armness < 0.3) & (ctx.legness < 0.5) & (ctx.neckness < 0.2)
+    apex_y = float(V[torso][np.argmax(V[torso][:, 2]), 1])
+    top = cover_top(ctx, sleeve=0.4, hem=yH - 0.3, neck=CREW)
+    char = (0.085, 0.09, 0.105)
+    cbgr = [int(char[2] * 255), int(char[1] * 255), int(char[0] * 255)]
+    yellow = (240, 196, 40, 255)
+    chest = stacked_text([('CENTRAL', 92, 84), ('DE ALARMAS', 92, 84)], 560, yellow)
+    back = stacked_text([('OPERADORA', 160, 140)], 820, yellow)
+    decals = [front_decal(ctx, placket_img(cbgr), 0.0, yN - 0.8, 0.3, 1.45, min_facing=0.35, bump=0.9),
+              front_decal(ctx, shield_img(), 0.5, yC + 1.25, 0.2, 0.23, min_facing=0.3, bump=0.6),
+              front_decal(ctx, chest, 1.02, yC + 1.25, 0.82, 0.28, min_facing=0.3, bump=0.5),
+              back_decal(ctx, back, 0.0, yC + 0.5, 2.0, 0.39, min_facing=0.3, bump=0.3)]
+    polo = G('shirt', top, loose(ctx, 0.13, 0.27), char, rough=0.86, knit=1.0, fold=1.1, decals=decals, sheen=0.5,
+             sheen_color=(0.3, 0.32, 0.38), snap=dict(arm=0.4, y_low=yH - 0.3), pique=1.0, rib_cuffs=1.0,
+             collar=dict(stand=0.22, leaf=0.42, gap=0.17, tip=0.22), buttons=[dict(y=yN - 0.4), dict(y=yN - 0.85)])
+    # (a work polo, not a fitted one: from the bust the knit falls nearly straight and comes back to the body over the
+    # last 11 cm before the hip, the side seams following the body (side). A drape down to the hem with soft sides
+    # made a tent, bulging with gaps at the side seams; one ending in a step above the waist, or her top's steeper
+    # one, still drew the bust's outline. Loose at the hips: her jeans' waist showed through the hem's sides)
+    polo.drape = dict(y_top=apex_y + 0.5, y_bottom=yH - 0.2, fade=1.1, slope=0.14, side=1.8, radius=1.6, z_min=0.0)
+    polo.relax = 30
+    return [polo] + [g for g in outfit_noemi(ctx, P) if g.name == 'pants']
+
+
 OUTFITS = dict(aleix=outfit_aleix, alejandro=outfit_alejandro, alejandro_pool=outfit_alejandro_pool, alejandro_alt=outfit_alejandro_alt, arnau=outfit_arnau, camilo=outfit_camilo,
-               rafa=outfit_rafa, zapponi=outfit_zapponi, dani=outfit_dani, noemi=outfit_noemi)
+               rafa=outfit_rafa, zapponi=outfit_zapponi, dani=outfit_dani, noemi=outfit_noemi,
+               alejandro_run=outfit_alejandro_run, camilo_gym=outfit_camilo_gym, noemi_cra=outfit_noemi_cra)

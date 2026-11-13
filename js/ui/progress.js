@@ -8,6 +8,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 
 // count(p, g) -> [done, needed] for the ones that show progress
 export const ACHIEVEMENTS = [
+  { id: 'tutorial', name: 'PRIMERA CLASE', desc: 'Completa el TUTORIAL.' },
   { id: 'firstWin', name: 'PRIMERA VICTORIA', desc: 'Gana tu primer combate.' },
   { id: 'arcade', name: 'CAMPEÓN DEL BARRIO', desc: 'Gana el modo arcade.' },
   { id: 'arcadeHard', name: 'LEYENDA DEL BARRIO', desc: 'Gana el modo arcade en dificultad DIFÍCIL.' },

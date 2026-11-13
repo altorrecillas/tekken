@@ -14,7 +14,7 @@ import hashlib, json, os, re
 GAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 # what is served to the game (paths relative to the game's folder)
 ROOTS = ['index.html', 'manifest.webmanifest', 'js', 'vendor', 'assets']
-SKIP = re.compile(r'(^|/)(\.|_sin_usar/)|\.(py|md|blend|psd|xcf)$|(^|/)assets/chars/[^/]+/mesh\.bin$')
+SKIP = re.compile(r'(^|/)(\.|_sin_usar/)|\.(py|md|blend|psd|xcf)$|(^|/)assets/chars/.+/mesh\.bin$')
 # stored at once, on install
 SHELL_EXTRA = re.compile(r'^(assets/fonts/.*\.woff2|assets/icons/.*|assets/portraits/.*|assets/stages/.*|assets/sfx/ui_.*)$')
 

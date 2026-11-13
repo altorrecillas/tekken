@@ -1,7 +1,7 @@
 // Puños de Barrio — main game shell.
 import * as THREE from 'three';
 import { DEVICE, defaultQuality, budget, setTextureCap, textureCap, goFullscreenLandscape, fullscreenSupported, toggleFullscreen, viewSize, blockPageZoom, haptic } from './engine/device.js';
-import { loadCharacterData, loadCharacterMeta, buildCharacter, texturesReady, texturesPending, LOD, detailFor, initKTX2 } from './charloader.js';
+import { loadCharacterData, loadOutfitData, loadCharacterMeta, buildCharacter, texturesReady, texturesPending, LOD, detailFor, initKTX2 } from './charloader.js';
 import { makeFighterMaterial, makeFighterKey, applyCostume, FIGHTER_KEY } from './materials.js';
 import { TerraceStage } from './stage/terrace.js';
 import { StreetStage } from './stage/street.js';
@@ -9,6 +9,7 @@ import { PorcheStage } from './stage/porche.js';
 import { FestivalStage } from './stage/festival.js';
 import { NeonStage } from './stage/neon.js';
 import { CoreStage } from './stage/core.js';
+import { GymStage } from './stage/gym.js';
 import { PostFX } from './engine/post.js';
 import { setupOffline } from './engine/offline.js';
 import { FX, setFxViewHeight } from './fx/fx.js';
@@ -38,6 +39,7 @@ import { Progress } from './ui/progress.js';
 import { Records, clock } from './ui/records.js';
 import { ENDINGS } from './ui/endings.js';
 import { Training } from './ui/training.js';
+import { Tutorial } from './ui/tutorial.js';
 import { ControlsUI, controlsHelp } from './ui/controls.js';
 const _fkv = new THREE.Vector3(), _detV = new THREE.Vector3();
 
@@ -68,6 +70,10 @@ const STAGES = {
     desc: 'Dentro de la torre donde vive Orión: luchas sobre la tarjeta gráfica, entre ventiladores RGB, memorias y su bomba de agua con sus ojos rojos.', tags: ['DIGITAL', 'RGB', 'ELECTRO'], acc: '#3ce8ff',
     shot: { pos: [-6.5, 6.2, 9.0], look: [5.5, 3.6, -5.5], fov: 60 },
     grade: { sat: 1.12, slope: [0.98, 1.0, 1.05] } },
+  // the neighbourhood's gym, where Camilo trains: mirrors, racks of dumbbells, a power rack, treadmills (made by code)
+  gym: { cls: GymStage, name: 'EL GIMNASIO DEL BARRIO', sub: 'DONDE ENTRENA CAMILO', dust: [0.45, 0.45, 0.48], dustLight: 0.6, crack: 0x09090a, debris: 0x2a2a2d, amb: 'gym', music: 'gym',
+    desc: 'Espejos, mancuernas, la jaula con la barra de dominadas y las cintas de correr. Estampa al rival contra el espejo y verás cómo se raja.', tags: ['INTERIOR', 'GIMNASIO', 'ENERGÍA'], acc: '#ff5040',
+    grade: { sat: 1.06, slope: [1.0, 1.0, 1.02] } },
 };
 const STAGE_KEYS = Object.keys(STAGES);
 const QNAME = { low: 'BAJA', medium: 'MEDIA', high: 'ALTA', ultra: 'ULTRA' };
@@ -143,6 +149,7 @@ class Game {
     this.audio = new Audio();
     this.hud = new HUD({});
     this.training = new Training(this); // (ENTRENAMIENTO: the partner's settings, recording, input history, combo trials)
+    this.tutorial = new Tutorial(this); // (TUTORIAL: lessons over a training fight in the gym)
     this.chars = {}; this.charLoads = {}; this.meta = {};
     this.state = 'loading';
     this.acc = 0; this.last = performance.now();
@@ -305,10 +312,12 @@ class Game {
     });
     this.stagePick = STAGES[q.get('stage')] ? q.get('stage') : MAIN_STAGE;
     say(`Preparando ${STAGES[this.stagePick].name.toLowerCase().replace(/^./, (c) => c.toUpperCase())}…`);
-    // (the fighters' textures GPU-compressed, where the GPU takes it: js/charloader.js; ?ktx2=0 for the pictures)
+    // (the fighters' and the stages' textures GPU-compressed, where the GPU takes it: js/charloader.js; ?ktx2=0 for the pictures)
     const ktxP = q.get('ktx2') === '0' ? Promise.resolve(false) : initKTX2(this.renderer, textureCap);
     const LM = THREE.DefaultLoadingManager;
     LM.onProgress = (url, done, total) => prog(0.08 + 0.72 * done / Math.max(1, total));
+    // (the stages' pictures are compressed too: the first stage waits for the index, a module and a small file)
+    this.ktx2On = await ktxP;
     await this.setStage(this.stagePick, false);
     LM.onProgress = undefined; // (three.js calls it whenever it is not undefined)
     mark('stage');
@@ -320,7 +329,6 @@ class Game {
     // menus only need the descriptors; meshes load on demand
     say('Preparando a los luchadores…');
     const metas = await Promise.all(ROSTER.map(id => loadCharacterMeta(id).catch(() => null)));
-    this.ktx2On = await ktxP;
     // a fighter whose files cannot be loaded is left out of the roster instead of stopping the boot
     for (let i = ROSTER.length - 1; i >= 0; i--) {
       if (metas[i]) this.meta[ROSTER[i]] = metas[i];
@@ -360,7 +368,9 @@ class Game {
       if (q.get('demo')) {
         this.mode = 'versus';
         const p1 = q.get('p1') || 'alejandro', p2 = q.get('p2') || 'rafa';
-        this.startFight(p1, p2, { demo: true, ai: +(q.get('ai') || 3), training: q.get('demo') === 'training' });
+        // (?cos=a,b: the two fighters' costumes, for captures)
+        const cos = (q.get('cos') || '0,0').split(',').map((x) => +x || 0);
+        this.startFight(p1, p2, { demo: true, ai: +(q.get('ai') || 3), training: q.get('demo') === 'training', costumes: cos });
       } else {
         this.toTitle();
         if (q.get('screen') === 'select') { this.mode = 'arcade'; this.toSelect(); }
@@ -450,7 +460,7 @@ class Game {
     this.stage.fx = this.fx; this.stage.audio = this.audio; // (a stage that answers the fight: splashes, sparks, glass)
     this.fx.dustColor = new THREE.Color(...def.dust);
     this.fx.dustLight = def.dustLight ?? 0.8;
-    this.impacts.setStage({ crackColor: def.crack, debrisColor: def.debris, dustColor: this.fx.dustColor.clone().multiplyScalar(this.fx.dustLight + 0.2) });
+    this.impacts.setStage({ crackColor: def.crack, debrisColor: def.debris, wallCrackColor: this.stage.wallCrackColor, dustColor: this.fx.dustColor.clone().multiplyScalar(this.fx.dustLight + 0.2) });
     this.camCtl.koView = this.stage.koView || null;
     await this.stage.ready();
     if (bake) this.bakeStage();
@@ -499,12 +509,29 @@ class Game {
   }
 
   // mesh data for a fighter, fetched once (a failed fetch is retried the next time it is needed)
-  ensureChar(id) {
+  // (costume: a themed costume's own garments are fetched with it, js/fight/costumes.js outfit, kept as '<id>/<outfit>')
+  ensureChar(id, costume = 0) {
+    const outfit = costumesOf(id)[costume | 0]?.outfit;
+    if (outfit) {
+      const k = `${id}/${outfit}`;
+      if (this.chars[k]) return Promise.resolve(this.chars[k]);
+      if (!this.charLoads[k]) {
+        // (the costume's garments missing, or not downloaded: the fighter in his own clothes, tried again next time)
+        this.charLoads[k] = this.ensureChar(id).then((d) => loadOutfitData(d, outfit).then((o) => (this.chars[k] = o)).catch(() => { delete this.charLoads[k]; return d; }))
+          .catch((e) => { delete this.charLoads[k]; throw e; });
+      }
+      return this.charLoads[k];
+    }
     if (this.chars[id]) return Promise.resolve(this.chars[id]);
     if (!this.charLoads[id]) {
       this.charLoads[id] = loadCharacterData(id).then(d => (this.chars[id] = d)).catch((e) => { delete this.charLoads[id]; throw e; });
     }
     return this.charLoads[id];
+  }
+  // the data a fighter is built from in a costume (its own garments when it has them and they have arrived)
+  charData(id, costume = 0) {
+    const outfit = costumesOf(id)[costume | 0]?.outfit;
+    return (outfit && this.chars[`${id}/${outfit}`]) || this.chars[id];
   }
   pickShowcase() {
     const ids = [ROSTER[Math.floor(Math.random() * ROSTER.length)], ROSTER[Math.floor(Math.random() * ROSTER.length)]];
@@ -514,7 +541,7 @@ class Game {
   // costume: index into js/fight/costumes.js (0: the clothes of the photo)
   makeFighterModel(id, costume = 0) {
     const key = makeFighterKey(), wear = new Wear();
-    const ch = buildCharacter(this.chars[id], (def, base, lt, name) => wear.material(makeFighterMaterial(def, base, lt, name, key), def.type));
+    const ch = buildCharacter(this.charData(id, costume), (def, base, lt, name) => wear.material(makeFighterMaterial(def, base, lt, name, key), def.type));
     ch.fighterKey = key; ch.wear = wear;
     this.accessories.attach(ch, STYLES[id], this.chars[id].meta);
     ch.group.userData.fighter = true;
@@ -575,6 +602,7 @@ class Game {
   // screen to show over it instead of the title menu, as the online menu)
   backToTitle(then = null) {
     this.arcadeLive = false; // (an arcade run left here keeps the moment it was saved at)
+    this.tutorial.stop();
     this.training.stop();
     this.fightSeq = (this.fightSeq || 0) + 1; // cancels a fight that may still be loading
     $('#fade').classList.remove('busy'); this.fade(false);
@@ -634,7 +662,7 @@ class Game {
     // phones: go fullscreen + landscape on the first tap (needs a user gesture; unsupported on iPhone Safari)
     if (document.body.classList.contains('touchui') && !this.fsAsked && !DEVICE.standalone && fullscreenSupported()) { this.fsAsked = true; goFullscreenLandscape(); }
     if (act === 'versus' && this.needsPad()) { this.online.toast('Para jugar dos en el mismo aparato hace falta un mando (o un teclado). En dos móviles: ONLINE.', 3200); return; }
-    if (act === 'arcade' || act === 'versus' || act === 'training' || act === 'survival' || act === 'timeattack') { this.mode = act; this.toSelect(); }
+    if (act === 'arcade' || act === 'versus' || act === 'training' || act === 'tutorial' || act === 'survival' || act === 'timeattack') { this.mode = act; this.toSelect(); }
     else if (act === 'vsmenu') this.showTitleMenu('vs');
     else if (act === 'chalmenu') this.showTitleMenu('chal');
     else if (act === 'records') this.showRecords();
@@ -700,7 +728,7 @@ class Game {
   }
   refreshStageBar() {
     const mode = this.mode === 'arcade' ? 'MODO ARCADE' : this.mode === 'versus' ? 'VERSUS' : this.mode === 'online' ? 'ONLINE'
-      : this.mode === 'survival' ? 'SUPERVIVENCIA' : this.mode === 'timeattack' ? 'CONTRARRELOJ' : 'ENTRENAMIENTO';
+      : this.mode === 'survival' ? 'SUPERVIVENCIA' : this.mode === 'timeattack' ? 'CONTRARRELOJ' : this.mode === 'tutorial' ? 'TUTORIAL · EN EL GIMNASIO DEL BARRIO' : 'ENTRENAMIENTO';
     const bar = $('#select .stagebar');
     // (the stage is picked on the next screen: toStageSelect)
     bar.textContent = this.mode === 'arcade' || this.isChal() ? `${mode} · DIFICULTAD ${DIFFICULTY[this.difficulty].name}` : mode;
@@ -800,7 +828,7 @@ class Game {
     };
     info($('#select .left'), ROSTER[this.sel.i[0]], this.sel.done[0], 0);
     if (vs) info($('#select .right'), ROSTER[this.sel.i[1]], this.sel.done[1], 1);
-    else $('#select .right').innerHTML = this.mode === 'training' ? '<div class="ttl">SPARRING</div><div class="big">CPU</div>' : '<div class="ttl">RIVALES</div><div class="big">???</div>';
+    else $('#select .right').innerHTML = this.mode === 'training' || this.mode === 'tutorial' ? '<div class="ttl">SPARRING</div><div class="big">CPU</div>' : '<div class="ttl">RIVALES</div><div class="big">???</div>';
     this.updatePreview();
   }
   updatePreview() {
@@ -808,13 +836,16 @@ class Game {
     // show the hovered fighters in 3D behind the UI
     const ids = [ROSTER[this.sel.i[0]], vs ? ROSTER[this.sel.i[1]] : (this.previewIds?.[1] || ROSTER[(this.sel.i[0] + 1) % ROSTER.length])];
     const cos = this.selCostumes();
-    if (this.previewIds && this.previewIds[0] === ids[0] && this.previewIds[1] === ids[1] && this.match) {
+    const outfitOf = (id, c) => costumesOf(id)[c | 0]?.outfit || '';
+    if (this.previewIds && this.previewIds[0] === ids[0] && this.previewIds[1] === ids[1] && this.match
+      && this.match.fighters.every((f, k) => outfitOf(ids[k], f.ch.costumeIdx) === outfitOf(ids[k], cos[k]))) {
       this.match.fighters.forEach((f, k) => { if ((f.ch.costumeIdx | 0) !== cos[k]) { f.ch.costumeIdx = cos[k]; applyCostume(f.ch, costumesOf(ids[k])[cos[k]] || null); } });
       return;
     }
-    // not downloaded yet: keep the current preview and come back when the mesh arrives
-    if (!this.chars[ids[0]] || !this.chars[ids[1]]) {
-      Promise.all(ids.map(id => this.ensureChar(id))).then(() => { if (this.state === 'select') this.updatePreview(); }).catch(() => {});
+    // not downloaded yet: keep the current preview and come back when the mesh arrives (a themed costume's garments too)
+    const have = (k) => this.chars[ids[k]] && (!outfitOf(ids[k], cos[k]) || this.chars[`${ids[k]}/${outfitOf(ids[k], cos[k])}`]);
+    if (!have(0) || !have(1)) {
+      Promise.all(ids.map((id, k) => this.ensureChar(id, cos[k]))).then(() => { if (this.state === 'select') this.updatePreview(); }).catch(() => {});
       return;
     }
     this.previewIds = ids;
@@ -874,6 +905,8 @@ class Game {
     this.refreshSel();
     this.audio.voice({ id: ROSTER[this.sel.i[i]] }, 'attack');
     if (this.mode === 'online') { this.selMoved(i); this.onlineBoth(); return; }
+    // (TUTORIAL: always in the gym, no stage to pick)
+    if (this.mode === 'tutorial') { setTimeout(() => { if (this.state === 'select' && this.sel.done[0]) this.startMode(); }, 700); return; }
     if (this.sel.done[0] && this.sel.done[1]) setTimeout(() => { if (this.state === 'select' && this.sel.done[0] && this.sel.done[1]) this.toStageSelect(); }, 700);
   }
 
@@ -1057,6 +1090,8 @@ class Game {
       this.startChallenge(p1, cos[0]);
     } else if (this.mode === 'versus') {
       this.startFight(p1, ROSTER[this.sel.i[1]], { human2: true, costumes: cos });
+    } else if (this.mode === 'tutorial') {
+      this.startFight(p1, ROSTER[(this.sel.i[0] + 1) % ROSTER.length], { training: true, tutorial: true, stage: 'gym', costumes: [cos[0], 0] });
     } else {
       this.startFight(p1, ROSTER[(this.sel.i[0] + 1) % ROSTER.length], { training: true, costumes: [cos[0], 0] });
     }
@@ -1165,8 +1200,8 @@ class Game {
     this.audio.preloadVoices([id1, id2]);
     // the fighters' meshes (the bar climbs as each one arrives)
     let got = 0;
-    const one = (id) => this.ensureChar(id).then((d) => { got++; card.set(0.05 + 0.25 * got / 2); return d; });
-    try { await Promise.all([one(id1), one(id2)]); }
+    const one = (id, c) => this.ensureChar(id, c).then((d) => { got++; card.set(0.05 + 0.25 * got / 2); return d; });
+    try { await Promise.all([one(id1, opts.costumes?.[0]), one(id2, opts.costumes?.[1])]); }
     catch (e) { if (stale()) return; done(true); if (opts.online) { opts.online.fail(); return; } this.fade(false); this.showOverlay('<h3>SIN CONEXIÓN</h3><p>No se pudo descargar un luchador. Revisa la conexión e inténtalo de nuevo.</p>', () => this.startFight(id1, id2, opts), () => this.backToTitle(), { ok: 'REINTENTAR', back: 'MENÚ' }); return; }
     if (stale()) { done(true); return; }
     this.clearFighters();
@@ -1217,12 +1252,13 @@ class Game {
     for (const id of [id1, id2]) if (STYLES[id]?.fatal) this.audio.preloadFatal?.(id);
     if (this.rec) { a.ctrl = this.rec.wrap(a.ctrl, 0); b.ctrl = this.rec.wrap(b.ctrl, 1); }
     if (opts.training && !opts.demo) this.training.start(this.match); else this.training.stop();
+    if (opts.tutorial && !opts.demo) this.tutorial.start(this.match, this.training); else this.tutorial.stop();
     // (without the saved moment: REINICIAR and the rematch start the fight from the beginning)
     this.fightOpts = { id1, id2, ...opts, resume: null };
     this.showScreen('none');
     this.hud.setFighters(this.match.fighters);
     this.hud.stageName = `${STAGES[this.stageKey].name}<small>${STAGES[this.stageKey].sub}</small>`;
-    $('#trainingInfo').classList.toggle('on', !!opts.training);
+    $('#trainingInfo').classList.toggle('on', !!opts.training && !opts.tutorial);
     const hint = $('.movelist-hint');
     hint.textContent = document.body.classList.contains('touchui') ? (this.touch.opt.specials !== false ? '★: especiales (el joystick elige cuál) · II: pausa y movimientos' : 'II: pausa y lista de movimientos') : 'ESC / START: pausa y lista de movimientos'; hint.classList.remove('fade');
     clearTimeout(this.hintT); this.hintT = setTimeout(() => hint.classList.add('fade'), 6000);
@@ -1234,7 +1270,7 @@ class Game {
       this.resumeT = 3; this._resumeShown = null;
     } else if (opts.training) this.match.startRound(); else this.match.startIntro();
     if (q.get('hp')) this.match.hpScale = +q.get('hp');
-    if (q.get('startx')) { this.match.startX = +q.get('startx'); if (opts.training) this.match.startRound(); }
+    if (q.get('startx') || q.get('startz')) { this.match.startX = +(q.get('startx') || 0); this.match.startZ = +(q.get('startz') || 0); if (opts.training) this.match.startRound(); }
     // (?winnow=1: straight to player 1's win pose, for captures: index.html?demo=1&p1=…&winnow=1&readyon=win&readyat=<frame>)
     // (?matchpoint=1: both a round from winning, for captures of a match-winning finish: js/fight/camera.js impact)
     if (q.get('matchpoint')) { const m = this.match; m.wins = [m.opts.rounds - 1, m.opts.rounds - 1]; }
@@ -1549,7 +1585,7 @@ class Game {
     this.state = 'loading';
     $('#overlay').classList.remove('on');
     const other = ROSTER.find((x) => x !== id) || id;
-    try { await Promise.all([this.ensureChar(id), this.ensureChar(other)]); } catch (e) { onEnd(); return; }
+    try { await Promise.all([this.ensureChar(id, costume), this.ensureChar(other)]); } catch (e) { onEnd(); return; }
     if (seq !== this.fightSeq) return;
     this.clearFighters();
     const chars = [this.makeFighterModel(id, costume), this.makeFighterModel(other)];
@@ -1694,7 +1730,7 @@ class Game {
       $('#pause').classList.add('on');
       // (the arcade run is kept: CONTINUAR goes on from this very moment)
       $('#pause .menu.local [data-act="quit"]').textContent = this.mode === 'arcade' ? 'GUARDAR Y SALIR' : 'SALIR AL MENÚ';
-      $('#pause .menu.local [data-act="tset"]').hidden = !(this.fightOpts?.training && this.training.m === this.match);
+      $('#pause .menu.local [data-act="tset"]').hidden = !(this.fightOpts?.training && !this.fightOpts?.tutorial && this.training.m === this.match);
       // (DESAFÍOS: no starting a fight that is going badly again; the run goes on, or it is given up)
       $('#pause .menu.local [data-act="restart"]').hidden = !!this.fightOpts?.chal;
       // (the keys and buttons can be changed mid-fight; not on a phone played by touch only)
@@ -1880,6 +1916,7 @@ class Game {
       if (keys.size || pads[0].ok || pads[0].start || pads[0].back) this.online.replayEnded();
     } else if (this.state === 'fight') {
       if (keys.has('Escape') || pads[0].start || pads[1].start || (A.start && this.match?.phase === 'fight')) this.pause(true);
+      else if (this.tutorial.on && this.tutorial.m === this.match) this.tutorial.tick(dt, freeKeys(keys));
       else if (this.fightOpts?.training && this.training.m === this.match) this.training.tick(dt, freeKeys(keys));
     } else if (this.state === 'online') {
       if (keys.has('Escape')) this.online.escape();
@@ -2042,7 +2079,7 @@ class Game {
       if (ev.t === 'crack') { this.impacts.floorCrack(ev.pos, ev.power); this.audio.play?.('crack', ev.pos); e.radial = Math.max(e.radial, 0.3); }
       if (ev.t === 'wall' && ev.n) {
         this.impacts.wall(ev.pos, ev.n, ev.kind, ev.power);
-        this.audio.play?.(ev.kind === 'tree' ? 'wallTree' : ev.kind === 'barrier' ? 'wallMetal' : 'wallHard', ev.pos);
+        this.audio.play?.(ev.kind === 'tree' ? 'wallTree' : ev.kind === 'barrier' || ev.kind === 'machine' ? 'wallMetal' : 'wallHard', ev.pos);
         if (ev.kind === 'barrier') this.audio.crowdReact?.(true);
         e.radial = Math.max(e.radial, 0.25);
         if (feel && ev.f?.index === mine) haptic(50);

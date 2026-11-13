@@ -763,6 +763,24 @@ button { touch-action: manipulation; }
 #trialPanel .dots i.ok { background: #4fbf74; border-color: #4fbf74; }
 #trialPanel .dots i.cur { border-color: var(--gold); }
 #trialPanel .keys { font-size: 11px; color: #8d8a99; margin-top: 4px; }
+/* TUTORIAL: the lesson under the health bars, centred (clear of the touch stick's zone on the left) */
+#tutPanel { position: absolute; left: 50%; top: 13.5%; transform: translateX(-50%); width: min(640px, 62%); display: none; background: var(--glass); border-top: 3px solid var(--gold); padding: 8px 16px 9px; text-align: center; pointer-events: none; }
+#tutPanel.on { display: block; animation: tutIn .3s ease-out; }
+@keyframes tutIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes tutInR { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+#tutPanel .hd { font-family: 'Teko'; font-size: 17px; letter-spacing: .2em; color: #bfb6a4; }
+#tutPanel .hd em { font-style: normal; color: #7dff9a; }
+#tutPanel .hd b { display: block; font-family: 'Bebas'; font-weight: 400; font-size: 32px; letter-spacing: .05em; color: #fff; line-height: 1.05; }
+#tutPanel p { margin: 4px 0 2px; font-size: 16px; line-height: 1.35; color: #ece6da; }
+#tutPanel p b { font-family: 'Bebas'; font-weight: 400; font-size: 19px; letter-spacing: .04em; color: var(--gold); }
+#tutPanel .cnt { font-family: 'Bebas'; font-size: 26px; color: var(--gold); line-height: 1.1; }
+#tutPanel .dots { margin-top: 5px; display: flex; gap: 5px; justify-content: center; }
+#tutPanel .dots i { width: 9px; height: 9px; border: 1px solid #776f84; transform: rotate(45deg); }
+#tutPanel .dots i.ok { background: #4fbf74; border-color: #4fbf74; }
+#tutPanel .dots i.cur { border-color: var(--gold); }
+#tutPanel .dev { font-size: 11px; color: #a7a1b2; margin-top: 5px; letter-spacing: .02em; }
+#tutPanel .keys { font-size: 11px; color: #8d8a99; margin-top: 3px; }
+#tutPanel .skip { pointer-events: auto; font-family: 'Bebas'; font-size: 18px; letter-spacing: .06em; color: #1a0f05; background: linear-gradient(180deg, #ffb13b, #e0661b); border: 1px solid #ffd27a; padding: 2px 16px; min-height: 34px; cursor: pointer; }
 #trainMsg { position: absolute; top: 58%; left: 50%; transform: translateX(-50%); font-family: 'Bebas'; font-size: 30px; letter-spacing: .08em; color: #fff; text-shadow: 0 3px 0 #000; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
 #trainMsg.on { opacity: 1; }
 .tset .row span { font-size: 16px; color: #d8d2c6; }
@@ -775,6 +793,12 @@ button { touch-action: manipulation; }
   #trialPanel { top: 19%; padding: 5px 9px; } #trialPanel .hd { font-size: 12px; } #trialPanel .hd b { font-size: 19px; } #trialPanel li { font-size: 16px; padding: 0 5px; } #trialPanel small { font-size: 10px; } #trialPanel .keys { display: none; }
   #trainMsg { font-size: 18px; }
   .tseg button { font-size: 14px; min-height: 30px; padding: 2px 7px; }
+  #tutPanel { top: 15%; width: min(560px, 58%); padding: 4px 10px 6px; } #tutPanel .hd { font-size: 12px; } #tutPanel .hd b { font-size: 21px; }
+  #tutPanel p { font-size: 12.5px; line-height: 1.25; margin: 2px 0; } #tutPanel p b { font-size: 14px; } #tutPanel .cnt { font-size: 18px; } #tutPanel .dots { margin-top: 3px; } #tutPanel .dots i { width: 7px; height: 7px; }
+  #tutPanel .dev { display: none; } #tutPanel .keys { margin-top: 3px; } #tutPanel .skip { font-size: 15px; min-height: 30px; padding: 1px 12px; }
+  /* (a phone: on the right, clear of the pause button under the timer and of the stick's zone on the left; the skip
+     button must stay tappable) */
+  body.touchui #tutPanel { left: auto; right: 1.2%; top: 14%; transform: none; width: min(420px, 45%); animation-name: tutInR; }
 }
 /* ---------- responsive ---------- */
 /* landscape phones (short screens): compact HUD, menus and panels */
@@ -882,11 +906,12 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/anim/rig.js">
 <link rel="modulepreload" href="js/stage/festival.js">
 <link rel="modulepreload" href="js/stage/terrace.js">
-<link rel="modulepreload" href="js/fx/splitbody.js">
 <link rel="modulepreload" href="js/stage/street.js">
+<link rel="modulepreload" href="js/fx/splitbody.js">
 <link rel="modulepreload" href="vendor/three/jsm/utils/BufferGeometryUtils.js">
 <link rel="modulepreload" href="js/stage/porche.js">
 <link rel="modulepreload" href="js/fx/spikepit.js">
+<link rel="modulepreload" href="js/stage/gym.js">
 <link rel="modulepreload" href="js/fx/fx.js">
 <link rel="modulepreload" href="js/fx/halves.js">
 <link rel="modulepreload" href="js/materials.js">
@@ -895,8 +920,8 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/fx/blood.js">
 <link rel="modulepreload" href="js/net/netplay.js">
 <link rel="modulepreload" href="js/fx/bicycle.js">
-<link rel="modulepreload" href="vendor/qr/qrcode.js">
 <link rel="modulepreload" href="js/ui/touch.js">
+<link rel="modulepreload" href="vendor/qr/qrcode.js">
 <link rel="modulepreload" href="js/ui/training.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/GTAOPass.js">
 <link rel="modulepreload" href="js/engine/post.js">
@@ -904,6 +929,7 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/net/rollback.js">
 <link rel="modulepreload" href="js/fx/gibs.js">
 <link rel="modulepreload" href="js/fx/eyebeam.js">
+<link rel="modulepreload" href="js/charloader.js">
 <link rel="modulepreload" href="js/ui/controls.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/UnrealBloomPass.js">
 <link rel="modulepreload" href="vendor/three/jsm/math/SimplexNoise.js">
@@ -913,7 +939,7 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/fx/tornado.js">
 <link rel="modulepreload" href="js/fx/tennis.js">
 <link rel="modulepreload" href="js/fight/ai.js">
-<link rel="modulepreload" href="js/charloader.js">
+<link rel="modulepreload" href="js/ui/tutorial.js">
 <link rel="modulepreload" href="js/fight/input.js">
 <link rel="modulepreload" href="js/fight/camera.js">
 <link rel="modulepreload" href="js/anim/body.js">
@@ -942,18 +968,18 @@ button { touch-action: manipulation; }
 <link rel="modulepreload" href="js/net/lan.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/BokehPass.js">
 <link rel="modulepreload" href="js/net/link.js">
+<link rel="modulepreload" href="js/fight/costumes.js">
 <link rel="modulepreload" href="js/fight/throws.js">
 <link rel="modulepreload" href="js/anim/hairsway.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/MaskPass.js">
-<link rel="modulepreload" href="js/fight/costumes.js">
 <link rel="modulepreload" href="js/fight/replay.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/RenderPass.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/Pass.js">
 <link rel="modulepreload" href="js/net/qr.js">
 <link rel="modulepreload" href="js/net/sdp.js">
 <link rel="modulepreload" href="js/fx/contact.js">
-<link rel="modulepreload" href="js/fight/stats.js">
 <link rel="modulepreload" href="js/ui/endings.js">
+<link rel="modulepreload" href="js/fight/stats.js">
 <link rel="modulepreload" href="vendor/three/jsm/postprocessing/ShaderPass.js">
 <link rel="modulepreload" href="js/net/signal.js">
 <link rel="modulepreload" href="js/ui/records.js">
@@ -989,6 +1015,7 @@ button { touch-action: manipulation; }
     <button data-act="chalmenu">DESAFÍOS<span class="more">▸</span></button>
     <button data-act="vsmenu">VERSUS<span class="more">▸</span></button>
     <button data-act="training">ENTRENAMIENTO</button>
+    <button data-act="tutorial">TUTORIAL<span class="cont">APRENDE A JUGAR</span></button>
     <button data-act="difficulty">DIFICULTAD: <span class="diffv">NORMAL</span></button>
     <button data-act="options">OPCIONES</button>
     <button data-act="extras">EXTRAS<span class="more">▸</span></button>
@@ -1061,6 +1088,7 @@ button { touch-action: manipulation; }
   <div id="trainingInfo"></div>
   <div id="inputHist"></div>
   <div id="trialPanel"></div>
+  <div id="tutPanel"></div>
   <div id="trainMsg"></div>
   <div class="movelist-hint"></div>
 </div>

@@ -1,22 +1,29 @@
 // "La Terraza": Mediterranean pool terrace at sunset (inspired by the fighters' photos).
 import * as THREE from 'three';
+import { loadPicture } from '../charloader.js';
 import { FIGHTER_KEY } from '../materials.js';
 import { createFightSun, aimFightSun } from '../engine/sunshadow.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const TEX = 'assets/stage/';
-const loader = new THREE.TextureLoader();
 const pending = [];
+// (one texture per picture and settings: a material's gloss and occlusion are the same file, and the same material
+// made twice loaded it twice, one more copy each time on the graphics card)
+const texCache = new Map();
 function tex(name, { repeat = [1, 1], srgb = true } = {}) {
+  const key = `${name}|${srgb}|${repeat}`;
+  if (texCache.has(key)) return texCache.get(key);
   let done;
   pending.push(new Promise(r => { done = r; setTimeout(r, 20000); }));
   // (the JPEGs are the sources; the game downloads their WebP, about 40 % smaller: tools/webpassets.py)
-  const t = loader.load(TEX + name.replace(/\.jpg$/, '.webp'), () => done(), undefined, () => done());
+  // (the GPU-compressed KTX2 where there is one: js/charloader.js loadPicture, tools/ktx2assets.py stage)
+  const t = loadPicture(TEX + name.replace(/\.jpg$/, '.webp'), () => done());
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(...repeat);
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.anisotropy = 8;
+  texCache.set(key, t);
   return t;
 }
 function pbr(name, repeat, extra = {}) {
@@ -239,6 +246,7 @@ function leafClusterTex() {
 // ------------------------------------------------------------------ stage
 export class TerraceStage {
   constructor(renderer, scene, quality = 'high') {
+    texCache.clear();
     this.renderer = renderer; this.scene = scene; this.quality = quality;
     this.shadowSize = { low: 1024, medium: 1024, high: 2048, ultra: 2048 }[quality] || 2048;
     this.group = new THREE.Group(); this.group.name = 'stage';

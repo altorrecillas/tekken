@@ -195,7 +195,7 @@ export class Match {
     // (SUPERVIVENCIA: the health left from the last fight, opts.hpStart [fraction, fraction], for the first round)
     if (this.opts.hpStart && this.round === 1) this.fighters.forEach((f, i) => { f.hp = Math.max(1, Math.round(f.hp * Math.min(1, this.opts.hpStart[i] ?? 1))); });
     // (startX: captures only, index.html?startx=: the fight started off-centre, next to a wall)
-    a.pos.set(-1.25 + (this.startX || 0), 0, 0); b.pos.set(1.25 + (this.startX || 0), 0, 0);
+    a.pos.set(-1.25 + (this.startX || 0), 0, this.startZ || 0); b.pos.set(1.25 + (this.startX || 0), 0, this.startZ || 0);
     a.yaw = Math.PI / 2; b.yaw = -Math.PI / 2;
     for (const f of this.fighters) { f.prevPos.copy(f.pos); f.prevYaw = f.yaw; f.snapPose = true; f.play('idle', 1); f.animate(); f.prevPose.set(f.pose); }
     this.timer = this.opts.time;

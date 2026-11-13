@@ -106,6 +106,7 @@ export class Training {
     try { Object.assign(this.s, JSON.parse(localStorage.getItem('pdb_training') || '{}')); } catch (e) { /* defaults */ }
     this.rec = null; this.recording = 0; this.recLen = 0; this.playT = 0;
     this.hist = []; this.trial = null;
+    this.script = null; // (the TUTORIAL's partner: js/ui/tutorial.js)
     this.el = { hist: $('#inputHist'), trial: $('#trialPanel'), msg: $('#trainMsg') };
   }
   saveSettings() { try { localStorage.setItem('pdb_training', JSON.stringify(this.s)); } catch (e) { /* private mode */ } }
@@ -120,7 +121,7 @@ export class Training {
     this.dummy = { poll: () => this.dummyInput() };
     b.ctrl = this.dummy;
     this.recording = 0; this.hist.length = 0; this.trial = null; this.trialIdx = 0;
-    this.blockPlan = null;
+    this.blockPlan = null; this.script = null;
     this.el.trial?.classList.remove('on');
     this.paintHist(true);
   }
@@ -144,6 +145,8 @@ export class Training {
       return r;
     }
     if (this.recording === 1) return NONE; // (the countdown)
+    // TUTORIAL: the lesson's own little script drives the partner (js/ui/tutorial.js); it takes every blow
+    if (this.script) { b.noGuard = true; return this.script(m, b, a) || NONE; }
     // rolling back up: a button as the body lands
     if (s.tech && b.state === 'land' && b.sf <= 6) return { dx: 0, dy: 0, held: B1, pressed: B1 };
     // punishing: once out of a block, its quickest blow

@@ -132,8 +132,8 @@ export class ImpactFX {
   wall(pos, n, kind, power = 1) {
     const S = this.stage || {};
     const side = new THREE.Vector3(-n.z, 0, n.x);
-    if (kind === 'barrier') {
-      // a crowd barrier: the frame rattles, flakes of paint and grit jump off it, a puff of dust off the foot plate
+    if (kind === 'barrier' || kind === 'machine') {
+      // a crowd barrier (or a gym machine): the frame rattles, flakes of paint and grit jump off it, a puff of dust off the foot plate
       for (let i = 0; i < 10; i++) {
         const p = pos.clone().addScaledVector(side, (Math.random() - 0.5) * 0.6).setY(0.4 + Math.random() * 0.8);
         const v = n.clone().multiplyScalar(0.6 + Math.random() * 1.2).addScaledVector(side, (Math.random() - 0.5) * 1.6); v.y = 0.6 + Math.random() * 1.5;

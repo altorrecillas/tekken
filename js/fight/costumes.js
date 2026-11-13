@@ -4,12 +4,17 @@
 // Garments by name (the meshes of the built fighter): hue = degrees round the colour wheel (sat / val scale the
 // saturation and the value), dye = a new colour (sRGB) keeping the fabric's shading, base = the luminance (linear) of
 // the garment's original colour.
+// A themed costume has garments of its own (outfit: the folder assets/chars/<id>/<outfit>/, built by
+// tools/pipeline/costumepart.py; js/charloader.js loadOutfitData): it comes after the others, so that the indices
+// already sent online or saved with an arcade run keep meaning the same costume.
 export const COSTUMES = {
   // (his main one the navy blue polo, the user's choice; the yellow one of the photo second)
   alejandro: [
     { name: 'POLO AZUL', parts: { shirt: { hue: 182, sat: 0.9, val: 0.55 }, collar: { hue: 182, sat: 0.9, val: 0.55 }, shorts: { dye: [0.78, 0.72, 0.6], base: 0.13 } } },
     { name: 'POLO AMARILLO' },
     { name: 'CAMPEÓN', champ: true, parts: { shirt: { dye: [0.08, 0.08, 0.09], base: 0.56 }, collar: { dye: [0.08, 0.08, 0.09], base: 0.56 }, shorts: { dye: [0.86, 0.66, 0.2], base: 0.13 } } },
+    // (his running kit: the orange technical tee with his race bib, RECORDS ON across the back)
+    { name: 'RUNNER', outfit: 'run' },
   ],
   // (his navy polo of most of his photos; the black one with grey tipping of the others)
   aleix: [
@@ -21,6 +26,8 @@ export const COSTUMES = {
     { name: 'ORIGINAL' },
     { name: 'VERDE', parts: { shirt: { hue: 140, sat: 0.95, val: 0.9 }, shorts: { dye: [0.12, 0.16, 0.34], base: 0.0012 } } },
     { name: 'CAMPEÓN', champ: true, parts: { shirt: { dye: [0.86, 0.66, 0.2], base: 0.13 }, shorts: { dye: [0.06, 0.06, 0.07], base: 0.0012 } } },
+    // (the gym's tank top: DOMINADAS POWA across the chest)
+    { name: 'GIMNASIO', outfit: 'gym' },
   ],
   rafa: [
     { name: 'ORIGINAL' },
@@ -39,8 +46,10 @@ export const COSTUMES = {
   ],
   noemi: [
     { name: 'ORIGINAL' },
-    { name: 'PIJAMA AZUL', parts: { jacket: { dye: [0.58, 0.76, 0.94], base: 0.85 }, top: { dye: [0.16, 0.24, 0.5], base: 0.34 }, pants: { dye: [0.2, 0.3, 0.62], base: 0.0072 } } },
+    { name: 'AZUL', parts: { jacket: { dye: [0.58, 0.76, 0.94], base: 0.85 }, top: { dye: [0.16, 0.24, 0.5], base: 0.34 }, pants: { dye: [0.2, 0.3, 0.62], base: 0.0072 } } },
     { name: 'CAMPEÓN', champ: true, parts: { jacket: { dye: [0.86, 0.66, 0.2], base: 0.85 }, top: { dye: [0.08, 0.08, 0.09], base: 0.34 }, pants: { dye: [0.08, 0.08, 0.09], base: 0.0072 } } },
+    // (the alarm centre's polo she works in: CENTRAL DE ALARMAS on the chest, OPERADORA across the back)
+    { name: 'CENTRAL DE ALARMAS', outfit: 'cra' },
   ],
   // (his plates and his chrome head: blued black, or gold)
   orion: [

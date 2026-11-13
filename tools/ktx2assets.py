@@ -20,11 +20,21 @@ The images are flipped upside down before encoding (-y_flip): the game loads its
 compressed texture can't be flipped on upload. assets/ktx2.json lists every texture that has a KTX2 (the game asks
 for none that is not there); a texture whose KTX2 is missing or older than its picture is encoded again.
 
-usage: BASISU=<path to basisu> python3 tools/ktx2assets.py [fighters...]   (no arguments: all of them, and shared/)
+The stages' pictures too (assets/stage/*.webp, the ones js/stage/*.js load through js/charloader.js loadPicture):
+encoded from their JPEG / PNG sources, each by its name: _n relief, _orm / _r gloss and occlusion, _a.png the
+cut-out masks (linear, quality 200: their edges are alpha-tested), the crowd's atlas with its transparency, the rest
+colour. The stages drawn by code (canvas textures: the neon district, inside the PC, the gym, the signs) have no
+pictures to compress.
+
+The themed costumes' garments (assets/chars/<id>/<costume>/) are fighters' textures like the others.
+
+usage: BASISU=<path to basisu> python3 tools/ktx2assets.py [fighters... | id/costume | stage]
+       (no arguments: every fighter and costume, and the stages)
 Run it after buildchar.py and webpassets.py.
 """
 import glob
 import json
+import math
 import os
 import subprocess
 import sys
@@ -33,7 +43,7 @@ import tempfile
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BASISU = os.environ.get('BASISU', '/tmp/basis_universal/bin/basisu')
+BASISU = os.environ.get('BASISU', os.path.expanduser('~/basis_universal/bin/basisu'))
 MANIFEST = os.path.join(ROOT, 'assets', 'ktx2.json')
 
 COMMON = ['-ktx2', '-mipmap', '-y_flip']
@@ -43,6 +53,7 @@ MODES = {
     'normal': ['-q', '200', '-comp_level', '2', '-linear', '-normal_map'],
     'rough': ['-q', '128', '-comp_level', '2', '-linear'],
     'alpha': ['-q', '220', '-comp_level', '2'],
+    'mask': ['-q', '200', '-comp_level', '2', '-linear'],
 }
 SKIP = {'beard_d.png', 'eye_glow.png'}  # (data maps, not pictures)
 
@@ -78,13 +89,44 @@ def roles(fighters):
     return out
 
 
+def stage_roles():
+    """{ picture path: role } for the stages' pictures: what the game asks for (the .webp, or a .png kept as it is)"""
+    out = {}
+    d = os.path.join(ROOT, 'assets', 'stage')
+    for f in sorted(os.listdir(d)):
+        if not f.endswith(('.webp', '.png')) or (f.endswith('.png') and os.path.exists(os.path.join(d, f[:-4] + '.webp'))):
+            continue  # (a PNG with a WebP of its own: the game asks for the WebP)
+        b = f.rsplit('.', 1)[0]
+        # (_r is gloss only beside a relief map of the same material: fest_banner_r is the banner on the right)
+        gloss = b.endswith('_orm') or (b.endswith('_r') and os.path.exists(os.path.join(d, b[:-2] + '_n.webp')))
+        role = 'normal' if b.endswith('_n') else 'rough' if gloss else 'mask' if f.endswith('_a.png') \
+            else 'alpha' if b == 'crowd_atlas' else 'color'
+        out[f'assets/stage/{f}'] = role
+    return out
+
+
+def source(path):
+    """the best picture to encode a texture from: a stage's WebP from the JPEG / PNG it was made from"""
+    if path.startswith('assets/stage/') and path.endswith('.webp'):
+        for ext in ('.jpg', '.png'):
+            p = path[:-5] + ext
+            if os.path.exists(os.path.join(ROOT, p)):
+                return p
+    return path
+
+
 def encode(path, role, tmp):
-    src = os.path.join(ROOT, path)
-    dst = os.path.splitext(src)[0] + '.ktx2'
+    src = os.path.join(ROOT, source(path))
+    dst = os.path.splitext(os.path.join(ROOT, path))[0] + '.ktx2'
     if os.path.exists(dst) and os.path.getmtime(dst) >= os.path.getmtime(src):
         return dst, False
     im = Image.open(src)
     im = im.convert('RGBA' if role == 'alpha' else 'RGB')
+    # (a compressed texture's levels must be multiples of 4 texels, or 1 or 2: a picture of another size is resized to
+    # the nearest powers of two; its UVs don't change, only its resolution)
+    pot = lambda n: 1 << max(2, round(math.log2(n)))
+    if im.size != (pot(im.size[0]), pot(im.size[1])):
+        im = im.resize((pot(im.size[0]), pot(im.size[1])), Image.LANCZOS)
     png = os.path.join(tmp, 'in.png')
     im.save(png)
     r = subprocess.run([BASISU, *COMMON, *MODES[role], png, '-output_file', dst], capture_output=True, text=True)
@@ -96,9 +138,15 @@ def encode(path, role, tmp):
 def main():
     if not os.path.exists(BASISU):
         sys.exit(f'basisu not found ({BASISU}): build basis_universal and set BASISU')
-    all_f = sorted(d for d in os.listdir(os.path.join(ROOT, 'assets', 'chars')) if os.path.exists(os.path.join(ROOT, 'assets', 'chars', d, 'mesh.json')))
-    fighters = sys.argv[1:] or all_f
+    chars = os.path.join(ROOT, 'assets', 'chars')
+    all_f = sorted(d for d in os.listdir(chars) if os.path.exists(os.path.join(chars, d, 'mesh.json')))
+    # (and the themed costumes' own garments: <id>/<costume>)
+    all_f += sorted(f'{d}/{c}' for d in all_f for c in os.listdir(os.path.join(chars, d)) if os.path.exists(os.path.join(chars, d, c, 'mesh.json')))
+    args = sys.argv[1:]
+    fighters = [a for a in args if a != 'stage'] or ([] if args else all_f)
     table = roles(fighters)
+    if not args or 'stage' in args:
+        table.update(stage_roles())
     man = json.load(open(MANIFEST)) if os.path.exists(MANIFEST) else {}
     before = after = 0
     with tempfile.TemporaryDirectory() as tmp:

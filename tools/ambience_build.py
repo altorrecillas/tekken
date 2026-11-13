@@ -21,6 +21,7 @@ STAGES = {
     'terrace': (29.0, 3.0, 'highpass=f=90,lowpass=f=9000', -26.0),
     'neon': (40.0, 4.0, None, -27.0),
     'pc': (36.0, 4.0, None, -28.0),
+    'gym': (42.0, 4.0, None, -27.0),
 }
 
 
@@ -114,10 +115,59 @@ def synth_pc(secs):
     return air + blade + hum + whine + data + sweep
 
 
+def synth_gym(secs):
+    """a gym hall: the air conditioning's wash, the treadmills' motor whine and the runners' footfalls on the belts,
+    plates and dumbbells set down (metal clanks with their ring, rubber thuds), a barbell rattling back on the hooks,
+    and the bass of the gym's speakers through the wall"""
+    from scipy.signal import butter, sosfilt
+    rng = np.random.default_rng(6264)
+    n = int(secs * SR)
+    t = np.arange(n) / SR
+    bp = lambda x, lo, hi, o=2: sosfilt(butter(o, [lo, hi], 'band', fs=SR, output='sos'), x)
+    lp = lambda x, f, o=2: sosfilt(butter(o, f, 'low', fs=SR, output='sos'), x)
+    air = bp(rng.standard_normal(n), 150, 3000) * 0.32 + lp(rng.standard_normal(n), 120, 4) * 0.6
+    # two treadmills: a motor whine each, and the footfalls (about 2.7 and 2.9 a second), soft thumps on the belt
+    tread = np.zeros(n)
+    for f0, step, gain in ((410, 1 / 2.7, 0.012), (455, 1 / 2.9, 0.01)):
+        tread += gain * np.sin(2 * np.pi * f0 * t + 0.3 * np.sin(2 * np.pi * 0.4 * t))
+        for tb in np.arange(rng.uniform(0, step), secs, step):
+            p0 = int(tb * SR); L = int(0.07 * SR)
+            if p0 + L < n:
+                tt = np.arange(L) / SR
+                tread[p0:p0 + L] += 0.09 * np.sin(2 * np.pi * 85 * tt) * np.exp(-tt / 0.018) * rng.uniform(0.7, 1.0)
+    # metal set down: a clank with a few inharmonic partials ringing out; a rubber thud under it
+    clank = np.zeros(n)
+    tb = rng.uniform(0.8, 2.5)
+    while tb < secs - 1.5:
+        p0 = int(tb * SR); L = int(1.2 * SR); tt = np.arange(L) / SR
+        base = rng.uniform(380, 900)
+        ring = sum(a * np.sin(2 * np.pi * base * k * tt + rng.uniform(0, 6)) * np.exp(-tt / d) for k, a, d in ((1, 1, 0.35), (2.76, 0.55, 0.22), (5.4, 0.3, 0.12), (8.9, 0.15, 0.07)))
+        thud = np.sin(2 * np.pi * 70 * tt) * np.exp(-tt / 0.05) * 0.8
+        g = rng.uniform(0.05, 0.12) * (0.4 if rng.random() < 0.4 else 1)
+        clank[p0:p0 + L] += g * (ring * (1 if rng.random() < 0.7 else 0.3) + thud)
+        # (a barbell rattling: a quick run of small clanks)
+        if rng.random() < 0.25:
+            for k in range(4):
+                q0 = p0 + int((0.08 + k * 0.06) * SR)
+                if q0 + 2000 < n: clank[q0:q0 + 2000] += 0.03 * np.sin(2 * np.pi * base * 1.9 * np.arange(2000) / SR) * np.exp(-np.arange(2000) / 400)
+        tb += rng.uniform(1.6, 4.5)
+    # the speakers through the wall: a muffled four-on-the-floor at 128 bpm and a bass line
+    beat = 60 / 128
+    music = np.zeros(n)
+    for k, tb in enumerate(np.arange(0, secs, beat)):
+        p0 = int(tb * SR); L = int(0.25 * SR)
+        if p0 + L < n:
+            tt = np.arange(L) / SR
+            music[p0:p0 + L] += 0.16 * np.sin(2 * np.pi * (55 + 60 * np.exp(-tt / 0.02)) * tt) * np.exp(-tt / 0.09)
+    bassline = 0.035 * np.sin(2 * np.pi * np.where((t / (beat * 4)) % 1 < 0.5, 55, 41.2) * t) * (0.6 + 0.4 * np.sin(2 * np.pi * t / beat) ** 2)
+    music = lp(music + bassline, 220, 4)
+    return air + tread + bp(clank, 120, 9000) + music
+
+
 def main(stage, src):
     keep, xf, chain, level = STAGES[stage]
-    if stage in ('neon', 'pc'):
-        x = (synth_neon if stage == 'neon' else synth_pc)(keep + xf + 0.5)[int(0.5 * SR):]
+    if stage in ('neon', 'pc', 'gym'):
+        x = {'neon': synth_neon, 'pc': synth_pc, 'gym': synth_gym}[stage](keep + xf + 0.5)[int(0.5 * SR):]
     else:
         raw = subprocess.run(['ffmpeg', '-v', 'quiet', '-i', src, '-af', chain, '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'], capture_output=True, check=True).stdout
         x = np.frombuffer(raw, np.float32).astype(np.float64)
@@ -139,6 +189,6 @@ def main(stage, src):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2 or sys.argv[1] not in STAGES or (len(sys.argv) < 3 and sys.argv[1] not in ('neon', 'pc')):
+    if len(sys.argv) < 2 or sys.argv[1] not in STAGES or (len(sys.argv) < 3 and sys.argv[1] not in ('neon', 'pc', 'gym')):
         sys.exit(__doc__)
     main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)

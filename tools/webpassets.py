@@ -6,7 +6,7 @@ same look). The JPEGs stay as the pipeline's sources; this writes a .webp next t
   - stages (assets/stage/*.jpg): all converted; the stages' loaders ask for the .webp (js/stage/*.js `tex`).
   Normal / roughness / ORM maps at quality 90, colour maps at 86. A few maps are also made smaller where their size
   bought nothing (SHRINK: Orión's suit weave was a 3 MB 2048 px normal map of 4 px cells, noise to JPEG and WebP alike).
-usage: python3 tools/webpassets.py [ids or 'stage' ...]   (nothing: every fighter and the stages)   needs Pillow"""
+usage: python3 tools/webpassets.py [ids, id/costume or 'stage' ...]   (nothing: every fighter, costume and the stages)   needs Pillow"""
 import glob, json, os, sys
 
 from PIL import Image
@@ -74,7 +74,9 @@ def stages():
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    ids = [a for a in args if a != 'stage'] or ([] if args else [os.path.basename(p.rstrip('/')) for p in sorted(glob.glob(os.path.join(GAME, 'assets/chars/*/')))])
+    # (and the themed costumes' garments: assets/chars/<id>/<costume>/, named '<id>/<costume>')
+    ids = [a for a in args if a != 'stage'] or ([] if args else [os.path.basename(p.rstrip('/')) for p in sorted(glob.glob(os.path.join(GAME, 'assets/chars/*/')))]
+                                               + [os.path.relpath(os.path.dirname(p), os.path.join(GAME, 'assets/chars')) for p in sorted(glob.glob(os.path.join(GAME, 'assets/chars/*/*/mesh.json')))])
     for i in ids:
         fighter(os.path.join(GAME, 'assets/chars', i))
     if not args or 'stage' in args:

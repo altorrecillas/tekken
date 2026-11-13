@@ -534,6 +534,9 @@ def shoe_tex(shoe, outdir):
 
 def build(pid, quick=False):
     P = PEOPLE[pid]
+    # (a themed costume's garments: OUTFIT=<outfits.py name>, built into a scratch GAME_DIR; tools/pipeline/costumepart.py)
+    if os.environ.get('OUTFIT'):
+        P = {**P, 'outfit': os.environ['OUTFIT'], **({'armhole': float(os.environ['ARMHOLE'])} if os.environ.get('ARMHOLE') else {})}
     print('==', pid)
     outdir = os.path.join(GAME, 'assets/chars', pid)
     os.makedirs(outdir, exist_ok=True)

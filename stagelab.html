@@ -15,7 +15,7 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const cam = new THREE.PerspectiveCamera(34, W / H, 0.05, 900);
 const name = q.get('stage') || 'street';
-const MODS = { street: ['./js/stage/street.js', 'StreetStage'], terrace: ['./js/stage/terrace.js', 'TerraceStage'], porche: ['./js/stage/porche.js', 'PorcheStage'], festival: ['./js/stage/festival.js', 'FestivalStage'] };
+const MODS = { street: ['./js/stage/street.js', 'StreetStage'], terrace: ['./js/stage/terrace.js', 'TerraceStage'], porche: ['./js/stage/porche.js', 'PorcheStage'], festival: ['./js/stage/festival.js', 'FestivalStage'], gym: ['./js/stage/gym.js', 'GymStage'] };
 const [path, cls] = MODS[name] || MODS.street;
 const Stage = (await import(path))[cls];
 const stage = new Stage(renderer, scene, q.get('q') || 'high');

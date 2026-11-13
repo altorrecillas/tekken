@@ -48,6 +48,17 @@ function bindCompressed(t, c) {
   t.needsUpdate = true;
 }
 
+// a stage's picture (js/stage/*.js tex): its KTX2 when assets/ktx2.json has one (tools/ktx2assets.py stage), else
+// the picture; done() when either has arrived (or failed). Wrapping, repeat and filtering stay the caller's
+export function loadPicture(url, done) {
+  const kurl = ktx2 && ktxMap[normPath(url)];
+  if (!kurl) return texLoader.load(url, done, undefined, done);
+  const t = new THREE.Texture();
+  const picture = () => new THREE.ImageLoader().load(url, (img) => { t.image = img; t.needsUpdate = true; done(); }, undefined, done);
+  ktx2.load(kurl, (c) => { bindCompressed(t, c); done(); }, undefined, picture);
+  return t;
+}
+
 function loadTex(url, srgb = true) {
   const key = url + (srgb ? '|s' : '|l');
   if (!texCache.has(key)) {
@@ -99,6 +110,28 @@ export async function loadCharacterData(id) {
   const base = `assets/chars/${id}/`;
   const [meta, bin] = await Promise.all([loadCharacterMeta(id), fetchMesh(base + 'mesh.bin')]);
   return { id, base, meta, bin };
+}
+// A themed costume (js/fight/costumes.js outfit): a fighter's data with the costume's own garments put in
+// (assets/chars/<id>/<outfit>/, tools/pipeline/costumepart.py): its garment parts (their vertices and textures from
+// its folder) in place of the fighter's of the same name, the ones it takes off left out (hide), new ones after the
+// first it replaced, and the body's triangle list (what its garments hide) over the fighter's own body vertices.
+export async function loadOutfitData(data, outfit) {
+  const base = `${data.base}${outfit}/`;
+  const [om, obin] = await Promise.all([fetchOk(base + 'mesh.json', 'json'), fetchMesh(base + 'mesh.bin')]);
+  const own = new Map(om.parts.filter((p) => !p.bodyIndex).map((p) => [p.name, { ...p, _bin: obin, _base: base }]));
+  const bodyIx = om.parts.find((p) => p.bodyIndex);
+  const fresh = [...own.values()].filter((p) => !data.meta.parts.some((q) => q.name === p.name));
+  const parts = [];
+  for (const p of data.meta.parts) {
+    if (om.hide?.includes(p.name)) continue;
+    if (own.has(p.name)) {
+      parts.push(own.get(p.name));
+      if (fresh.length) parts.push(...fresh.splice(0));
+    } else if (p.name === 'body' && bodyIx) parts.push({ ...p, index: bodyIx.index, _ibin: obin });
+    else parts.push(p);
+  }
+  parts.push(...fresh);
+  return { ...data, meta: { ...data.meta, parts }, outfit };
 }
 
 // mesh attributes, either format (tools/pipeline/meshfmt.py): 1, raw typed arrays [offset, count]; 2, quantized
@@ -186,23 +219,25 @@ export function buildCharacter(data, makeMaterial) {
   const meshes = {};
   // parts whose vertices are the same bytes (the head and the body) share one buffer each, on the GPU too
   const shared = new Map();
-  const vattr = (d, name, k) => {
-    const key = Array.isArray(d) || d.c ? null : name + JSON.stringify(d);
+  // (a themed costume's parts read their own file: loadOutfitData _bin, _ibin for the body's triangles, _base)
+  const vattr = (d, name, k, b = bin) => {
+    const key = Array.isArray(d) || d.c ? null : (b === bin ? '' : 'o:') + name + JSON.stringify(d);
     if (key && shared.has(key)) return shared.get(key);
-    const a = new THREE.BufferAttribute(attr(bin, d, name), k);
+    const a = new THREE.BufferAttribute(attr(b, d, name), k);
     if (key) shared.set(key, a);
     return a;
   };
   for (const p of meta.parts) {
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', vattr(p.position, 'position', 3));
-    g.setAttribute('normal', vattr(p.normal, 'normal', 3));
-    g.setAttribute('uv', vattr(p.uv, 'uv', 2));
-    g.setAttribute('skinIndex', vattr(p.skinIndex, 'skinIndex', 4));
-    g.setAttribute('skinWeight', vattr(p.skinWeight, 'skinWeight', 4));
-    g.setIndex(new THREE.BufferAttribute(attr(bin, p.index, 'index'), 1));
-    if (p.color) g.setAttribute('color', new THREE.BufferAttribute(attr(bin, p.color, 'color'), 3));
-    if (p.tangent) g.setAttribute('tangent', new THREE.BufferAttribute(attr(bin, p.tangent, 'tangent'), 4));
+    const pb = p._bin || bin;
+    g.setAttribute('position', vattr(p.position, 'position', 3, pb));
+    g.setAttribute('normal', vattr(p.normal, 'normal', 3, pb));
+    g.setAttribute('uv', vattr(p.uv, 'uv', 2, pb));
+    g.setAttribute('skinIndex', vattr(p.skinIndex, 'skinIndex', 4, pb));
+    g.setAttribute('skinWeight', vattr(p.skinWeight, 'skinWeight', 4, pb));
+    g.setIndex(new THREE.BufferAttribute(attr(p._ibin || pb, p.index, 'index'), 1));
+    if (p.color) g.setAttribute('color', new THREE.BufferAttribute(attr(pb, p.color, 'color'), 3));
+    if (p.tangent) g.setAttribute('tangent', new THREE.BufferAttribute(attr(pb, p.tangent, 'tangent'), 4));
     addSkinCor(g, meta.bones); // the hands turn about their joints (js/anim/corskin.js)
     g.computeBoundingSphere();
     const lodCount = p.mat.lod ? g.index.count : 0;
@@ -214,7 +249,7 @@ export function buildCharacter(data, makeMaterial) {
       // fur shells: the same skinned geometry drawn once per layer, inner layers first
       const n = p.mat.shells || 6;
       for (let layer = 0; layer < n; layer++) {
-        const sm = new THREE.SkinnedMesh(g, makeMaterial({ ...p.mat, layer }, base, loadTex, p.name));
+        const sm = new THREE.SkinnedMesh(g, makeMaterial({ ...p.mat, layer }, p._base || base, loadTex, p.name));
         sm.name = `${p.name}_${layer}`; sm.renderOrder = 2 + layer;
         sm.userData.shell = layer; sm.userData.shells = n;
         sm.castShadow = false; sm.receiveShadow = true; sm.frustumCulled = false; sm.userData.noAO = true;
@@ -224,7 +259,7 @@ export function buildCharacter(data, makeMaterial) {
       }
       continue;
     }
-    const mat = makeMaterial(p.mat, base, loadTex, p.name);
+    const mat = makeMaterial(p.mat, p._base || base, loadTex, p.name);
     const m = new THREE.SkinnedMesh(g, mat);
     if (lodCount) m.userData.lodCount = lodCount;
     m.name = p.name;

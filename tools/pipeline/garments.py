@@ -209,6 +209,12 @@ def snap_boundary(ctx, V, bverts, snap):
                 f = np.clip((p[1] - vb) / (top - vb), 0.0, 1.25)
                 tx = (1.0 if p[0] >= 0 else -1.0) * hw * f
                 cands.append((np.array([tx - p[0], 0.0, 0.0]), 0.32))
+        if snap.get('hole') is not None and ctx.armness[v] < 0.5 and ctx.neckness[v] < 0.3 and abs(p[0]) > 0.75:
+            # a tank top's armhole: onto the U curve (outfits.tank_cover), along its normal in the (|x|, y) plane
+            curve = snap['hole']
+            d2 = (curve[:, 0] - abs(p[0])) ** 2 + (curve[:, 1] - p[1]) ** 2
+            k = int(np.argmin(d2))
+            cands.append((np.array([(curve[k, 0] - abs(p[0])) * (1.0 if p[0] >= 0 else -1.0), curve[k, 1] - p[1], 0.0]), 0.3))
         for key in ('y_low', 'y_high'):
             if snap.get(key) is not None and ctx.neckness[v] < 0.2:
                 cands.append((np.array([0.0, snap[key] - p[1], 0.0]), 0.35))
@@ -332,6 +338,11 @@ def make_shell(ctx, covered, offset, hem_depth=0.7, name='shell', smooth_iters=2
                 above = dy_ > -0.05
                 cone = z[js] - s_ * (dy_.clip(0) + dx_ * drape.get('side', 1.6)) - (~above) * 9.0
                 znew[i] = max(z[i], cone.max())
+            # (fade: over this height above y_bottom the cloth comes back to the body gradually instead of in a step)
+            fade = drape.get('fade', 0.0)
+            if fade > 0:
+                w_ = np.clip((P[sel, 1] - drape['y_bottom']) / fade, 0.0, 1.0)
+                znew = z + (znew - z) * (w_ * w_ * (3 - 2 * w_))
             P[sel, 2] = znew
     # ordered neckline loop (for collars)
     neck_loop = []

@@ -23,8 +23,10 @@ const MUSIC = {
   festival: [M('festival_a'), M('festival_b'), M('festival_c'), M('festival_d')],
   neon: [M('neon_a'), M('neon_b'), M('neon_c')],
   pc: [M('pc_a'), M('pc_b'), M('pc_c')],
+  // (the gym: the most driving of the others' tracks, as a gym's speakers would play)
+  gym: [M('street_c'), M('pc_b'), M('neon_b')],
 };
-const FINAL = { porche: M('porche_final'), terrace: M('terrace_final'), street: M('street_final'), festival: M('festival_final'), neon: M('neon_final'), pc: M('pc_final') };
+const FINAL = { porche: M('porche_final'), terrace: M('terrace_final'), street: M('street_final'), festival: M('festival_final'), neon: M('neon_final'), pc: M('pc_final'), gym: M('street_final') };
 // each track's tempo and first beat (s), measured by tools/music_build.py: the festival's lights and dancers keep time
 const BEATS = { menu: [122, 0.441], training: [101, 0.546], ending: [110, 0.499], porche_a: [95, 0.61], porche_b: [121.32, 0.203], porche_c: [120, 0.128], porche_final: [116, 0.476], terrace_a: [117, 0.464], terrace_b: [100, 0.418], terrace_c: [115, 0.464], terrace_final: [117.82, 0.476], street_a: [124, 0.337], street_b: [85, 0.308], street_c: [128, 0.238], street_final: [104.5, 0.255], festival_a: [94, 0.43], festival_b: [88, 0.284], festival_c: [117, 0.464], festival_d: [140, 0.819], festival_final: [106.98, 0.505], neon_a: [120, 0.459], neon_b: [124, 0.435], neon_c: [160, 0.145], neon_final: [155, 0.139], pc_a: [120, 0.453], pc_b: [128.38, 0.035], pc_c: [122, 0.447], pc_final: [140, 0.819] };
 
@@ -36,6 +38,7 @@ const AMBIENCE = {
   terrace: { file: 'assets/sfx/amb_terrace.mp3', gain: 0.3 },
   neon: { file: 'assets/sfx/amb_neon.mp3', gain: 0.34 },
   pc: { file: 'assets/sfx/amb_pc.mp3', gain: 0.3 },
+  gym: { file: 'assets/sfx/amb_gym.mp3', gain: 0.32 },
 };
 // each stage's acoustics (setSpace): reverb tail length (s), how bright it stays (1 = like the dry sound), how much
 // of a blow goes in, and the early reflections [ms, level] of what stands around
@@ -48,6 +51,8 @@ const SPACES = {
   neon: { tail: 1.5, bright: 0.8, send: 0.25, early: [[14, 0.45], [29, 0.35], [52, 0.25], [88, 0.18]] },
   // (inside a metal case: close hard walls all round, a short bright ring)
   pc: { tail: 0.85, bright: 0.95, send: 0.22, early: [[5, 0.5], [11, 0.42], [19, 0.32], [31, 0.22]] },
+  // (a gym hall: mirrors and block walls, a hard bright room with a medium tail)
+  gym: { tail: 1.05, bright: 0.85, send: 0.24, early: [[8, 0.45], [17, 0.35], [26, 0.28], [44, 0.2], [70, 0.12]] },
 };
 
 // fighters' shouts: recorded voices (assets/voice/fx, see voices.json) and a pitch per fighter

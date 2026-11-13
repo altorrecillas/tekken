@@ -1,21 +1,28 @@
 // "La Meta 10K": city avenue at the finish line of a popular 10K race, sunny morning.
 import * as THREE from 'three';
+import { loadPicture } from '../charloader.js';
 import { FIGHTER_KEY } from '../materials.js';
 import { createFightSun, aimFightSun } from '../engine/sunshadow.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const TEX = 'assets/stage/';
-const loader = new THREE.TextureLoader();
 const pending = [];
+// (one texture per picture and settings: a material's gloss and occlusion are the same file, and the same material
+// made twice loaded it twice, one more copy each time on the graphics card)
+const texCache = new Map();
 function tex(name, { repeat = [1, 1], srgb = true } = {}) {
+  const key = `${name}|${srgb}|${repeat}`;
+  if (texCache.has(key)) return texCache.get(key);
   let done;
   pending.push(new Promise(r => { done = r; setTimeout(r, 20000); }));
   // (the JPEGs are the sources; the game downloads their WebP, about 40 % smaller: tools/webpassets.py)
-  const t = loader.load(TEX + name.replace(/\.jpg$/, '.webp'), () => done(), undefined, () => done());
+  // (the GPU-compressed KTX2 where there is one: js/charloader.js loadPicture, tools/ktx2assets.py stage)
+  const t = loadPicture(TEX + name.replace(/\.jpg$/, '.webp'), () => done());
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(...repeat);
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.anisotropy = 8;
+  texCache.set(key, t);
   return t;
 }
 function pbr(name, repeat, extra = {}) {
@@ -68,10 +75,17 @@ const DaySky = {
 };
 
 // ------------------------------------------------------------------ procedural textures
+// The facades: one per colour scheme, storeys and shop front, shared by every building that has the same (each with
+// its own repeat: a clone of the texture shares its picture on the graphics card). Every building had its own, a
+// colour and a gloss map of 512 x 1024: 120 of them, ~340 MB of the card's memory, the stage's whole budget on a phone.
+// (each one is still drawn: the drawing draws from the seeded random numbers, and the street's layout after it must
+// stay the one it was)
+const facadeCache = new Map();
 function facadeTex(base, trim, floors, shops) {
-  // roughness companion: glass (window panes, shop fronts) is glossy and picks up the sky, render is matte
-  const rc = document.createElement('canvas'); rc.width = 512; rc.height = 1024;
-  const rg = rc.getContext('2d'); rg.fillStyle = '#e8e8e8'; rg.fillRect(0, 0, 512, 1024);
+  // roughness companion: glass (window panes, shop fronts) is glossy and picks up the sky, render is matte (at half
+  // the colour's size: it has no fine detail)
+  const rc = document.createElement('canvas'); rc.width = 256; rc.height = 512;
+  const rg = rc.getContext('2d'); rg.scale(0.5, 0.5); rg.fillStyle = '#e8e8e8'; rg.fillRect(0, 0, 512, 1024);
   const t = canvasTex(512, 1024, (g, W, H) => {
     g.fillStyle = base; g.fillRect(0, 0, W, H);
     for (let i = 0; i < 5000; i++) { g.fillStyle = `rgba(0,0,0,${rand() * 0.035})`; g.fillRect(rand() * W, rand() * H, 3, 3); }
@@ -108,7 +122,15 @@ function facadeTex(base, trim, floors, shops) {
     }
   });
   const r = new THREE.CanvasTexture(rc); r.colorSpace = THREE.NoColorSpace; r.anisotropy = 8;
+  const key = `${base}|${trim}|${floors}|${shops}`, hit = facadeCache.get(key);
+  if (hit) {
+    // (cloned without its userData: Texture.copy serializes it, and the gloss map in it would go through a data URL)
+    const rough = hit.userData.rough; hit.userData = {};
+    const c = hit.clone(); hit.userData = { rough }; c.userData = { rough: rough.clone() };
+    return c;
+  }
   t.userData.rough = r;
+  facadeCache.set(key, t);
   return t;
 }
 // facade material: shares the colour texture's repeat with its roughness companion
@@ -149,7 +171,8 @@ function personTex() {
 // ------------------------------------------------------------------ stage
 export class StreetStage {
   constructor(renderer, scene, quality = 'high') {
-    this.renderer = renderer; this.scene = scene; seed = 0x10c0ffee;
+    texCache.clear();
+    this.renderer = renderer; this.scene = scene; seed = 0x10c0ffee; facadeCache.clear();
     this.shadowSize = { low: 1024, medium: 1024, high: 2048, ultra: 2048 }[quality] || 2048;
     this.group = new THREE.Group(); this.group.name = 'stage-street';
     scene.add(this.group);

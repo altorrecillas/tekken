@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { loadCharacterData, buildCharacter, texturesReady } from './js/charloader.js';
+import { loadCharacterData, loadOutfitData, buildCharacter, texturesReady } from './js/charloader.js';
 import { makeFighterMaterial, applyCostume } from './js/materials.js';
 import { costumesOf } from './js/fight/costumes.js';
 import { Accessories } from './js/fx/accessories.js';
@@ -51,9 +51,11 @@ const ids = (q.get('ids') || id).split(',');
 let ch, data;
 for (let i = 0; i < ids.length; i++) {
   data = await loadCharacterData(ids[i]);
+  // (dressed in his main costume, or ?cos=N: the portraits show what he fights in; a themed costume's own garments)
+  const cs = costumesOf(ids[i])[+(q.get('cos') || 0)];
+  if (cs?.outfit) data = await loadOutfitData(data, cs.outfit).catch(() => data);
   ch = buildCharacter(data, makeFighterMaterial);
-  // (dressed in his main costume, or ?cos=N: the portraits show what he fights in)
-  { const cs = costumesOf(id)[+(q.get('cos') || 0)]; if (cs?.parts) applyCostume(ch, cs); }
+  if (cs?.parts) applyCostume(ch, cs);
   if (!q.get('noacc')) new Accessories().attach(ch, STYLES[ids[i]], data.meta);
   ch.group.position.x = (i - (ids.length - 1) / 2) * 0.95;
   if (q.get('rot')) ch.group.rotation.y = +q.get('rot');
