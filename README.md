@@ -371,6 +371,10 @@ Cómo está hecho:
   - La desintegración final es una rejilla de vóxeles en el mundo: las celdas desaparecen de arriba abajo con el borde encendido y saltan cubitos de colores.
 - **La espada** (`js/fx/aloesword.js`) está hecha por código. Dónde va en el puño lo calcula `tools/swordgrip.mjs` para que los dedos rodeen el mango sin atravesarlo; el recorrido del tajo se midió con `tools/fatalprobe.mjs` (altura y distancia de la hoja a la columna del rival en cada fotograma).
 - Las voces se generan con `tools/quotes_tts.py --fatal` (la frase de cada uno) y `--announcer` (el «¡Puñetality!»).
+- **Sin tirones (0.90):** el torbellino de Alejandro se paraba en seco un instante a los dos segundos, al levantarse el viento. Cada efecto nuevo que aparece por primera vez obliga a la tarjeta gráfica a preparar su shader en ese momento, y el viento, sus estelas y los restos que arrastra eran 16 a la vez.
+  - Ahora, durante el fundido a negro con que empieza cada Puñetality, se dibuja todo lo que el remate va a enseñar después: lo que aún está oculto, lo que queda fuera del plano y todo lo que llevan encima los dos luchadores (relojes, gafas). Así los shaders quedan listos antes de verse nada.
+  - También se preparan por adelantado los trozos de hueso y sesos del primer corte (Camilo, Noemí, Aleix) y los anillos del saque de Dani, que se creaban justo en el golpe.
+  - `tools/fatalprof.mjs <luchador>` lo mide fotograma a fotograma: los shaders que se crean después del negro (cada uno, un tirón) y de qué objeto son. `EXTRA='&fatalwarm=0'` lo mide sin la preparación. Antes había 16 en el de Alejandro, 2 en el de Camilo, 5 en el de Dani y 3 en el de Aleix; ahora no se crea ninguno a la vista en ninguno de los ocho (los de Orión se preparan en el último fotograma del negro).
 
 ### Aleix
 

@@ -163,6 +163,13 @@ export class Blood {
     this.chunkGeos = cg; this.chunks = [];
     this.group = new THREE.Group(); this.group.name = 'blood';
     this.group.add(this.dropMesh, this.mistMesh, ...this.decals.map((d) => d.im));
+    // (one hidden piece of each kind, under the floor: a PUÑETALITY's warm-up draws them behind its black start, so
+    // the first pieces torn off at the cut don't stop the move while their shaders are built: js/fight/fatality.js)
+    for (const mat of Object.values(this.chunkMats)) {
+      const w = new THREE.Mesh(cg[0], mat);
+      w.visible = false; w.castShadow = true; w.userData.noGTAO = true; w.position.set(0, -5, 0); w.scale.setScalar(0.01);
+      this.group.add(w);
+    }
     scene.add(this.group);
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._s = new THREE.Vector3(); this._p = new THREE.Vector3();
     // the floor's height under a point (x, z), when it is not flat (a pit opened in it): drops and chunks land there and

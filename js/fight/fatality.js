@@ -469,6 +469,9 @@ const DANI = {
     d.gib.begin();
     d.comet = makeComet(); d.g.scene.add(d.comet.mesh);
     d.rings = [];
+    // (a hidden ring, for the warm-up behind the black start: the real ones are made at the contact)
+    // (life 0: the rings' own drawing keeps it hidden; black and additive, it adds nothing even while warmed)
+    this.ring(d, new THREE.Vector3(0, -5, 0), new THREE.Vector3(0, 1, 0), 0.01, 0, 0x000000); d.rings[0].m.visible = false;
   },
   dispose(d) {
     d.rk?.group.parent?.remove(d.rk.group); for (const m of d.rk?.mats || []) m.dispose();
@@ -1712,6 +1715,8 @@ const ALEIX = {
 const MOVES = { noemi: NOEMI, camilo: CAMILO, dani: DANI, alejandro: ALEJANDRO, rafa: RAFA, zapponi: ZAPPONI, orion: ORION, aleix: ALEIX };
 export function fatalOf(id) { return MOVES[id] || null; }
 
+// (?fatalwarm=0: without the warm-up, to measure what it saves: tools/fatalprof.mjs)
+const NO_WARM = typeof location !== 'undefined' && /[?&]fatalwarm=0\b/.test(location.search);
 export class FatalityDirector {
   constructor(game) {
     this.g = game; this.m = null;
@@ -1725,8 +1730,8 @@ export class FatalityDirector {
     // a machine bleeds oil (js/fx/oil.js): what the move adds to the scene and the loser's own materials, remapped
     this.oil = !!L.ch.meta?.robot && !W.style.fatal?.ash; // (not Orión's own beams on a robot: no blood there, only fire)
     this.lens.palette = this.oil ? LENS_OIL : null;
-    const before = this.oil ? new Set() : null;
-    if (before) g.scene.traverse((o) => before.add(o));
+    const before = new Set();
+    g.scene.traverse((o) => before.add(o));
     this.t = -1; this.fired = new Set(); this.shotK = -1;
     this.torsoDown = false; this.legsDown = false; this.headDown = false; this.headC = null;
     this.blood = new Blood(g.scene);
@@ -1741,6 +1746,10 @@ export class FatalityDirector {
       mesh.material = spatterMaterial(mt, this.spat, this.oil);
     }
     this.D?.setup(this);
+    // what the move has put in the scene (warmed up behind the black start: draw)
+    this.made = [];
+    g.scene.traverse((o) => { if (!before.has(o) && o.parent && before.has(o.parent)) this.made.push(o); });
+    this.warmShown = null;
     if (this.oil) { this.oilBefore = before; this.oilNow(); }
     // the sound: the music steps away, a low hum and a heartbeat build up
     g.audio.hush?.();
@@ -1755,6 +1764,7 @@ export class FatalityDirector {
     this.D?.dispose(this);
     if (this.L) this.L.drawnBy = null;
     this.blood?.dispose();
+    this.made = null; this.warmShown = null;
     for (const [mesh, mt] of this.spatMeshes || []) { mesh.material.dispose(); mesh.material = mt; }
     g.audio.fatal?.('droneOff', null, { fast: true });
     this.lens.clear();
@@ -1848,7 +1858,17 @@ export class FatalityDirector {
     const g = this.g, m = this.m, t = m.pt + alpha, D = this.D, F = this.F;
     // black for a moment as it starts, then the scene fades in
     g.effects.fade = t < 12 ? 1 : Math.max(0, 1 - (t - 12) / 12);
+    if (this.warmShown) { for (const [o, vis, cull] of this.warmShown) { o.visible = vis; o.frustumCulled = cull; } this.warmShown = null; }
     D?.draw(this, t, alpha, dt);
+    // behind the black: everything the move will show later (hidden until then, or out of the shot) drawn too, for
+    // these frames only, so that the graphics card builds its shaders now and not the moment it appears (Alejandro's
+    // whirlwind and afterimages: the move stopped dead for a moment two seconds in, as the wind rose; the first bits
+    // of bone and brain at a cut; the loser's watch and glasses, never in a shot until the move framed them;
+    // tools/fatalprof.mjs counts the shaders built after the black). The fighters too: their accessories and props
+    if (t < 10 && this.made && !NO_WARM) {
+      this.warmShown = [];
+      for (const r of [...this.made, this.W.ch.group, this.L.ch.group]) r.traverse((o) => { if (!o.visible || o.frustumCulled) { this.warmShown.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; } });
+    }
     this.blood.render(alpha, g.camera, m.timeRate ? m.timeRate() : 1);
     this.lens.update(0);
     if (!D) return;
